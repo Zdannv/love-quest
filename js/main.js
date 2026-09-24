@@ -699,7 +699,8 @@ const ICON = {
   get pasangan() { return getChars().pasangan.emoji; },
   get pengirim() { return getChars().pengirim.emoji; },
 };
-const streakSlots = [$('#streak-home'), $('#streak-map')];
+// Halaman depan demo nggak pakai contoh streak (udah ada di peta & contoh versi jadi)
+const streakSlots = [CONFIG.demo ? null : $('#streak-home'), $('#streak-map')].filter(Boolean);
 let streakData = null;
 let streakError = false;
 
@@ -744,7 +745,7 @@ function streakCard() {
     </div>
     ${pushRow()}
     ${CONFIG.demo || CONFIG.showcase
-      ? '<p class="push-note">✨ Ini contoh streak. Di versi kalian, streak nyambung ke HP kalian berdua + ada notif pengingat jam 7 malam.</p>'
+      ? '<p class="push-note">✨ Ini contoh streak. Di versi kalian, streak nyambung ke HP kalian berdua + ada notifikasi pengingat.</p>'
       : `<button class="link-btn" data-who-reset>bukan ${esc(NAME[me])}? ganti</button>`}
   </div>`;
 }
