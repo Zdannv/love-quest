@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Love Quest · Owner</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#ffd6e7">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin">
+  <header class="admin-top">
+    <div class="brand">💖 Love Quest <small>OWNER</small></div>
+    <button class="link-btn" id="btn-logout" hidden>keluar</button>
+  </header>
+
+  <main class="admin-main">
+    <p class="admin-status" id="status" hidden></p>
+
+    <section class="panel" id="view-login" hidden>
+      <h1>Masuk sebagai owner</h1>
+      <p class="muted">Pakai akun CMS yang sudah dijadikan admin di database.</p>
+      <form id="form-login" class="form">
+        <label>Email<input type="email" id="in-email" required autocomplete="email"></label>
+        <label>Password<input type="password" id="in-pass" required autocomplete="current-password"></label>
+        <button class="btn" type="submit">Masuk</button>
+      </form>
+    </section>
+
+    <div id="view-list" hidden>
+      <section class="panel owner-summary" id="summary"></section>
+      <section class="panel">
+        <div class="row owner-filters">
+          <input id="search" placeholder="Cari email, nama, atau kode…" autocomplete="off">
+          <select id="filter">
+            <option value="all">Semua</option>
+            <option value="active">Aktif</option>
+            <option value="soon">Habis ≤ 3 hari</option>
+            <option value="expired">Berhenti</option>
+          </select>
+        </div>
+      </section>
+      <div id="couple-list" class="couple-list"></div>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/js/owner.js"></script>
+</body>
+</html>

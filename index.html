@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Love Quest 💖 Demo</title>
+  <meta name="description" content="Game lucu penuh cinta yang bisa kamu custom buat pasanganmu. Coba demonya!">
+  <meta name="theme-color" content="#ffd6e7">
+  <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Love Quest">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='88'>💖</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="bg-hearts" aria-hidden="true"></div>
+
+  <main id="app">
+    <!-- HOME -->
+    <section id="screen-home" class="screen active">
+      <div class="home-wrap">
+        <div class="mascots" aria-hidden="true"><span>🦉</span><span>💖</span><span>🐱</span></div>
+        <h1 class="title"><span class="nm">Ayang</span>'s<br><span class="title-2">Love Quest</span></h1>
+        <div class="try-card" data-demo-only>
+          <p class="try-title">✨ Coba versi kalian</p>
+          <div class="try-row">
+            <label>Nama pasanganmu<input id="in-pasangan" maxlength="16" placeholder="contoh: Nadia" autocomplete="off"></label>
+            <label>Nama kamu<input id="in-pengirim" maxlength="16" placeholder="contoh: Raka" autocomplete="off"></label>
+          </div>
+          <div class="look-pick">
+            <div class="look-label">🎨 Tema & karakter <small>paket Custom</small></div>
+            <div class="theme-chips" id="theme-chips"></div>
+            <div class="try-row">
+              <label>Karakter pasanganmu<select id="in-char1"></select></label>
+              <label>Karakter kamu<select id="in-char2"></select></label>
+            </div>
+          </div>
+          <label class="foto-pick">📷 Pakai foto kalian (opsional)<input type="file" accept="image/*" id="in-foto"></label>
+          <div class="foto-preview" id="foto-preview" hidden>
+            <img alt="Foto kalian">
+            <button class="link-btn" id="foto-hapus" type="button">hapus foto</button>
+          </div>
+          <div class="face-row">
+            <label class="face-pick" data-face="pasangan">
+              <span class="face-thumb"></span>
+              <span>Muka pasanganmu<br><small>jadi yang terbang 🦉</small></span>
+              <input type="file" accept="image/*">
+            </label>
+            <label class="face-pick" data-face="pengirim">
+              <span class="face-thumb"></span>
+              <span>Muka kamu<br><small>jadi yang lari & dilempar hati 😆</small></span>
+              <input type="file" accept="image/*">
+            </label>
+          </div>
+          <small class="try-note">Nama & foto cuma disimpan di HP ini, nggak diupload ke mana-mana. Pakai foto close-up muka biar pas.</small>
+        </div>
+        <div class="streak-slot" id="streak-home" hidden></div>
+        <button class="btn big" id="btn-play">Main yuk! ▶</button>
+        <button class="btn ghost" data-paket data-demo-only>💌 Bikin versi buat pasanganmu</button>
+        <button class="btn ghost install-btn" id="btn-install" hidden>📲 Pasang ke home screen</button>
+        <button class="link-btn" id="btn-reset">reset progress</button>
+      </div>
+    </section>
+
+    <!-- PETA LEVEL -->
+    <section id="screen-map" class="screen">
+      <header class="topbar">
+        <button class="icon-btn" data-go="home" aria-label="Beranda">🏠</button>
+        <div class="star-total">⭐ <span id="star-count">0</span></div>
+        <div class="topbar-right">
+          <button class="icon-btn" id="btn-music" aria-label="Lagu">🎵</button>
+          <button class="icon-btn" id="btn-sound" aria-label="Efek suara">🔊</button>
+        </div>
+      </header>
+      <div class="streak-slot" id="streak-map" hidden></div>
+      <div id="worlds"></div>
+    </section>
+
+    <!-- GAME -->
+    <section id="screen-game" class="screen">
+      <header class="hud">
+        <button class="icon-btn small" id="btn-quit" aria-label="Keluar">✖</button>
+        <div class="hud-main">
+          <div class="hud-title" id="hud-title"></div>
+          <div class="hud-stats" id="hud-stats"></div>
+        </div>
+      </header>
+      <div class="guide">
+        <span class="guide-owl" id="guide-owl" aria-hidden="true">🦉</span>
+        <p class="bubble" id="hud-hint" aria-live="polite"></p>
+      </div>
+      <div id="stage"></div>
+    </section>
+
+    <!-- SURAT -->
+    <section id="screen-letter" class="screen">
+      <article class="letter">
+        <div class="letter-seal">💌</div>
+        <h2>To <span class="nm">Ayang</span></h2>
+        <div class="polaroids">
+          <figure class="polaroid single">
+            <img id="letter-photo" src="/img/contoh-foto.jpg" alt="Foto kalian">
+            <figcaption id="letter-caption"></figcaption>
+          </figure>
+        </div>
+        <div class="letter-body" id="letter-body"></div>
+        <p class="letter-sign">— <span id="letter-from"></span> 💖</p>
+      </article>
+      <div class="letter-actions">
+        <button class="btn ghost" data-go="map">Kembali ke peta</button>
+        <button class="btn" data-paket data-demo-only>💌 Bikin versi kalian</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card"></div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+
+  <script type="module" src="/js/boot.js"></script>
+</body>
+</html>

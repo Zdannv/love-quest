@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Love Quest · CMS</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#ffd6e7">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin">
+  <header class="admin-top">
+    <div class="brand">💖 Love Quest <small>CMS</small></div>
+    <button class="link-btn" id="btn-logout" hidden>keluar</button>
+  </header>
+
+  <main class="admin-main">
+    <p class="admin-status" id="status" hidden></p>
+
+    <!-- LOGIN -->
+    <section class="panel" id="view-login" hidden>
+      <h1>Masuk ke CMS</h1>
+      <p class="muted">Kelola isi game buat pasanganmu: nama, pesan, surat, foto, dan lagu.</p>
+      <form id="form-login" class="form">
+        <label>Email<input type="email" id="in-email" required autocomplete="email"></label>
+        <label>Password<input type="password" id="in-pass" required minlength="6" autocomplete="current-password"></label>
+        <div class="row">
+          <button class="btn" type="submit" data-mode="login">Masuk</button>
+          <button class="btn ghost" type="submit" data-mode="signup">Daftar baru</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- BELUM PUNYA GAME -->
+    <section class="panel" id="view-create" hidden>
+      <h1>Bikin game pertamamu 💌</h1>
+      <p class="muted">Isinya langsung terisi contoh, nanti tinggal kamu ganti.</p>
+      <button class="btn big" id="btn-create">Bikin game</button>
+    </section>
+
+    <!-- EDITOR -->
+    <div id="view-editor" hidden>
+      <section class="panel sub-panel" id="sub-panel" hidden></section>
+
+      <section class="panel link-panel">
+        <div>
+          <div class="muted small">Link game kalian</div>
+          <a id="game-link" target="_blank" rel="noopener"></a>
+        </div>
+        <div class="row">
+          <button class="btn ghost small-btn" id="btn-copy">Salin link</button>
+          <a class="btn small-btn" id="btn-open" target="_blank" rel="noopener">Buka game ▶</a>
+        </div>
+      </section>
+
+      <p class="tip">💡 Tulis <code>{pasangan}</code> atau <code>{pengirim}</code> di teks mana pun, nanti otomatis jadi nama kalian. <code>{karakter}</code> & <code>{karakter2}</code> jadi emoji karakter kalian.</p>
+
+      <details class="panel" open>
+        <summary>💑 Nama</summary>
+        <div class="grid2">
+          <label>Nama pasangan (yang main)<input data-path="names.pasangan" maxlength="20" placeholder="contoh: Nadia"></label>
+          <label>Nama kamu (yang ngasih)<input data-path="names.pengirim" maxlength="20" placeholder="contoh: Raka"></label>
+        </div>
+      </details>
+
+      <details class="panel">
+        <summary>🎵 Lagu latar</summary>
+        <div id="music-list" class="music-list"></div>
+      </details>
+
+      <details class="panel">
+        <summary>🎨 Tema & karakter</summary>
+        <div id="look-editor"></div>
+      </details>
+
+      <details class="panel">
+        <summary>📷 Foto</summary>
+        <p class="muted small">Foto muka dipakai jadi karakter di game (pakai foto close-up muka, nanti dipotong bulat). Kalau kosong, pakai emoji karakter. Foto puzzle tiap dunia opsional (kalau kosong pakai foto utama).</p>
+        <div id="photo-list" class="photo-list"></div>
+      </details>
+
+      <details class="panel">
+        <summary>💌 Surat</summary>
+        <textarea data-path="finalLetter" rows="12"></textarea>
+        <p class="muted small">Pisahkan paragraf dengan satu baris kosong.</p>
+      </details>
+
+      <details class="panel">
+        <summary>🎮 Pesan tiap level</summary>
+        <div id="message-list"></div>
+      </details>
+
+      <details class="panel">
+        <summary>❓ Kuis</summary>
+        <div id="quiz-list"></div>
+      </details>
+    </div>
+  </main>
+
+  <div class="save-bar" id="save-bar" hidden>
+    <span id="save-state">Semua tersimpan ✓</span>
+    <button class="btn" id="btn-save">Simpan</button>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>
