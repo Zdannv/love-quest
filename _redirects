@@ -1,3 +1,0 @@
-# Cloudflare Pages: game pasangan /c/<kode> pakai halaman yang sama dengan demo
-# (/admin & /owner otomatis kebuka dari admin.html & owner.html)
-/c/:slug  /index.html  200

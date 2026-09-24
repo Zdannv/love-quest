@@ -1,0 +1,14 @@
+.git
+.github
+node_modules
+supabase
+api
+functions
+worker.js
+wrangler.jsonc
+vercel.json
+_redirects
+README.md
+.assetsignore
+.gitignore
+.DS_Store

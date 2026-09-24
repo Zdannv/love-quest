@@ -1,5 +1,5 @@
-// Cloudflare Pages Function: manifest PWA per pasangan di /c/<kode>/manifest.webmanifest
-// (versi Vercel-nya ada di api/manifest.js). Paket Premium + logo diupload → ikon pakai foto itu.
+// Cloudflare Worker: game pasangan /c/<kode> (halaman sama dengan demo) + manifest PWA per pasangan.
+// Paket Premium + logo diupload → ikon aplikasi pakai foto itu. File lain langsung dari assets.
 const SUPABASE_URL = 'https://paymeqnshhmjqypergji.supabase.co';
 const ANON_KEY = 'sb_publishable_pDiStBz1jEdLO9q3AOB3Bw_RfeZP57y'; // publishable key (sama dengan js/config.js)
 
@@ -24,9 +24,7 @@ async function loadContent(slug) {
   }
 }
 
-export async function onRequestGet({ params }) {
-  const slug = String(params.slug || '');
-  if (!/^[a-z0-9]{10,32}$/.test(slug)) return new Response('not found', { status: 404 });
+async function manifest(slug) {
   const content = await loadContent(slug);
   const icon = content?.photos?.icon;
   const pasangan = content?.names?.pasangan;
@@ -50,9 +48,16 @@ export async function onRequestGet({ params }) {
     lang: 'id',
     icons,
   }), {
-    headers: {
-      'Content-Type': 'application/manifest+json',
-      'Cache-Control': 'public, max-age=0, s-maxage=300',
-    },
+    headers: { 'Content-Type': 'application/manifest+json', 'Cache-Control': 'public, max-age=0, s-maxage=300' },
   });
 }
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const m = url.pathname.match(/^\/c\/([a-z0-9]{10,32})(\/manifest\.webmanifest|\/?)$/);
+    if (m && m[2] === '/manifest.webmanifest') return manifest(m[1]);
+    if (m) return env.ASSETS.fetch(new Request(new URL('/', url), request)); // game pasangan = index.html
+    return env.ASSETS.fetch(request);
+  },
+};

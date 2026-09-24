@@ -61,6 +61,6 @@ python3 -m http.server 5179
 
 ## Deploy
 
-**Cloudflare Pages (utama, lovequest.id):** Workers & Pages → Create → Pages → Connect to Git → repo ini. Framework preset **None**, build command kosong, output directory `/`. `_redirects` mengatur `/c/<kode>`, `_headers` mengatur service worker, dan `functions/c/[slug]/manifest.webmanifest.js` bikin manifest per pasangan. `/admin` & `/owner` otomatis dari `admin.html` & `owner.html`.
+**Cloudflare Workers (utama, lovequest.id):** Workers & Pages → Create → Import a repository → repo ini (deploy command bawaan `npx wrangler deploy`). `wrangler.jsonc` mengatur semuanya: file statis dilayani langsung, `worker.js` cuma jalan buat `/c/<kode>` (game pasangan + manifest per pasangan). `/admin` & `/owner` otomatis dari `admin.html` & `owner.html`. `.assetsignore` menjaga file SQL/README nggak ikut dipublikasikan; `_headers` mengatur service worker.
 
 **Vercel (cadangan):** `vercel.json` + `api/manifest.js` masih ada, jadi deploy lama tetap jalan.
