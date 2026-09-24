@@ -37,6 +37,7 @@ Keamanan:
 7. **SQL Editor**: jalankan `supabase/migration-5.sql` (pembeli nggak bisa bikin akun/game sendiri lagi).
 8. **Edge Functions → Deploy a new function → Via Editor**: nama **`owner-accounts`** (persis), paste `supabase/functions/owner-accounts/index.ts`, deploy, lalu matikan **Verify JWT** (fungsinya ngecek admin sendiri). Nggak butuh secret tambahan.
 9. **Authentication → Sign In / Providers**: matikan **Allow new users to sign up**, biar akun cuma bisa dibuat dari `/owner`.
+10. **SQL Editor**: jalankan `supabase/migration-6.sql` (logo aplikasi dari foto cuma buat paket Premium). Manifest per pasangan dilayani `api/manifest.js` (Vercel Function, otomatis ke-deploy).
 
 Alur jualan: pembeli bayar lewat WhatsApp → kamu buka `/owner` → **➕ Tambah akun pembeli** (email, password, paket, masa aktif) → salin pesan login yang muncul dan kirim ke pembeli. Perpanjang pakai **+30 hari** / **+1 tahun**, ganti paket ke Premium, ganti password, atau hapus akun dari kartu tiap pembeli. Kalau lewat tanggal, game pasangan otomatis terkunci.
 

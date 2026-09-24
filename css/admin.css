@@ -99,7 +99,7 @@ details.panel > summary::-webkit-details-marker { display: none; }
 .admin .theme-chips { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .admin .theme-chip { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #fff; background: var(--c); box-shadow: 0 2px 6px rgba(0,0,0,.15); padding: 0; cursor: pointer; }
 .admin .theme-chip.on { outline: 3px solid var(--c); outline-offset: 2px; }
-.photo-slot .thumb.face { aspect-ratio: 1; border-radius: 50%; width: 70%; }
+.photo-slot .thumb.round { aspect-ratio: 1; border-radius: 50%; width: 70%; }
 
 .music-opt.locked { opacity: .6; }
 .photo-slot.locked { opacity: .6; }
@@ -114,3 +114,4 @@ details.panel > summary::-webkit-details-marker { display: none; }
 .new-result pre { white-space: pre-wrap; font: inherit; font-size: 14px; margin: 0 0 10px; }
 .couple-card .danger { color: #d9304f; }
 #login-help { margin: 12px 0 0; }
+.photo-slot .thumb.app-icon { aspect-ratio: 1; border-radius: 22%; width: 70%; }

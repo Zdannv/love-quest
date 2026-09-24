@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/c/:slug/manifest.webmanifest",
+      "destination": "/api/manifest?slug=:slug"
+    },
+    {
       "source": "/c/:slug",
       "destination": "/index.html"
     },

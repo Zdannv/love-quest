@@ -54,7 +54,7 @@ function defaultContent() {
     music: 'ceria',
     theme: DEFAULT_THEME,
     characters: { ...DEFAULT_CHARACTERS },
-    photos: { letter: null, bonus: LEVEL_MAP.map(() => null), faces: { pasangan: null, pengirim: null } },
+    photos: { icon: null, letter: null, bonus: LEVEL_MAP.map(() => null), faces: { pasangan: null, pengirim: null } },
   };
 }
 
@@ -264,28 +264,31 @@ $('#look-editor').addEventListener('change', (e) => {
 
 // ---------- Foto ----------
 const PHOTO_SLOTS = [
-  { key: 'faces.pasangan', label: '😊 Muka pasangan (yang terbang & jalan di labirin)', face: true },
-  { key: 'faces.pengirim', label: '😆 Muka kamu (yang lari & jadi target lempar hati)', face: true },
+  { key: 'icon', label: '📱 Logo aplikasi (ikon di home screen & tab browser)', icon: true, premium: true },
+  { key: 'faces.pasangan', label: '😊 Muka pasangan (yang terbang & jalan di labirin)', face: true, premium: true },
+  { key: 'faces.pengirim', label: '😆 Muka kamu (yang lari & jadi target lempar hati)', face: true, premium: true },
   { key: 'letter', label: 'Foto utama (surat)' },
   ...LEVEL_MAP.map((w, i) => ({ key: `bonus.${i}`, label: `Puzzle Dunia ${i + 1} ${w.icon}` })),
 ];
 
 function renderPhotos() {
-  const lockFaces = !isCustom();
-  $('#photo-list').innerHTML = (lockFaces ? upsellNote('Muka kalian jadi karakter game') : '') + PHOTO_SLOTS.map((s) => {
+  const locked = !isCustom();
+  $('#photo-list').innerHTML = (locked ? upsellNote('Logo aplikasi & muka kalian jadi karakter game') : '') + PHOTO_SLOTS.map((s) => {
     const src = getPath(content.photos, s.key);
-    if (s.face && lockFaces) {
+    const shape = s.icon ? 'app-icon' : s.face ? 'round' : ''; // jangan pakai class 'face' (bentrok sama kartu memory di style.css)
+    if (s.premium && locked) {
       return `
       <div class="photo-slot locked">
         <b>${esc(s.label)}</b>
-        <div class="thumb face">🔒</div>
+        <div class="thumb ${shape}">🔒</div>
         <small class="muted">Paket Premium</small>
       </div>`;
     }
     return `
       <div class="photo-slot">
         <b>${esc(s.label)}</b>
-        <div class="thumb ${s.face ? 'face' : ''}" style="${src ? `background-image:url('${esc(src)}')` : ''}">${src ? '' : s.face ? '😊' : '📷'}</div>
+        <div class="thumb ${shape}" style="${src ? `background-image:url('${esc(src)}')` : ''}">${src ? '' : s.icon ? '💖' : s.face ? '😊' : '📷'}</div>
+        ${s.icon ? '<small class="muted">Foto dipotong bulat + bingkai warna tema. Yang udah pasang di HP mungkin perlu pasang ulang biar ikonnya ganti.</small>' : ''}
         <div class="row">
           <label class="btn ghost small-btn file-btn">${src ? 'Ganti' : 'Upload'}<input type="file" accept="image/*" data-photo="${s.key}"></label>
           ${src ? `<button class="link-btn" type="button" data-photo-del="${s.key}">hapus</button>` : ''}
@@ -311,6 +314,40 @@ function resizeImage(file, max = 1000) {
   });
 }
 
+// Logo aplikasi: foto dipotong bulat di tengah, latar warna tema, ada 💖 kecil.
+// Semua isi ada di dalam "zona aman" ikon Android (lingkaran 80%), jadi nggak kepotong.
+function makeIcon(file, size = 512) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const t = (THEMES[content.theme] || THEMES[DEFAULT_THEME]).vars;
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const g = c.getContext('2d');
+      const bg = g.createLinearGradient(0, 0, size, size);
+      bg.addColorStop(0, t['--pink-soft']);
+      bg.addColorStop(1, t['--pink']);
+      g.fillStyle = bg;
+      g.fillRect(0, 0, size, size);
+      const mid = size / 2;
+      const r = size * 0.36;
+      g.beginPath(); g.arc(mid, mid, r + size * 0.025, 0, Math.PI * 2); g.fillStyle = '#fff'; g.fill();
+      g.save();
+      g.beginPath(); g.arc(mid, mid, r, 0, Math.PI * 2); g.clip();
+      const side = Math.min(img.width, img.height); // potong kotak di tengah
+      g.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, mid - r, mid - r, r * 2, r * 2);
+      g.restore();
+      g.font = `${Math.round(size * 0.17)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('💖', size * 0.69, size * 0.7);
+      URL.revokeObjectURL(img.src);
+      c.toBlob((b) => (b ? resolve(b) : reject(new Error('gagal'))), 'image/jpeg', 0.9);
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 function storagePath(publicUrl) {
   const marker = '/object/public/photos/';
   const i = publicUrl?.indexOf(marker) ?? -1;
@@ -323,10 +360,11 @@ $('#photo-list').addEventListener('change', async (e) => {
   if (!file) return;
   if (PREVIEW) { toast('Mode contoh: upload foto butuh login'); input.value = ''; return; }
   const key = input.dataset.photo;
-  if (key.startsWith('faces.') && !isCustom()) { input.value = ''; return; }
+  const slot = PHOTO_SLOTS.find((x) => x.key === key);
+  if (slot?.premium && !isCustom()) { input.value = ''; return; }
   toast('📤 Lagi upload foto…');
   try {
-    const blob = await resizeImage(file, PHOTO_SLOTS.find((x) => x.key === key)?.face ? 500 : 1000);
+    const blob = slot?.icon ? await makeIcon(file) : await resizeImage(file, slot?.face ? 500 : 1000);
     const path = `${couple.owner}/${Date.now()}-${randomSlug()}.jpg`;
     const { error } = await sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' });
     if (error) throw error;

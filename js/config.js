@@ -14,7 +14,7 @@ export const CONFIG = {
   music: 'ceria',           // id lagu dari js/audio.js (TRACKS) atau 'off'
   theme: 'pink',            // id tema dari js/themes.js (paket Premium)
   characters: { pasangan: 'owl', pengirim: 'cat' }, // id karakter dari js/themes.js (paket Premium)
-  photos: { letter: null, bonus: [null, null, null, null, null], faces: { pasangan: null, pengirim: null } },
+  photos: { icon: null, letter: null, bonus: [null, null, null, null, null], faces: { pasangan: null, pengirim: null } },
 
   // Supabase untuk CMS (project khusus bisnis ini, terpisah dari project lain).
   cloud: {
@@ -57,8 +57,9 @@ export const CONFIG = {
       tag: 'Tampilan khusus buat kalian',
       features: [
         'Semua isi paket Love Quest',
-        'Muka, tema, karakter & lagu juga bisa kamu atur dan ganti sendiri kapan aja di CMS',
+        'Muka, logo, tema, karakter & lagu juga bisa kamu atur dan ganti sendiri kapan aja di CMS',
         'Muka kalian jadi karakter game: yang terbang, lari, sampai target lempar hati 😆',
+        'Logo aplikasi di HP pakai foto kalian 📱',
         'Tema warna pilihan kalian (6 pilihan)',
         'Karakter hewan kesukaan kalian (14 pilihan, misal 🦉🐱🐶🐰🐼)',
         '4 pilihan lagu',

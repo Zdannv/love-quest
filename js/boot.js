@@ -43,6 +43,23 @@ async function loadCouple(slug) {
   return result.content;
 }
 
+// Ikon aplikasi per pasangan: tab browser, ikon iPhone (Add to Home Screen) & manifest Android
+function applyAppIcon(slug, icon) {
+  const setLink = (rel, href) => {
+    let el = document.querySelector(`link[rel="${rel}"]`);
+    if (!el) { el = document.createElement('link'); el.rel = rel; document.head.appendChild(el); }
+    el.href = href;
+  };
+  if (icon) {
+    setLink('icon', icon);
+    setLink('apple-touch-icon', icon);
+  }
+  // Manifest dinamis cuma ada di server (Vercel), bukan di server lokal
+  if (!['localhost', '127.0.0.1'].includes(location.hostname)) {
+    setLink('manifest', `/c/${slug}/manifest.webmanifest`);
+  }
+}
+
 function showError(text) {
   document.body.innerHTML = `
     <main style="min-height:100dvh;display:grid;place-items:center;padding:24px;text-align:center;font-family:Fredoka,sans-serif;color:#6a2c52">
@@ -83,6 +100,7 @@ if (slug) {
     }
     CONFIG.demo = false;
     CONFIG.slug = slug;
+    applyAppIcon(slug, CONFIG.photos.icon);
     try { localStorage.setItem(LAST_KEY, slug); } catch {}
   } catch (err) {
     ok = false;
