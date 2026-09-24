@@ -190,9 +190,9 @@ let previewing = null;
 
 function renderMusic() {
   const opts = [...Object.entries(TRACKS).map(([id, t]) => [id, t.name]), ['off', 'Tanpa lagu 🔇']];
-  $('#music-list').innerHTML = opts.map(([id, name]) => `
-    <label class="music-opt">
-      <input type="radio" name="music" value="${id}" ${content.music === id ? 'checked' : ''}>
+  $('#music-list').innerHTML = (isCustom() ? '' : upsellNote('Pilihan lagu')) + opts.map(([id, name]) => `
+    <label class="music-opt ${isCustom() ? '' : 'locked'}">
+      <input type="radio" name="music" value="${id}" ${content.music === id ? 'checked' : ''} ${isCustom() ? '' : 'disabled'}>
       <span>${esc(name)}</span>
       ${id === 'off' ? '' : `<button class="btn ghost small-btn" type="button" data-preview="${id}">${previewing === id ? '⏹ Stop' : '▶ Dengerin'}</button>`}
     </label>`).join('');
@@ -212,7 +212,16 @@ $('#music-list').addEventListener('click', (e) => {
   renderMusic();
 });
 
-// ---------- Tema & karakter (paket Custom) ----------
+// ---------- Fitur paket Custom (tema, karakter, muka, lagu) ----------
+const isCustom = () => couple.plan === 'custom';
+function upsellNote(what) {
+  const url = CONFIG.whatsapp
+    ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(`Halo! Aku mau upgrade ke Love Quest Custom 💖\nKode game: ${couple.slug}`)}`
+    : '';
+  return `<div class="locked-note">🔒 ${what} tersedia di paket <b>Love Quest Custom</b>.
+    ${url ? `<a class="btn small-btn" href="${esc(url)}" target="_blank" rel="noopener">Upgrade via WhatsApp</a>` : ''}</div>`;
+}
+
 function renderLook() {
   const isCustom = couple.plan === 'custom';
   const opts = (sel) => Object.entries(CHARACTERS).map(([id, ch]) =>
@@ -262,8 +271,17 @@ const PHOTO_SLOTS = [
 ];
 
 function renderPhotos() {
-  $('#photo-list').innerHTML = PHOTO_SLOTS.map((s) => {
+  const lockFaces = !isCustom();
+  $('#photo-list').innerHTML = (lockFaces ? upsellNote('Muka kalian jadi karakter game') : '') + PHOTO_SLOTS.map((s) => {
     const src = getPath(content.photos, s.key);
+    if (s.face && lockFaces) {
+      return `
+      <div class="photo-slot locked">
+        <b>${esc(s.label)}</b>
+        <div class="thumb face">🔒</div>
+        <small class="muted">Paket Custom</small>
+      </div>`;
+    }
     return `
       <div class="photo-slot">
         <b>${esc(s.label)}</b>
@@ -305,6 +323,7 @@ $('#photo-list').addEventListener('change', async (e) => {
   if (!file) return;
   if (PREVIEW) { toast('Mode contoh: upload foto butuh login'); input.value = ''; return; }
   const key = input.dataset.photo;
+  if (key.startsWith('faces.') && !isCustom()) { input.value = ''; return; }
   toast('📤 Lagi upload foto…');
   try {
     const blob = await resizeImage(file, PHOTO_SLOTS.find((x) => x.key === key)?.face ? 500 : 1000);

@@ -3,22 +3,25 @@
 // - Game pasangan: disimpan di Supabase per pasangan, lewat fungsi record_play/get_plays/save_push.
 import { CONFIG } from './config.js';
 
+// Demo & contoh versi jadi pakai streak simulasi (tanpa database)
+const SIM = CONFIG.demo || Boolean(CONFIG.showcase);
+
 const PLAYERS = ['pasangan', 'pengirim'];
 const { url = '', anonKey = '', vapidPublicKey = '', pushFunction = '' } = CONFIG.cloud || {};
 const base = url.replace(/\/$/, '');
 
-export const streakEnabled = CONFIG.demo || Boolean(url && anonKey && CONFIG.slug);
+export const streakEnabled = SIM || Boolean(url && anonKey && CONFIG.slug);
 
-const WHO_KEY = CONFIG.demo ? 'lq-demo-player' : `lq-player-${CONFIG.slug}`;
+const WHO_KEY = SIM ? 'lq-demo-player' : `lq-player-${CONFIG.slug}`;
 export function getPlayer() {
-  if (CONFIG.demo) return 'pasangan';
+  if (SIM) return 'pasangan';
   try {
     const p = localStorage.getItem(WHO_KEY);
     return PLAYERS.includes(p) ? p : null;
   } catch { return null; }
 }
 export function setPlayer(p) {
-  if (!CONFIG.demo) try { localStorage.setItem(WHO_KEY, p); } catch {}
+  if (!SIM) try { localStorage.setItem(WHO_KEY, p); } catch {}
 }
 export function clearPlayer() {
   try { localStorage.removeItem(WHO_KEY); } catch {}
@@ -91,11 +94,11 @@ function readJSON(key, fallback) {
 function writeJSON(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
-export const pendingPlays = () => (CONFIG.demo ? 0 : readJSON(QUEUE_KEY(), []).length);
+export const pendingPlays = () => (SIM ? 0 : readJSON(QUEUE_KEY(), []).length);
 
 // Kirim semua catatan main yang masih nunggu. Balikannya jumlah yang berhasil terkirim.
 export async function flushPlays() {
-  if (CONFIG.demo || !streakEnabled) return 0;
+  if (SIM || !streakEnabled) return 0;
   const queue = readJSON(QUEUE_KEY(), []);
   if (!queue.length) return 0;
   const left = [];
@@ -123,10 +126,10 @@ export async function recordPlay() {
   const player = getPlayer();
   if (!streakEnabled || !player) return false;
   const t = today();
-  const key = CONFIG.demo ? DEMO_KEY : `lq-played-${CONFIG.slug}-${player}`;
+  const key = SIM ? DEMO_KEY : `lq-played-${CONFIG.slug}-${player}`;
   try { if (localStorage.getItem(key) === t) return false; } catch {}
   try { localStorage.setItem(key, t); } catch {}
-  if (!CONFIG.demo) {
+  if (!SIM) {
     const queue = readJSON(QUEUE_KEY(), []);
     if (!queue.some((q) => q.player === player && q.day === t)) queue.push({ player, day: t });
     writeJSON(QUEUE_KEY(), queue);
@@ -136,7 +139,7 @@ export async function recordPlay() {
 }
 
 export async function loadStreak() {
-  if (CONFIG.demo) return summarize(demoRows());
+  if (SIM) return summarize(demoRows());
   let rows;
   let offline = false;
   try {
@@ -154,7 +157,7 @@ export async function loadStreak() {
 // Kabari pasangan lewat notifikasi (edge function). Gagal pun nggak apa-apa.
 export function notifyPlayed() {
   const player = getPlayer();
-  if (CONFIG.demo || !pushFunction || !player) return Promise.resolve();
+  if (SIM || !pushFunction || !player) return Promise.resolve();
   return fetch(`${base}/functions/v1/${pushFunction}`, {
     method: 'POST',
     headers: { apikey: anonKey, 'Content-Type': 'application/json' },
@@ -168,7 +171,7 @@ const isStandalone = () => window.matchMedia('(display-mode: standalone)').match
 
 // 'ok' | 'on' | 'denied' | 'ios-install' | 'unsupported'
 export async function pushState() {
-  if (CONFIG.demo || !vapidPublicKey || !pushFunction || !('serviceWorker' in navigator)) return 'unsupported';
+  if (SIM || !vapidPublicKey || !pushFunction || !('serviceWorker' in navigator)) return 'unsupported';
   if (isIOS && !isStandalone()) return 'ios-install';
   if (!('PushManager' in window) || !('Notification' in window)) return 'unsupported';
   if (Notification.permission === 'denied') return 'denied';
@@ -198,7 +201,7 @@ export async function enablePush() {
 
 // Angka streak di ikon aplikasi (kalau HP-nya dukung)
 export function setBadge(count) {
-  if (CONFIG.demo) return;
+  if (SIM) return;
   try {
     if (!('setAppBadge' in navigator)) return;
     if (count > 0) navigator.setAppBadge(count).catch(() => {});

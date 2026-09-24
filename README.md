@@ -32,6 +32,7 @@ Keamanan:
 4. **SQL Editor**: jalankan `supabase/cron.sql` (ganti `ISI_CRON_SECRET`).
 
 5. **SQL Editor**: jalankan `supabase/migration-3.sql` (biar main pas offline tetap kecatat di streak dengan tanggal yang benar).
+6. **SQL Editor**: jalankan `supabase/migration-4.sql` (muka jadi karakter & pilihan lagu cuma buat paket Custom).
 
 Alur langganan manual: game baru dapat masa coba 3 hari → pembeli bayar lewat WhatsApp → kamu buka `/owner`, klik **+30 hari** (atau **+1 tahun**) dan ganti paket ke Custom kalau perlu. Kalau lewat tanggal, game pasangan otomatis terkunci.
 

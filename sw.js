@@ -1,6 +1,6 @@
 // Service worker Love Quest: bisa dipasang ke home screen, bisa dimainin offline,
 // dan menampilkan notifikasi streak.
-const CACHE = 'love-quest-v2';
+const CACHE = 'love-quest-v4';
 const FONT_CACHE = 'love-quest-fonts';
 const PHOTO_CACHE = 'love-quest-photos';
 
@@ -9,11 +9,12 @@ const PHOTO_CACHE = 'love-quest-photos';
 const PRECACHE = [
   '/', '/index.html', '/manifest.webmanifest', '/css/style.css',
   '/js/boot.js', '/js/main.js', '/js/config.js', '/js/audio.js', '/js/music.js', '/js/confetti.js', '/js/util.js',
-  '/js/streak.js', '/js/personal.js', '/js/themes.js', '/js/level-map.js',
+  '/js/streak.js', '/js/personal.js', '/js/themes.js', '/js/level-map.js', '/js/showcase.js',
   '/js/games/memory.js', '/js/games/catch.js', '/js/games/pop.js', '/js/games/quiz.js', '/js/games/puzzle.js',
   '/js/games/odd.js', '/js/games/simon.js', '/js/games/fly.js', '/js/games/stack.js', '/js/games/runner.js',
   '/js/games/throw.js', '/js/games/maze.js', '/js/games/timing.js',
   '/img/contoh-foto.jpg',
+  ...['nadia', 'raka', 'salsa', 'dimas', 'ayu', 'bima', 'nadia-raka', 'salsa-dimas', 'ayu-bima'].map((n) => `/img/contoh/${n}.jpg`),
   '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-512.png', '/icons/apple-touch-icon.png', '/icons/badge-96.png',
 ];
 

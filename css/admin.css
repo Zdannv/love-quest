@@ -97,3 +97,7 @@ details.panel > summary::-webkit-details-marker { display: none; }
 .admin .theme-chip { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #fff; background: var(--c); box-shadow: 0 2px 6px rgba(0,0,0,.15); padding: 0; cursor: pointer; }
 .admin .theme-chip.on { outline: 3px solid var(--c); outline-offset: 2px; }
 .photo-slot .thumb.face { aspect-ratio: 1; border-radius: 50%; width: 70%; }
+
+.music-opt.locked { opacity: .6; }
+.photo-slot.locked { opacity: .6; }
+.photo-list .locked-note { grid-column: 1 / -1; margin-bottom: 0; }

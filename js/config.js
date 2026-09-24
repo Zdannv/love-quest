@@ -30,35 +30,34 @@ export const CONFIG = {
   whatsapp: '6287855310680', // dipakai juga di CMS buat bayar/perpanjang langganan
 
   // Model: semua pembeli langganan Rp30.000/bulan.
-  // Custom = biaya pembuatan sekali di awal (tema & karakter), bulan berikutnya tetap Rp30.000.
+  // Custom = biaya pembuatan sekali di awal, bulan berikutnya tetap Rp30.000.
   packages: [
     {
       name: 'Love Quest',
       price: 'Rp30.000',
       per: '/bulan',
-      note: 'Coba gratis 3 hari dulu, baru bayar kalau suka 💕',
+      note: '',
       tag: 'Paling pas buat mulai',
       features: [
         '60 level + 5 bonus puzzle foto: 5 dunia, tiap dunia 12 game yang beda-beda',
         '13 jenis mini-game (terbang, lari, labirin, susun kue, lempar hati, dll.)',
-        'Muka kalian jadi karakter game: yang terbang, lari, sampai target lempar hati 😆',
-        'Nama, pesan tiap level, kuis, surat, foto & lagu bisa diganti kapan aja lewat halaman admin',
+        'Nama, pesan tiap level, kuis, surat & foto bisa diganti kapan aja lewat halaman admin',
         'Streak berdua + notifikasi pengingat jam 7 malam',
         'Bisa dipasang di home screen & tetap bisa dimainin offline',
-        '4 pilihan lagu latar bebas royalti',
       ],
     },
     {
       name: 'Love Quest Custom',
-      price: 'Rp129.000',
+      price: 'Rp50.000',
       per: 'bulan pertama',
-      note: 'Rp99.000 biaya custom sekali + Rp30.000 langganan. Bulan berikutnya tetap Rp30.000/bulan.',
+      note: 'Rp20.000 biaya custom sekali + Rp30.000 langganan. Bulan berikutnya tetap Rp30.000/bulan.',
       tag: 'Tampilan khusus buat kalian',
       features: [
         'Semua isi paket Love Quest',
+        'Muka kalian jadi karakter game: yang terbang, lari, sampai target lempar hati 😆',
         'Tema warna pilihan kalian (6 pilihan)',
         'Karakter hewan kesukaan kalian (14 pilihan, misal 🦉🐱🐶🐰🐼)',
-        'Maksimal 2x revisi tampilan',
+        '4 pilihan lagu',
       ],
     },
   ],

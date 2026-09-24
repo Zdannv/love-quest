@@ -58,6 +58,12 @@ if (!slug && isStandalone) {
   try { slug = localStorage.getItem(LAST_KEY); } catch {}
 }
 let ok = true;
+// Contoh versi jadi (halaman depan): /?lihat=<id>
+const lihat = new URLSearchParams(location.search).get('lihat');
+if (lihat) {
+  const { applyShowcase } = await import('./showcase.js');
+  if (applyShowcase(CONFIG, lihat)) slug = null;
+}
 if (slug) {
   try {
     const content = await loadCouple(slug);

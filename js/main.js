@@ -1,6 +1,7 @@
 import { CONFIG } from './config.js';
 import { getNames, setNames, fill, getPhoto, savePhoto, clearPhoto, getLook, setLook, getChars, getFace, saveFace, clearFace } from './personal.js';
 import { THEMES, CHARACTERS, applyTheme } from './themes.js';
+import { SHOWCASES } from './showcase.js';
 import { LEVEL_MAP, PATTERN, EXTRA_SLOTS, TYPE_NAME, typeOf } from './level-map.js';
 import { sfx, toggleMute, isMuted, toggleMusic, isMusicOff } from './audio.js';
 import { confetti } from './confetti.js';
@@ -186,14 +187,14 @@ const TEST_MODE = new URLSearchParams(location.search).has('bukasemua');
 const starsOf = (L) => progress.stars[L.id] || 0;
 const cleared = (L) => starsOf(L) > 0;
 function unlocked(L) {
-  if (TEST_MODE) return true;
-  if (CONFIG.demo && L.world > 0) return false; // demo: cuma Dunia 1
+  if (TEST_MODE || CONFIG.showcase) return true; // contoh versi jadi: semua level kebuka
+  if (CONFIG.demo) return L.world === 0; // demo: semua level Dunia 1 langsung kebuka, dunia lain terkunci
   if (cleared(L)) return true;
   if (L.bonus) return MAIN.filter((M) => M.world === L.world).every(cleared);
   return L.num === 1 || cleared(MAIN[L.num - 2]);
 }
 // Demo: surat selalu kebuka. Versi pasangan: kebuka setelah tamat sekali.
-const letterOpen = () => TEST_MODE || CONFIG.demo || cleared(LEVELS.find((L) => L.id === LETTER_LEVEL));
+const letterOpen = () => TEST_MODE || CONFIG.demo || CONFIG.showcase || cleared(LEVELS.find((L) => L.id === LETTER_LEVEL));
 
 // ---------- Layar ----------
 const $ = (s) => document.querySelector(s);
@@ -232,6 +233,35 @@ function applyNames() {
 }
 applyNames();
 if (!CONFIG.demo) document.querySelectorAll('[data-demo-only]').forEach((el) => (el.hidden = true));
+
+// ---------- Contoh versi jadi ----------
+// Galeri di halaman depan demo
+if (CONFIG.demo) {
+  $('#showcase-list').innerHTML = Object.entries(SHOWCASES).map(([id, s]) => {
+    const v = THEMES[s.theme].vars;
+    return `
+      <a class="showcase-card" href="/?lihat=${id}" style="--c1:${v['--bg1']};--c2:${v['--bg3']};--ink:${v['--ink']};--accent:${v['--pink-deep']}">
+        <span class="sc-faces">
+          <img src="/img/contoh/${s.faces.pasangan}" alt=""><img src="/img/contoh/${s.faces.pengirim}" alt="">
+        </span>
+        <span class="sc-text">
+          <b>${esc(s.names.pasangan)} & ${esc(s.names.pengirim)}</b>
+          <small>${esc(s.tagline)}</small>
+        </span>
+        <span class="sc-go">Main ▶</span>
+      </a>`;
+  }).join('');
+}
+// Bar di atas pas lagi lihat contoh
+if (CONFIG.showcase) {
+  const bar = document.createElement('div');
+  bar.className = 'showcase-bar';
+  bar.innerHTML = `
+    <span>👀 Contoh versi jadi: <b>${esc(CONFIG.names.pasangan)} & ${esc(CONFIG.names.pengirim)}</b></span>
+    <span class="sb-actions"><a href="/" class="sb-back">← Demo</a><button class="btn small" data-paket>💌 Bikin versi kalian</button></span>`;
+  document.body.prepend(bar);
+  document.body.classList.add('has-showcase-bar');
+}
 
 // ---------- Coba versi kalian (nama & foto) ----------
 const inPasangan = $('#in-pasangan');
@@ -364,6 +394,11 @@ syncMusicBtn();
 musicBtn.addEventListener('click', () => { toggleMusic(); syncMusicBtn(); sfx('click'); });
 
 // ---------- Peta ----------
+function letterText() {
+  if (CONFIG.demo || CONFIG.showcase) return 'Di versi kalian, surat kebuka setelah game-nya tamat. Di sini boleh langsung dibaca 🥰';
+  return letterOpen() ? 'Udah kebuka karena game-nya udah tamat 🥰' : '🔒 Bisa dibuka kalau udah namatin game-nya';
+}
+
 const worldsEl = $('#worlds');
 
 function renderMap() {
@@ -374,7 +409,7 @@ function renderMap() {
   const letterBtn = `
     <button class="letter-btn ${letterOpen() ? '' : 'locked'}" id="btn-letter" ${letterOpen() ? '' : 'disabled'}>
       <span>💌</span>
-      <div><b>Surat untuk ${esc(getNames().pasangan)}</b><small>${letterOpen() ? 'Bisa dibuka kapan aja 🥰' : `🔒 Tamatin ${CONFIG.demo ? 'Dunia 1' : 'game-nya'} dulu buat buka`}</small></div>
+      <div><b>Surat untuk ${esc(getNames().pasangan)}</b><small>${letterText()}</small></div>
     </button>`;
 
   worldsEl.innerHTML = WORLDS.map((w, wi) => {
@@ -404,7 +439,7 @@ function renderMap() {
     const lockNote = CONFIG.demo && !TEST_MODE && wi === 1 ? `
       <div class="demo-lock">
         <b>🔒 Dunia 2–5 kebuka di versi kalian</b>
-        <span>48 level lagi, puzzle foto kalian, muka kalian jadi karakter game, dan kuis tentang kalian berdua</span>
+        <span>48 level lagi, puzzle foto kalian, kuis tentang kalian berdua, sampai muka kalian jadi karakter game (paket Custom)</span>
         <button class="btn" data-paket>💌 Lihat paket</button>
       </div>` : '';
     return lockNote + html;
@@ -728,7 +763,7 @@ function streakCard() {
       ${d.week.map((w, i) => `<div class="wk ${w.pasangan && w.pengirim ? 'both' : ''} ${i === 6 ? 'today' : ''}"><span>${dot(w)}</span><small>${i === 6 ? 'Hari ini' : dayName(w.day)}</small></div>`).join('')}
     </div>
     ${pushRow()}
-    ${CONFIG.demo
+    ${CONFIG.demo || CONFIG.showcase
       ? '<p class="push-note">✨ Ini contoh streak. Di versi kalian, streak nyambung ke HP kalian berdua + ada notif pengingat jam 7 malam.</p>'
       : `<button class="link-btn" data-who-reset>bukan ${esc(NAME[me])}? ganti</button>`}
   </div>`;
