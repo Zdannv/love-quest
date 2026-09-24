@@ -1,4 +1,4 @@
-// Halaman owner: lihat semua pembeli & atur langganan (manual, setelah pembayaran masuk).
+// Halaman owner: lihat semua pembeli & atur paket / masa aktif (manual, setelah pembayaran masuk).
 // Semua aksi lewat fungsi database yang cuma bisa dipanggil admin (lihat migration-2.sql).
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { CONFIG } from './config.js';
@@ -50,14 +50,16 @@ function render() {
   const f = $('#filter').value;
   const counts = { active: 0, soon: 0, expired: 0 };
   couples.forEach((c) => counts[stateOf(c)]++);
-  const paying = couples.filter((c) => stateOf(c) !== 'expired');
-  const mrr = paying.length * 30000;
+  const PRICE = { basic: 49000, custom: 79000 };
+  const forever = couples.filter((c) => !c.paid_until && c.active).length;
+  const income = couples.reduce((a, c) => a + (PRICE[c.plan] || 0), 0);
   $('#summary').innerHTML = `
     <div><b>${couples.length}</b><small>total game</small></div>
     <div><b>${counts.active}</b><small>aktif</small></div>
     <div><b>${counts.soon}</b><small>habis ≤ 3 hari</small></div>
     <div><b>${counts.expired}</b><small>berhenti</small></div>
-    <div><b>Rp${mrr.toLocaleString('id-ID')}</b><small>perkiraan / bulan*</small></div>`;
+    <div><b>${forever}</b><small>aktif selamanya</small></div>
+    <div><b>Rp${income.toLocaleString('id-ID')}</b><small>perkiraan total penjualan*</small></div>`;
 
   const list = couples.filter((c) => {
     const hay = `${c.owner_email} ${c.slug} ${c.names?.pasangan ?? ''} ${c.names?.pengirim ?? ''} ${c.note ?? ''}`.toLowerCase();
@@ -79,14 +81,15 @@ function render() {
         <div class="grid2">
           <label>Paket
             <select data-f="plan">
-              <option value="basic" ${c.plan === 'basic' ? 'selected' : ''}>Love Quest (Rp30rb/bln)</option>
+              <option value="basic" ${c.plan === 'basic' ? 'selected' : ''}>Love Quest (Rp49rb)</option>
               <option value="custom" ${c.plan === 'custom' ? 'selected' : ''}>Love Quest Premium</option>
             </select>
           </label>
-          <label>Aktif sampai (${fmtDate(c.paid_until)})<input type="date" data-f="paid_until" value="${c.paid_until || ''}"></label>
+          <label>Aktif sampai (${c.paid_until ? fmtDate(c.paid_until) : '♾️ selamanya'})<input type="date" data-f="paid_until" value="${c.paid_until || ''}"></label>
         </div>
         <label>Catatan (misal: bayar 24 Sep via QRIS)<input data-f="note" value="${esc(c.note || '')}"></label>
         <div class="row">
+          <button class="btn ghost small-btn" data-forever>♾️ Selamanya</button>
           <button class="btn ghost small-btn" data-add="30">+30 hari</button>
           <button class="btn ghost small-btn" data-add="365">+1 tahun</button>
           <button class="btn ghost small-btn" data-toggle>${c.active ? 'Nonaktifkan' : 'Aktifkan lagi'}</button>
@@ -122,6 +125,8 @@ $('#couple-list').addEventListener('click', (e) => {
     // Perpanjang dari tanggal habis (atau dari hari ini kalau sudah lewat)
     const base = c.paid_until && c.paid_until >= todayWib() ? c.paid_until : todayWib();
     update(c, { plan: field('plan'), note: field('note'), paid_until: addDays(base, Number(add.dataset.add)), active: true });
+  } else if (e.target.closest('[data-forever]')) {
+    update(c, { plan: field('plan'), note: field('note'), paid_until: null, active: true });
   } else if (e.target.closest('[data-toggle]')) {
     update(c, { active: !c.active });
   } else if (e.target.closest('[data-save]')) {
@@ -171,7 +176,7 @@ Password: ${password}
 
 Kalau udah selesai, kirim link ini ke pasanganmu:
 ${gameLink(slug)}
-${paid_until ? `\nAktif sampai ${fmtDate(paid_until)}.` : ''}`;
+${paid_until === 'forever' ? '\nAktif selamanya 💖' : paid_until ? `\nAktif sampai ${fmtDate(paid_until)}.` : ''}`;
 }
 
 async function copyText(text) {
@@ -190,7 +195,7 @@ $('#form-new').addEventListener('submit', async (e) => {
     email: $('#new-email').value.trim(),
     password: $('#new-pass').value,
     plan: $('#new-plan').value,
-    days: Number($('#new-days').value),
+    days: $('#new-days').value === 'forever' ? 0 : Number($('#new-days').value),
     names: { pasangan: $('#new-pasangan').value.trim(), pengirim: $('#new-pengirim').value.trim() },
     note: $('#new-note').value.trim(),
   };
@@ -198,7 +203,13 @@ $('#form-new').addEventListener('submit', async (e) => {
   btn.textContent = 'Membuat…';
   try {
     const res = await callOwner(payload);
-    const msg = loginMessage({ email: res.email, password: payload.password, slug: res.slug, paid_until: payload.days ? res.paid_until : null });
+    const forever = $('#new-days').value === 'forever';
+    if (forever) {
+      // Sekali bayar: tanpa tanggal habis
+      const { error } = await sb.rpc('admin_update_couple', { p_id: res.id, p_plan: res.plan, p_paid_until: null, p_active: true, p_note: payload.note || null });
+      if (error) throw new Error(`Akun jadi, tapi gagal diset selamanya: ${error.message}`);
+    }
+    const msg = loginMessage({ email: res.email, password: payload.password, slug: res.slug, paid_until: forever ? 'forever' : payload.days ? res.paid_until : null });
     const box = $('#new-result');
     box.hidden = false;
     box.innerHTML = `<b>✅ Akun ${esc(res.email)} jadi!</b> Kirim pesan ini ke pembeli (password cuma kelihatan sekarang):

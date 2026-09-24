@@ -28,16 +28,16 @@ export const CONFIG = {
   // Link pemesanan, contoh: 'https://wa.me/6281234567890?text=Halo%2C%20mau%20pesan%20Love%20Quest'
   // Kalau kosong, tombol pesan disembunyikan.
   orderUrl: 'https://wa.me/6285136086902?text=' + encodeURIComponent('Halo! Aku mau pesan Love Quest 💖'),
-  whatsapp: '6285136086902', // dipakai juga di CMS buat bayar/perpanjang langganan
+  whatsapp: '6285136086902', // dipakai juga di CMS buat bayar / upgrade paket
 
-  // Model: semua pembeli langganan Rp30.000/bulan.
-  // Premium = biaya pembuatan sekali di awal, bulan berikutnya tetap Rp30.000.
+  // Model: sekali bayar, akses selamanya (nggak ada biaya bulanan).
+  // Upgrade Love Quest → Premium = bayar selisihnya (Rp30.000).
   packages: [
     {
       name: 'Love Quest',
-      price: 'Rp30.000',
-      per: '/bulan',
-      note: '',
+      price: 'Rp49.000',
+      per: 'sekali bayar',
+      note: 'Akses selamanya, tanpa biaya bulanan.',
       tag: 'Paling pas buat mulai',
       features: [
         'Akun CMS (halaman admin) pribadi buat ngelola isi game sendiri, kapan aja, langsung dari HP',
@@ -51,17 +51,17 @@ export const CONFIG = {
     },
     {
       name: 'Love Quest Premium',
-      price: 'Rp50.000',
-      per: 'bulan pertama',
-      note: 'Rp20.000 sekali di awal + Rp30.000 langganan. Bulan berikutnya tetap Rp30.000/bulan.',
+      price: 'Rp79.000',
+      per: 'sekali bayar',
+      note: 'Akses selamanya. Udah punya Love Quest? Upgrade ke Premium cukup Rp30.000.',
       tag: 'Tampilan khusus buat kalian',
       features: [
         'Semua isi paket Love Quest',
         'Muka, logo, tema, karakter & lagu juga bisa kamu atur dan ganti sendiri kapan aja di CMS',
-        'Muka kalian jadi karakter game: yang terbang, lari, sampai target lempar hati 😆',
-        'Logo aplikasi di HP pakai foto kalian 📱',
+        'Muka kalian jadi karakter game: yang terbang, lari, sampai target lempar hati',
+        'Logo aplikasi di HP pakai foto kalian',
         'Tema warna pilihan kalian (6 pilihan)',
-        'Karakter hewan kesukaan kalian (14 pilihan, misal 🦉🐱🐶🐰🐼)',
+        'Karakter hewan kesukaan kalian (14 pilihan)',
         '4 pilihan lagu',
       ],
     },

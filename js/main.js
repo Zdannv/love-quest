@@ -233,6 +233,7 @@ function applyNames() {
 }
 applyNames();
 if (!CONFIG.demo) document.querySelectorAll('[data-demo-only]').forEach((el) => (el.hidden = true));
+document.body.classList.toggle('is-demo', Boolean(CONFIG.demo)); // tata letak desktop halaman depan
 
 // ---------- Contoh versi jadi ----------
 // Galeri di halaman depan demo
@@ -862,6 +863,8 @@ window.addEventListener('beforeinstallprompt', (e) => {
   installPrompt = e;
   installBtn.hidden = false;
 });
+// Halaman demo bukan game pembeli: tombol pasang ke home screen nggak ditampilin
+if (CONFIG.demo) installBtn.remove();
 installBtn.addEventListener('click', async () => {
   sfx('click');
   if (!installPrompt) {

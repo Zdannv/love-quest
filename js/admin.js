@@ -102,25 +102,35 @@ function markDirty(on = true) {
 }
 window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
-// ---------- Langganan ----------
+// ---------- Paket & masa aktif ----------
 const fmtDate = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 const todayWib = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
 
 function renderSubscription() {
   const panel = $('#sub-panel');
-  if (!couple.paid_until) { panel.hidden = true; return; }
+  const planName = couple.plan === 'custom' ? 'Love Quest Premium' : 'Love Quest';
+  if (!couple.paid_until) {
+    // Sekali bayar, akses selamanya
+    const up = `Halo! Aku mau upgrade ke Love Quest Premium 💖\nKode game: ${couple.slug}\nEmail: ${couple.owner_email || '-'}`;
+    const wa = CONFIG.whatsapp && couple.plan !== 'custom' ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(up)}` : '';
+    panel.className = 'panel sub-panel';
+    panel.innerHTML = `
+      <div><div class="muted small">${esc(planName)}</div><b>✅ Aktif selamanya 💖</b></div>
+      ${wa ? `<a class="btn small-btn" href="${esc(wa)}" target="_blank" rel="noopener">✨ Upgrade ke Premium</a>` : ''}`;
+    panel.hidden = !couple.active;
+    return;
+  }
   const daysLeft = Math.round((new Date(`${couple.paid_until}T00:00:00Z`) - new Date(`${todayWib()}T00:00:00Z`)) / 864e5);
   const expired = !couple.active || daysLeft < 0;
   const trial = couple.plan === 'basic' && !couple.note && daysLeft <= 3 && Date.now() - new Date(couple.created_at) < 4 * 864e5;
-  const planName = couple.plan === 'custom' ? 'Love Quest Premium' : 'Love Quest';
-  const text = `Halo! Aku mau ${expired || trial ? 'bayar' : 'perpanjang'} langganan Love Quest 💖\nKode game: ${couple.slug}\nEmail: ${couple.owner_email || '-'}`;
+  const text = `Halo! Aku mau ${expired || trial ? 'bayar' : 'perpanjang'} Love Quest 💖\nKode game: ${couple.slug}\nEmail: ${couple.owner_email || '-'}`;
   const wa = CONFIG.whatsapp ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(text)}` : '';
   panel.className = `panel sub-panel ${expired ? 'expired' : daysLeft <= 3 ? 'soon' : ''}`;
   panel.innerHTML = `
     <div>
       <div class="muted small">${esc(planName)}${trial ? ' · masa coba' : ''}</div>
       <b>${expired
-        ? '⛔ Langganan berhenti, game-nya nggak bisa dibuka pasanganmu'
+        ? '⛔ Masa aktif habis, game-nya nggak bisa dibuka pasanganmu'
         : `✅ Aktif sampai ${fmtDate(couple.paid_until)}${daysLeft <= 3 ? ` (${daysLeft === 0 ? 'hari ini terakhir' : `${daysLeft} hari lagi`})` : ''}`}</b>
     </div>
     ${wa ? `<a class="btn small-btn" href="${esc(wa)}" target="_blank" rel="noopener">${expired || trial ? '💳 Bayar via WhatsApp' : '🔁 Perpanjang'}</a>` : ''}`;
@@ -297,7 +307,7 @@ function renderPhotos() {
   }).join('');
 }
 
-function resizeImage(file, max = 1000) {
+function resizeImage(file, max = 800) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -307,7 +317,7 @@ function resizeImage(file, max = 1000) {
       c.height = Math.round(img.height * scale);
       c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
       URL.revokeObjectURL(img.src);
-      c.toBlob((b) => (b ? resolve(b) : reject(new Error('gagal'))), 'image/jpeg', 0.85);
+      c.toBlob((b) => (b ? resolve(b) : reject(new Error('gagal'))), 'image/jpeg', 0.8);
     };
     img.onerror = reject;
     img.src = URL.createObjectURL(file);
@@ -364,7 +374,7 @@ $('#photo-list').addEventListener('change', async (e) => {
   if (slot?.premium && !isCustom()) { input.value = ''; return; }
   toast('📤 Lagi upload foto…');
   try {
-    const blob = slot?.icon ? await makeIcon(file) : await resizeImage(file, slot?.face ? 500 : 1000);
+    const blob = slot?.icon ? await makeIcon(file) : await resizeImage(file, slot?.face ? 500 : 800);
     const path = `${couple.owner}/${Date.now()}-${randomSlug()}.jpg`;
     const { error } = await sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' });
     if (error) throw error;

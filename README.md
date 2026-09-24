@@ -8,7 +8,7 @@ Game web lucu yang bisa di-custom pembeli untuk pasangannya: 5 dunia × 12 game 
 | `/` | Demo untuk calon pembeli (isi nama, foto & muka sendiri, Dunia 1 terbuka, contoh streak, info paket) |
 | `/c/<kode>` | Game milik satu pasangan, isinya dimuat dari CMS |
 | `/admin` | CMS: pembeli login lalu ganti nama, lagu, foto, surat, pesan tiap level, kuis, dan (paket Premium) tema & karakter |
-| `/owner` | Halaman owner: bikin akun pembeli + paketnya, perpanjang langganan, ganti password, hapus akun |
+| `/owner` | Halaman owner: bikin akun pembeli + paketnya (selamanya / masa aktif), ganti password, hapus akun |
 
 Tes lokal: `/?c=<kode>` sama dengan `/c/<kode>`, dan `/admin.html?contoh` membuka editor tanpa login (nggak menyimpan apa pun).
 
@@ -39,7 +39,7 @@ Keamanan:
 9. **Authentication → Sign In / Providers**: matikan **Allow new users to sign up**, biar akun cuma bisa dibuat dari `/owner`.
 10. **SQL Editor**: jalankan `supabase/migration-6.sql` (logo aplikasi dari foto cuma buat paket Premium). Manifest per pasangan dilayani `api/manifest.js` (Vercel Function, otomatis ke-deploy).
 
-Alur jualan: pembeli bayar lewat WhatsApp → kamu buka `/owner` → **➕ Tambah akun pembeli** (email, password, paket, masa aktif) → salin pesan login yang muncul dan kirim ke pembeli. Perpanjang pakai **+30 hari** / **+1 tahun**, ganti paket ke Premium, ganti password, atau hapus akun dari kartu tiap pembeli. Kalau lewat tanggal, game pasangan otomatis terkunci.
+Alur jualan (sekali bayar, akses selamanya: Love Quest Rp49.000, Premium Rp79.000, upgrade Rp30.000): pembeli bayar lewat WhatsApp → kamu buka `/owner` → **➕ Tambah akun pembeli** (email, password, paket, masa aktif **♾️ Selamanya**) → salin pesan login yang muncul dan kirim ke pembeli. Dari kartu tiap pembeli kamu bisa ganti paket ke Premium, set selamanya / masa aktif tertentu, ganti password, atau hapus akun.
 
 ## Menulis konten
 

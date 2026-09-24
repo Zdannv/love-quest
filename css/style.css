@@ -680,3 +680,77 @@ body.has-showcase-bar #screen-game { height: calc(100dvh - 44px); }
 .try-upsell p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.45; color: var(--ink); }
 .try-upsell .btn { font-size: 15px; padding: 9px 18px; }
 .play-hint { margin: -8px 0 0; font-size: 13px; color: var(--ink-soft); text-align: center; line-height: 1.4; max-width: 320px; }
+
+/* ---------- Desktop ---------- */
+.desk-nav, .hero-art { display: none; }
+html { scroll-behavior: smooth; }
+@media (min-width: 700px) {
+  /* Game dibuat buat layar HP (potret): di layar lebar tampil di bingkai selebar HP */
+  #screen-game { width: 100%; max-width: 480px; margin: 0 auto; box-shadow: 0 0 0 1px rgba(232, 85, 143, .08), 0 20px 60px rgba(120, 40, 100, .18); }
+}
+@media (min-width: 960px) {
+  body.is-demo #screen-home { justify-content: flex-start; padding: 0 40px 72px; }
+  body.is-demo .desk-nav {
+    display: flex; align-items: center; justify-content: space-between; width: min(100%, 1120px); margin: 0 auto;
+    padding: 14px 0; position: sticky; top: 0; z-index: 5;
+    background: rgba(255, 240, 247, .82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 1px 0 rgba(232, 85, 143, .12), -40px 0 0 rgba(255, 240, 247, .82), 40px 0 0 rgba(255, 240, 247, .82);
+  }
+  .desk-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 22px; color: var(--pink-deep); text-decoration: none; }
+  .desk-brand img { width: 42px; height: 42px; border-radius: 12px; box-shadow: 0 4px 12px rgba(232, 85, 143, .25); }
+  .desk-nav nav { display: flex; align-items: center; gap: 26px; }
+  .desk-nav nav a { color: var(--ink); text-decoration: none; font-weight: 600; }
+  .desk-nav nav a:hover { color: var(--pink-deep); }
+
+  body.is-demo .home-wrap {
+    width: min(100%, 1120px); margin: 28px auto 0; display: grid; grid-template-columns: 1.05fr .95fr;
+    column-gap: 64px; row-gap: 26px; align-items: center; text-align: left;
+    grid-template-areas: "title art" "pitch art" "show show" "try try" "play play" "hint hint" "inst inst" "reset reset";
+  }
+  body.is-demo .mascots { display: none; }
+  body.is-demo .title { grid-area: title; font-size: 76px; }
+  body.is-demo .pitch { grid-area: pitch; background: none; box-shadow: none; border: 0; padding: 0; text-align: left; }
+  body.is-demo .pitch h2 { font-size: 40px; }
+  body.is-demo .pitch > p { font-size: 17px; }
+  body.is-demo .pitch-points { grid-template-columns: 1fr 1fr; }
+  body.is-demo .pitch-points li { background: #fff; box-shadow: var(--shadow); font-size: 14.5px; }
+  body.is-demo .pitch .btn { font-size: 20px; padding: 14px 34px; }
+
+  body.is-demo .hero-art { grid-area: art; display: grid; place-items: center; position: relative; min-height: 520px; }
+  .hero-art img { width: min(100%, 440px); border-radius: 22%; box-shadow: 0 30px 70px rgba(150, 60, 160, .3); animation: heroFloat 4s ease-in-out infinite; }
+  .hero-chip {
+    position: absolute; background: #fff; color: var(--ink); font-weight: 600; font-size: 15px; padding: 10px 16px;
+    border-radius: 999px; box-shadow: 0 10px 24px rgba(150, 60, 160, .18); animation: heroFloat 4s ease-in-out infinite;
+  }
+  .hero-chip.c1 { top: 6%; left: 2%; animation-delay: -1s; }
+  .hero-chip.c2 { top: 16%; right: 0; animation-delay: -2s; }
+  .hero-chip.c3 { bottom: 18%; left: 0; animation-delay: -3s; }
+  .hero-chip.c4 { bottom: 6%; right: 6%; animation-delay: -.5s; }
+  @keyframes heroFloat { 50% { transform: translateY(-12px); } }
+
+  body.is-demo .showcase { grid-area: show; margin-top: 30px; scroll-margin-top: 90px; }
+  body.is-demo .showcase h2 { font-size: 30px; }
+  body.is-demo .showcase > p { font-size: 16px; }
+  body.is-demo #showcase-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  body.is-demo .showcase-card { padding: 16px; }
+
+  body.is-demo .try-card {
+    grid-area: try; width: min(100%, 920px); justify-self: center; padding: 26px 30px; margin-top: 20px; scroll-margin-top: 90px;
+    display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; align-items: start;
+  }
+  body.is-demo .try-title { grid-column: 1 / -1; font-size: 26px; }
+  body.is-demo .try-sub { grid-column: 1 / -1; font-size: 15px; }
+  body.is-demo .try-upsell { grid-column: 1 / -1; }
+  body.is-demo #btn-play { grid-area: play; justify-self: center; }
+  body.is-demo .play-hint { grid-area: hint; justify-self: center; }
+  body.is-demo #btn-install { grid-area: inst; justify-self: center; }
+  body.is-demo #btn-reset { grid-area: reset; justify-self: center; }
+}
+
+/* Halaman demo: logo Love Quest (bukan karakter hewan), judul tanpa nama pasangan */
+.home-logo { display: none; }
+body.is-demo .mascots, body.is-demo .title-owner { display: none; }
+body.is-demo .home-logo { display: block; width: 150px; height: 150px; border-radius: 34px; box-shadow: 0 14px 30px rgba(150, 60, 160, .28); animation: heroFloat 4s ease-in-out infinite; }
+body.is-demo .title-2 { font-size: 1em; }
+@keyframes heroFloat { 50% { transform: translateY(-10px); } }
+@media (min-width: 960px) { body.is-demo .home-logo { display: none; } }

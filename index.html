@@ -24,31 +24,49 @@
   <main id="app">
     <!-- HOME -->
     <section id="screen-home" class="screen active">
+      <!-- Bar atas & gambar hero: cuma tampil di layar lebar (desktop) -->
+      <header class="desk-nav" data-demo-only>
+        <a class="desk-brand" href="/"><img src="/icons/icon-192.png" alt="">Love Quest</a>
+        <nav>
+          <a href="#contoh">Contoh</a>
+          <a href="#coba">Coba gratis</a>
+          <button class="btn small-btn" type="button" data-paket>💌 Pesan sekarang</button>
+        </nav>
+      </header>
       <div class="home-wrap">
+        <div class="hero-art" data-demo-only aria-hidden="true">
+          <img src="/icons/icon-512.png" alt="">
+          <span class="hero-chip c1">🎮 60 level</span>
+          <span class="hero-chip c2">😆 muka jadi karakter</span>
+          <span class="hero-chip c3">🔥 streak berdua</span>
+          <span class="hero-chip c4">💌 surat rahasia</span>
+        </div>
         <div class="mascots" aria-hidden="true"><span>🦉</span><span>💖</span><span>🐱</span></div>
-        <h1 class="title"><span class="nm">Ayang</span>'s<br><span class="title-2">Love Quest</span></h1>
+        <img class="home-logo" src="/icons/icon-512.png" alt="Love Quest" data-demo-only>
+        <h1 class="title"><span class="title-owner"><span class="nm">Ayang</span>'s<br></span><span class="title-2">Love Quest</span></h1>
         <section class="pitch" data-demo-only>
           <p class="pitch-tag">💝 Kado digital yang bisa dimainin tiap hari</p>
           <h2>Game lucu yang isinya cerita kalian berdua</h2>
-          <p>Love Quest itu game di HP yang kamu bikin buat pasanganmu. Nama, pesan tiap level, kuis, surat & foto kamu isi sendiri lewat CMS. Tinggal kirim link, dia langsung main tanpa install apa-apa.</p>
+          <p>Love Quest itu couple game interaktif yang bisa kamu atur buat pasanganmu: mulai dari nama, pesan tiap level, kuis, surat, sampai game yang ada foto kalian. Kamu bisa kelola game-nya di mana aja & kapan aja tanpa ribet, lewat CMS yang udah disediain.</p>
           <ul class="pitch-points">
             <li><b>🎮</b><span>60 level + 5 puzzle foto, 13 jenis mini-game</span></li>
             <li><b>✍️</b><span>Isi dan kelola sendiri kontennya lewat CMS</span></li>
             <li><b>🔥</b><span>Streak couple dan notification untuk pasangan</span></li>
             <li><b>🎁</b><span>Pas buat anniversary, ulang tahun, LDR, atau minta maaf</span></li>
           </ul>
-          <p class="pitch-price">Mulai <b>Rp30.000</b>/bulan</p>
+          <p class="pitch-price">Mulai <b>Rp49.000</b> · sekali bayar, selamanya</p>
           <button class="btn" data-paket>💌 Lihat paket</button>
         </section>
-        <section class="showcase" data-demo-only>
+        <section class="showcase" id="contoh" data-demo-only>
           <h2>✨ Contoh versi jadi</h2>
           <p>Udah di-custom lengkap: nama, muka, tema, karakter, lagu, pesan & surat. Semua level kebuka, coba mainin!</p>
           <div id="showcase-list"></div>
         </section>
         <div class="streak-slot" id="streak-home" hidden></div>
-        <div class="try-card" data-demo-only>
-          <p class="try-title">🎮 Coba versi kalian</p>
+        <div class="try-card" id="coba" data-demo-only>
+          <p class="try-title">🎮 Coba gratis dulu sebelum beli</p>
           <p class="try-sub">Isi nama kalian, terus mainin 12 level Dunia 1 gratis di bawah 👇</p>
+          <div class="try-main">
           <div class="try-row">
             <label>Nama pasanganmu<input id="in-pasangan" maxlength="16" placeholder="contoh: Nadia" autocomplete="off"></label>
             <label>Nama kamu<input id="in-pengirim" maxlength="16" placeholder="contoh: Raka" autocomplete="off"></label>
@@ -61,6 +79,8 @@
               <label>Karakter kamu<select id="in-char2"></select></label>
             </div>
           </div>
+          </div>
+          <div class="try-faces">
           <div class="look-label">😊 Muka kalian jadi karakter <small>paket Premium</small></div>
           <div class="face-row">
             <label class="face-pick" data-face="pasangan">
@@ -75,9 +95,10 @@
             </label>
           </div>
           <small class="try-note">Nama & foto muka cuma disimpan di HP ini, nggak diupload ke mana-mana. Pakai foto close-up muka biar pas.</small>
+          </div>
           <div class="try-upsell">
-            <p>✍️ Mau ganti <b>isi surat</b>, <b>pesan tiap level</b>, kuis, sampai <b>lagunya</b>? Langsung langganan aja, semuanya bisa kamu atur sendiri lewat CMS 💖</p>
-            <button class="btn small-btn" type="button" data-paket>💌 Langganan sekarang</button>
+            <p>✍️ Mau ganti <b>isi surat</b>, <b>pesan tiap level</b>, kuis, sampai <b>lagunya</b>? Langsung pesan aja, semuanya bisa kamu atur sendiri lewat CMS 💖</p>
+            <button class="btn small-btn" type="button" data-paket>💌 Pesan sekarang</button>
           </div>
         </div>
         <button class="btn big" id="btn-play">Main yuk! ▶</button>
