@@ -34,6 +34,44 @@
 
     <div id="view-list" hidden>
       <section class="panel owner-summary" id="summary"></section>
+
+      <section class="panel">
+        <details id="new-box">
+          <summary class="new-summary">➕ Tambah akun pembeli</summary>
+          <form id="form-new" class="form new-form">
+            <p class="muted small">Isi setelah pembayaran masuk. Pembeli nanti login di <b id="cms-url">/admin</b> pakai email & password ini.</p>
+            <div class="grid2">
+              <label>Email pembeli<input type="email" id="new-email" required autocomplete="off"></label>
+              <label>Password
+                <span class="row nowrap"><input id="new-pass" required minlength="6" autocomplete="off"><button type="button" class="btn ghost small-btn" id="btn-gen">🎲</button></span>
+              </label>
+            </div>
+            <div class="grid2">
+              <label>Nama pasangan (opsional)<input id="new-pasangan" maxlength="40" placeholder="contoh: Nadia"></label>
+              <label>Nama pembeli (opsional)<input id="new-pengirim" maxlength="40" placeholder="contoh: Raka"></label>
+            </div>
+            <div class="grid2">
+              <label>Paket
+                <select id="new-plan">
+                  <option value="basic">Love Quest (Rp30rb/bln)</option>
+                  <option value="custom">Love Quest Premium (Rp50rb bulan pertama)</option>
+                </select>
+              </label>
+              <label>Aktif selama
+                <select id="new-days">
+                  <option value="30">30 hari</option>
+                  <option value="90">3 bulan</option>
+                  <option value="365">1 tahun</option>
+                  <option value="0">Belum aktif (nunggu bayar)</option>
+                </select>
+              </label>
+            </div>
+            <label>Catatan (misal: bayar 24 Sep via QRIS)<input id="new-note"></label>
+            <button class="btn" type="submit" id="btn-new">Bikin akun</button>
+          </form>
+          <div id="new-result" class="new-result" hidden></div>
+        </details>
+      </section>
       <section class="panel">
         <div class="row owner-filters">
           <input id="search" placeholder="Cari email, nama, atau kode…" autocomplete="off">

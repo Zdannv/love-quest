@@ -25,22 +25,20 @@
     <!-- LOGIN -->
     <section class="panel" id="view-login" hidden>
       <h1>Masuk ke CMS</h1>
-      <p class="muted">Kelola isi game buat pasanganmu: nama, pesan, surat, foto, dan lagu.</p>
+      <p class="muted">Kelola isi game buat pasanganmu: nama, pesan, surat, foto, dan lagu. Email & password dikirim lewat WhatsApp setelah kamu pesan.</p>
       <form id="form-login" class="form">
         <label>Email<input type="email" id="in-email" required autocomplete="email"></label>
         <label>Password<input type="password" id="in-pass" required minlength="6" autocomplete="current-password"></label>
-        <div class="row">
-          <button class="btn" type="submit" data-mode="login">Masuk</button>
-          <button class="btn ghost" type="submit" data-mode="signup">Daftar baru</button>
-        </div>
+        <button class="btn" type="submit">Masuk</button>
       </form>
+      <p class="muted small" id="login-help"></p>
     </section>
 
-    <!-- BELUM PUNYA GAME -->
+    <!-- AKUN TANPA GAME -->
     <section class="panel" id="view-create" hidden>
-      <h1>Bikin game pertamamu 💌</h1>
-      <p class="muted">Isinya langsung terisi contoh, nanti tinggal kamu ganti.</p>
-      <button class="btn big" id="btn-create">Bikin game</button>
+      <h1>Game-mu belum ada 🥺</h1>
+      <p class="muted">Akun ini belum punya game. Chat kami lewat WhatsApp ya, nanti langsung dibantu.</p>
+      <a class="btn" id="btn-create" target="_blank" rel="noopener">💬 Chat WhatsApp</a>
     </section>
 
     <!-- EDITOR -->

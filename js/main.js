@@ -439,7 +439,7 @@ function renderMap() {
     const lockNote = CONFIG.demo && !TEST_MODE && wi === 1 ? `
       <div class="demo-lock">
         <b>🔒 Dunia 2–5 kebuka di versi kalian</b>
-        <span>48 level lagi, puzzle foto kalian, kuis tentang kalian berdua, sampai muka kalian jadi karakter game (paket Custom)</span>
+        <span>48 level lagi, puzzle foto kalian, kuis tentang kalian berdua, sampai muka kalian jadi karakter game (paket Premium)</span>
         <button class="btn" data-paket>💌 Lihat paket</button>
       </div>` : '';
     return lockNote + html;

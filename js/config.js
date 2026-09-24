@@ -12,8 +12,8 @@ export const CONFIG = {
   // Diisi dari CMS untuk tiap pasangan (lihat js/boot.js). Di demo pakai nilai bawaan ini.
   names: null,              // { pasangan, pengirim }
   music: 'ceria',           // id lagu dari js/audio.js (TRACKS) atau 'off'
-  theme: 'pink',            // id tema dari js/themes.js (paket Custom)
-  characters: { pasangan: 'owl', pengirim: 'cat' }, // id karakter dari js/themes.js (paket Custom)
+  theme: 'pink',            // id tema dari js/themes.js (paket Premium)
+  characters: { pasangan: 'owl', pengirim: 'cat' }, // id karakter dari js/themes.js (paket Premium)
   photos: { letter: null, bonus: [null, null, null, null, null], faces: { pasangan: null, pengirim: null } },
 
   // Supabase untuk CMS (project khusus bisnis ini, terpisah dari project lain).
@@ -21,6 +21,7 @@ export const CONFIG = {
     url: 'https://paymeqnshhmjqypergji.supabase.co',
     anonKey: 'sb_publishable_pDiStBz1jEdLO9q3AOB3Bw_RfeZP57y', // publishable key (aman ditaruh di sini)
     pushFunction: 'streak-push', // nama edge function pengirim notifikasi (harus sama persis dengan di Supabase)
+    ownerFunction: 'owner-accounts', // nama edge function buat bikin/kelola akun pembeli dari /owner
     vapidPublicKey: 'BCcMyl6pfxXERZ0HZOe1KW2DpU3Egb5i1Jzj3eUmtA_PLs2S9i5v52oAxWBfRpjxaK051rZtJ0G4-2o9Cp4XYN0',
   },
 
@@ -30,7 +31,7 @@ export const CONFIG = {
   whatsapp: '6287855310680', // dipakai juga di CMS buat bayar/perpanjang langganan
 
   // Model: semua pembeli langganan Rp30.000/bulan.
-  // Custom = biaya pembuatan sekali di awal, bulan berikutnya tetap Rp30.000.
+  // Premium = biaya pembuatan sekali di awal, bulan berikutnya tetap Rp30.000.
   packages: [
     {
       name: 'Love Quest',
@@ -47,10 +48,10 @@ export const CONFIG = {
       ],
     },
     {
-      name: 'Love Quest Custom',
+      name: 'Love Quest Premium',
       price: 'Rp50.000',
       per: 'bulan pertama',
-      note: 'Rp20.000 biaya custom sekali + Rp30.000 langganan. Bulan berikutnya tetap Rp30.000/bulan.',
+      note: 'Rp20.000 sekali di awal + Rp30.000 langganan. Bulan berikutnya tetap Rp30.000/bulan.',
       tag: 'Tampilan khusus buat kalian',
       features: [
         'Semua isi paket Love Quest',

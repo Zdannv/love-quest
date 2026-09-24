@@ -16,7 +16,7 @@ function toast(text) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
 
-const { url, anonKey } = CONFIG.cloud;
+const { url, anonKey, ownerFunction = 'owner-accounts' } = CONFIG.cloud;
 const sb = createClient(url, anonKey);
 
 const todayWib = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
@@ -79,7 +79,7 @@ function render() {
           <label>Paket
             <select data-f="plan">
               <option value="basic" ${c.plan === 'basic' ? 'selected' : ''}>Love Quest (Rp30rb/bln)</option>
-              <option value="custom" ${c.plan === 'custom' ? 'selected' : ''}>Love Quest Custom</option>
+              <option value="custom" ${c.plan === 'custom' ? 'selected' : ''}>Love Quest Premium</option>
             </select>
           </label>
           <label>Aktif sampai (${fmtDate(c.paid_until)})<input type="date" data-f="paid_until" value="${c.paid_until || ''}"></label>
@@ -90,6 +90,10 @@ function render() {
           <button class="btn ghost small-btn" data-add="365">+1 tahun</button>
           <button class="btn ghost small-btn" data-toggle>${c.active ? 'Nonaktifkan' : 'Aktifkan lagi'}</button>
           <button class="btn small-btn" data-save>Simpan</button>
+        </div>
+        <div class="row">
+          <button class="link-btn" data-pass>🔑 Ganti password</button>
+          <button class="link-btn danger" data-delete>🗑️ Hapus akun</button>
         </div>
         <div class="muted small">Dibuat ${fmtDate(c.created_at?.slice(0, 10))} · terakhir diedit ${fmtDate(c.updated_at?.slice(0, 10))}</div>
       </article>`;
@@ -121,8 +125,123 @@ $('#couple-list').addEventListener('click', (e) => {
     update(c, { active: !c.active });
   } else if (e.target.closest('[data-save]')) {
     update(c, { plan: field('plan'), note: field('note'), paid_until: field('paid_until') || null });
+  } else if (e.target.closest('[data-pass]')) {
+    changePassword(c);
+  } else if (e.target.closest('[data-delete]')) {
+    removeAccount(c);
   }
 });
+
+// ---------- Kelola akun pembeli (lewat edge function, butuh kunci rahasia di server) ----------
+async function callOwner(body) {
+  const { data: { session } } = await sb.auth.getSession();
+  let res;
+  try {
+    res = await fetch(`${url.replace(/\/$/, '')}/functions/v1/${ownerFunction}`, {
+      method: 'POST',
+      headers: { apikey: anonKey, Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error('Nggak nyambung ke server. Cek internet, atau edge function owner-accounts belum di-deploy.');
+  }
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 404 && !data.error) throw new Error(`Edge function "${ownerFunction}" belum di-deploy di Supabase.`);
+  if (!res.ok || data.error) throw new Error(data.error || data.message || `Error ${res.status}`);
+  return data;
+}
+
+function randomPassword() {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('');
+}
+
+const cmsUrl = () => `${location.origin}/admin${['localhost', '127.0.0.1'].includes(location.hostname) ? '.html' : ''}`;
+
+function loginMessage({ email, password, slug, paid_until }) {
+  return `Halo! Makasih udah pesan Love Quest 💖
+
+Game kalian udah jadi. Isi nama, pesan, foto & suratnya di sini:
+${cmsUrl()}
+Email: ${email}
+Password: ${password}
+
+Kalau udah selesai, kirim link ini ke pasanganmu:
+${gameLink(slug)}
+${paid_until ? `\nAktif sampai ${fmtDate(paid_until)}.` : ''}`;
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); toast('Pesan disalin, tinggal paste di WhatsApp 💬'); }
+  catch { toast('Nggak bisa nyalin otomatis, salin manual yaa'); }
+}
+
+$('#cms-url').textContent = cmsUrl();
+$('#btn-gen').addEventListener('click', () => { $('#new-pass').value = randomPassword(); });
+
+$('#form-new').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('#btn-new');
+  const payload = {
+    action: 'create',
+    email: $('#new-email').value.trim(),
+    password: $('#new-pass').value,
+    plan: $('#new-plan').value,
+    days: Number($('#new-days').value),
+    names: { pasangan: $('#new-pasangan').value.trim(), pengirim: $('#new-pengirim').value.trim() },
+    note: $('#new-note').value.trim(),
+  };
+  btn.disabled = true;
+  btn.textContent = 'Membuat…';
+  try {
+    const res = await callOwner(payload);
+    const msg = loginMessage({ email: res.email, password: payload.password, slug: res.slug, paid_until: payload.days ? res.paid_until : null });
+    const box = $('#new-result');
+    box.hidden = false;
+    box.innerHTML = `<b>✅ Akun ${esc(res.email)} jadi!</b> Kirim pesan ini ke pembeli (password cuma kelihatan sekarang):
+      <pre>${esc(msg)}</pre>
+      <div class="row">
+        <button type="button" class="btn small-btn" id="btn-copy-msg">📋 Salin pesan</button>
+        <a class="btn ghost small-btn" target="_blank" rel="noopener" id="btn-wa-msg">💬 Buka WhatsApp</a>
+      </div>`;
+    $('#btn-copy-msg').onclick = () => copyText(msg);
+    $('#btn-wa-msg').href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    $('#form-new').reset();
+    toast('Akun pembeli dibuat ✓');
+    await refresh();
+  } catch (err) {
+    toast(`Gagal: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Bikin akun';
+  }
+});
+
+async function changePassword(c) {
+  const password = prompt(`Password baru buat ${c.owner_email}? (min. 6 karakter)`, randomPassword());
+  if (password == null) return;
+  if (password.length < 6) { toast('Password minimal 6 karakter'); return; }
+  try {
+    await callOwner({ action: 'password', couple_id: c.id, password });
+    await copyText(`Password Love Quest kamu udah diganti 🔑\n${cmsUrl()}\nEmail: ${c.owner_email}\nPassword: ${password}`);
+  } catch (err) {
+    toast(`Gagal: ${err.message}`);
+  }
+}
+
+async function removeAccount(c) {
+  const typed = prompt(`Hapus akun ${c.owner_email} beserta game, streak & fotonya? Ini nggak bisa dibatalin.\n\nKetik HAPUS buat lanjut:`);
+  if (typed?.trim().toUpperCase() !== 'HAPUS') return;
+  try {
+    await callOwner({ action: 'delete', couple_id: c.id });
+    couples = couples.filter((x) => x.id !== c.id);
+    render();
+    toast('Akun dihapus');
+  } catch (err) {
+    toast(`Gagal: ${err.message}`);
+  }
+}
 $('#search').addEventListener('input', render);
 $('#filter').addEventListener('change', render);
 
@@ -136,13 +255,19 @@ async function load() {
     $('#view-login').hidden = true;
     return;
   }
-  const { data, error } = await sb.rpc('admin_list_couples');
-  if (error) { setStatus(`Gagal memuat: ${error.message}`); return; }
-  couples = data;
+  if (!(await refresh())) return;
   setStatus('');
   $('#view-login').hidden = true;
   $('#view-list').hidden = false;
   render();
+}
+
+async function refresh() {
+  const { data, error } = await sb.rpc('admin_list_couples');
+  if (error) { setStatus(`Gagal memuat: ${error.message}`); return false; }
+  couples = data;
+  render();
+  return true;
 }
 
 $('#form-login').addEventListener('submit', async (e) => {

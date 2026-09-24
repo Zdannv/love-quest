@@ -7,8 +7,8 @@ Game web lucu yang bisa di-custom pembeli untuk pasangannya: 5 dunia × 12 game 
 |---|---|
 | `/` | Demo untuk calon pembeli (isi nama, foto & muka sendiri, Dunia 1 terbuka, contoh streak, info paket) |
 | `/c/<kode>` | Game milik satu pasangan, isinya dimuat dari CMS |
-| `/admin` | CMS: pembeli login lalu ganti nama, lagu, foto, surat, pesan tiap level, kuis, dan (paket Custom) tema & karakter |
-| `/owner` | Halaman owner: lihat semua pembeli, aktifkan/perpanjang langganan manual |
+| `/admin` | CMS: pembeli login lalu ganti nama, lagu, foto, surat, pesan tiap level, kuis, dan (paket Premium) tema & karakter |
+| `/owner` | Halaman owner: bikin akun pembeli + paketnya, perpanjang langganan, ganti password, hapus akun |
 
 Tes lokal: `/?c=<kode>` sama dengan `/c/<kode>`, dan `/admin.html?contoh` membuka editor tanpa login (nggak menyimpan apa pun).
 
@@ -17,7 +17,7 @@ Tes lokal: `/?c=<kode>` sama dengan `/c/<kode>`, dan `/admin.html?contoh` membuk
 Pakai project Supabase **baru** khusus bisnis ini.
 
 1. **SQL Editor → New query**: paste isi `supabase/schema.sql`, lalu **Run**.
-2. **Authentication → Sign In / Providers → Email**: pastikan aktif. Selama masih tes, boleh matikan **Confirm email** biar bisa langsung masuk setelah daftar.
+2. **Authentication → Sign In / Providers → Email**: pastikan aktif. Akun pembeli dibuat dari `/owner` (langsung terkonfirmasi, tanpa email).
 3. **Project Settings → API**: salin Project URL & publishable key ke `cloud.url` dan `cloud.anonKey` di `js/config.js`.
 
 Keamanan:
@@ -32,9 +32,13 @@ Keamanan:
 4. **SQL Editor**: jalankan `supabase/cron.sql` (ganti `ISI_CRON_SECRET`).
 
 5. **SQL Editor**: jalankan `supabase/migration-3.sql` (biar main pas offline tetap kecatat di streak dengan tanggal yang benar).
-6. **SQL Editor**: jalankan `supabase/migration-4.sql` (muka jadi karakter & pilihan lagu cuma buat paket Custom).
+6. **SQL Editor**: jalankan `supabase/migration-4.sql` (muka jadi karakter & pilihan lagu cuma buat paket Premium).
 
-Alur langganan manual: game baru dapat masa coba 3 hari → pembeli bayar lewat WhatsApp → kamu buka `/owner`, klik **+30 hari** (atau **+1 tahun**) dan ganti paket ke Custom kalau perlu. Kalau lewat tanggal, game pasangan otomatis terkunci.
+7. **SQL Editor**: jalankan `supabase/migration-5.sql` (pembeli nggak bisa bikin akun/game sendiri lagi).
+8. **Edge Functions → Deploy a new function → Via Editor**: nama **`owner-accounts`** (persis), paste `supabase/functions/owner-accounts/index.ts`, deploy, lalu matikan **Verify JWT** (fungsinya ngecek admin sendiri). Nggak butuh secret tambahan.
+9. **Authentication → Sign In / Providers**: matikan **Allow new users to sign up**, biar akun cuma bisa dibuat dari `/owner`.
+
+Alur jualan: pembeli bayar lewat WhatsApp → kamu buka `/owner` → **➕ Tambah akun pembeli** (email, password, paket, masa aktif) → salin pesan login yang muncul dan kirim ke pembeli. Perpanjang pakai **+30 hari** / **+1 tahun**, ganti paket ke Premium, ganti password, atau hapus akun dari kartu tiap pembeli. Kalau lewat tanggal, game pasangan otomatis terkunci.
 
 ## Menulis konten
 

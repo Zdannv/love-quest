@@ -112,7 +112,7 @@ function renderSubscription() {
   const daysLeft = Math.round((new Date(`${couple.paid_until}T00:00:00Z`) - new Date(`${todayWib()}T00:00:00Z`)) / 864e5);
   const expired = !couple.active || daysLeft < 0;
   const trial = couple.plan === 'basic' && !couple.note && daysLeft <= 3 && Date.now() - new Date(couple.created_at) < 4 * 864e5;
-  const planName = couple.plan === 'custom' ? 'Love Quest Custom' : 'Love Quest';
+  const planName = couple.plan === 'custom' ? 'Love Quest Premium' : 'Love Quest';
   const text = `Halo! Aku mau ${expired || trial ? 'bayar' : 'perpanjang'} langganan Love Quest 💖\nKode game: ${couple.slug}\nEmail: ${couple.owner_email || '-'}`;
   const wa = CONFIG.whatsapp ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(text)}` : '';
   panel.className = `panel sub-panel ${expired ? 'expired' : daysLeft <= 3 ? 'soon' : ''}`;
@@ -212,13 +212,13 @@ $('#music-list').addEventListener('click', (e) => {
   renderMusic();
 });
 
-// ---------- Fitur paket Custom (tema, karakter, muka, lagu) ----------
+// ---------- Fitur paket Premium (tema, karakter, muka, lagu) ----------
 const isCustom = () => couple.plan === 'custom';
 function upsellNote(what) {
   const url = CONFIG.whatsapp
-    ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(`Halo! Aku mau upgrade ke Love Quest Custom 💖\nKode game: ${couple.slug}`)}`
+    ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(`Halo! Aku mau upgrade ke Love Quest Premium 💖\nKode game: ${couple.slug}`)}`
     : '';
-  return `<div class="locked-note">🔒 ${what} tersedia di paket <b>Love Quest Custom</b>.
+  return `<div class="locked-note">🔒 ${what} tersedia di paket <b>Love Quest Premium</b>.
     ${url ? `<a class="btn small-btn" href="${esc(url)}" target="_blank" rel="noopener">Upgrade via WhatsApp</a>` : ''}</div>`;
 }
 
@@ -227,12 +227,12 @@ function renderLook() {
   const opts = (sel) => Object.entries(CHARACTERS).map(([id, ch]) =>
     `<option value="${id}" ${sel === id ? 'selected' : ''}>${ch.emoji} ${esc(ch.name)}</option>`).join('');
   const upsell = CONFIG.whatsapp
-    ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(`Halo! Aku mau upgrade ke Love Quest Custom 💖\nKode game: ${couple.slug}`)}`
+    ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(`Halo! Aku mau upgrade ke Love Quest Premium 💖\nKode game: ${couple.slug}`)}`
     : '';
   $('#look-editor').innerHTML = `
     ${isCustom ? '' : `
       <div class="locked-note">
-        🔒 Tema & karakter tersedia di paket <b>Love Quest Custom</b>.
+        🔒 Tema & karakter tersedia di paket <b>Love Quest Premium</b>.
         ${upsell ? `<a class="btn small-btn" href="${esc(upsell)}" target="_blank" rel="noopener">Upgrade via WhatsApp</a>` : ''}
       </div>`}
     <fieldset class="look-fields" ${isCustom ? '' : 'disabled'}>
@@ -279,7 +279,7 @@ function renderPhotos() {
       <div class="photo-slot locked">
         <b>${esc(s.label)}</b>
         <div class="thumb face">🔒</div>
-        <small class="muted">Paket Custom</small>
+        <small class="muted">Paket Premium</small>
       </div>`;
     }
     return `
@@ -416,23 +416,16 @@ $('#btn-copy').addEventListener('click', async () => {
 });
 
 // ---------- Akun ----------
+const waLink = (text) => `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(text)}`;
+$('#login-help').innerHTML = `Belum punya akun atau lupa password? <a href="${waLink('Halo! Aku mau pesan Love Quest 💖')}" target="_blank" rel="noopener">Chat WhatsApp</a>`;
+$('#btn-create').href = waLink('Halo! Aku udah punya akun Love Quest tapi game-nya belum ada 🥺');
+
 $('#form-login').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const mode = e.submitter?.dataset.mode || 'login';
-  const email = $('#in-email').value.trim();
-  const password = $('#in-pass').value;
   setStatus('');
-  const { data, error } = mode === 'signup'
-    ? await sb.auth.signUp({ email, password })
-    : await sb.auth.signInWithPassword({ email, password });
+  const { error } = await sb.auth.signInWithPassword({ email: $('#in-email').value.trim(), password: $('#in-pass').value });
   if (error) {
-    setStatus(error.message.includes('Invalid login') ? 'Email atau password salah.'
-      : error.message.includes('not confirmed') ? 'Email belum dikonfirmasi. Cek inbox kamu dulu yaa.'
-        : `Gagal: ${error.message}`);
-    return;
-  }
-  if (mode === 'signup' && !data.session) {
-    setStatus('Akun dibuat! Cek email kamu buat konfirmasi, terus masuk lagi di sini.');
+    setStatus(error.message.includes('Invalid login') ? 'Email atau password salah.' : `Gagal: ${error.message}`);
     return;
   }
   await loadMine();
@@ -444,27 +437,6 @@ $('#btn-logout').addEventListener('click', async () => {
   couple = content = null;
   markDirty(false);
   show('login');
-});
-
-$('#btn-create').addEventListener('click', async () => {
-  const { data: { user } } = await sb.auth.getUser();
-  const { data, error } = await sb.from('couples')
-    .insert({ owner: user.id, slug: randomSlug(), content: defaultContent() })
-    .select()
-    .single();
-  if (error) {
-    // Sudah punya game (1 akun = 1 game): buka yang sudah ada aja
-    if (error.code === '23505') { await loadMine(); return; }
-    console.error(error);
-    setStatus(`Gagal bikin game: ${error.message}`);
-    return;
-  }
-  couple = data;
-  content = withDefaults(data.content);
-  show('editor');
-  renderEditor();
-  markDirty(false);
-  toast('Game kalian udah jadi! Yuk mulai ganti isinya 💖');
 });
 
 async function loadMine() {

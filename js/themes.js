@@ -1,4 +1,4 @@
-// Tema warna & karakter hewan (fitur paket Custom). Dipakai game, demo, dan CMS.
+// Tema warna & karakter hewan (fitur paket Premium). Dipakai game, demo, dan CMS.
 
 export const THEMES = {
   pink: {

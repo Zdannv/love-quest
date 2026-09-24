@@ -101,3 +101,13 @@ details.panel > summary::-webkit-details-marker { display: none; }
 .music-opt.locked { opacity: .6; }
 .photo-slot.locked { opacity: .6; }
 .photo-list .locked-note { grid-column: 1 / -1; margin-bottom: 0; }
+
+/* Owner: tambah akun */
+.new-summary { cursor: pointer; font-weight: 600; color: var(--pink-deep); font-size: 17px; }
+.new-form { margin-top: 12px; }
+.row.nowrap { flex-wrap: nowrap; }
+.row.nowrap input { flex: 1; min-width: 0; }
+.new-result { margin-top: 12px; padding: 12px; border-radius: 14px; background: #f1fff6; border: 2px dashed #8fdcae; }
+.new-result pre { white-space: pre-wrap; font: inherit; font-size: 14px; margin: 0 0 10px; }
+.couple-card .danger { color: #d9304f; }
+#login-help { margin: 12px 0 0; }
