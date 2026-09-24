@@ -559,14 +559,6 @@ button:disabled { cursor: default; }
   -webkit-user-select: text; user-select: text;
 }
 .try-card input:focus { border-color: var(--pink); }
-.foto-pick {
-  margin-top: 10px; position: relative; flex-direction: row !important; align-items: center; justify-content: center;
-  border: 2px dashed #d8c6ff; border-radius: 14px; padding: 10px; color: var(--accent2) !important; cursor: pointer;
-}
-.foto-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-.foto-preview { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 10px; }
-.foto-preview[hidden] { display: none; }
-.foto-preview img { width: 56px; height: 56px; object-fit: cover; border-radius: 12px; border: 3px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,.15); }
 .try-note { display: block; margin-top: 8px; font-size: 12px; color: var(--ink-soft); text-align: center; }
 
 .demo-lock {
@@ -666,3 +658,25 @@ body.playing #bg-hearts { display: none; }
 .showcase-bar .btn.small { font-size: 12.5px; padding: 6px 12px; box-shadow: 0 3px 0 var(--pink-deep); }
 body.has-showcase-bar #app { padding-top: 44px; }
 body.has-showcase-bar #screen-game { height: calc(100dvh - 44px); }
+
+/* Penjelasan produk (demo) */
+.pitch {
+  width: 100%; background: #fff; border-radius: var(--radius); padding: 18px 18px 20px; box-shadow: var(--shadow);
+  border: 3px solid var(--pink-soft); text-align: center;
+}
+.pitch-tag {
+  display: inline-block; margin: 0 0 10px; padding: 4px 12px; border-radius: 999px;
+  background: var(--pink-soft); color: var(--pink-deep); font-size: 13px; font-weight: 600;
+}
+.pitch h2 { margin: 0 0 8px; font-size: 22px; line-height: 1.2; color: var(--ink); }
+.pitch > p { margin: 0 0 12px; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); }
+.pitch-points { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; text-align: left; }
+.pitch-points li { display: flex; gap: 10px; align-items: center; background: #fff8fb; border-radius: 14px; padding: 8px 12px; font-size: 14px; }
+.pitch-points b { font-size: 20px; }
+.pitch .pitch-price { margin: 0 0 10px; font-size: 15px; color: var(--ink); }
+.pitch-price b { color: var(--pink-deep); font-size: 19px; }
+.try-sub { margin: -6px 0 12px; font-size: 13px; color: var(--ink-soft); text-align: center; }
+.try-upsell { margin-top: 12px; padding: 12px; border-radius: 14px; background: #fff3f8; border: 2px dashed var(--pink-soft); text-align: center; }
+.try-upsell p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.45; color: var(--ink); }
+.try-upsell .btn { font-size: 15px; padding: 9px 18px; }
+.play-hint { margin: -8px 0 0; font-size: 13px; color: var(--ink-soft); text-align: center; line-height: 1.4; max-width: 320px; }

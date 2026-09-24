@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { getNames, setNames, fill, getPhoto, savePhoto, clearPhoto, getLook, setLook, getChars, getFace, saveFace, clearFace } from './personal.js';
+import { getNames, setNames, fill, getLook, setLook, getChars, getFace, saveFace, clearFace } from './personal.js';
 import { THEMES, CHARACTERS, applyTheme } from './themes.js';
 import { SHOWCASES } from './showcase.js';
 import { LEVEL_MAP, PATTERN, EXTRA_SLOTS, TYPE_NAME, typeOf } from './level-map.js';
@@ -263,16 +263,9 @@ if (CONFIG.showcase) {
   document.body.classList.add('has-showcase-bar');
 }
 
-// ---------- Coba versi kalian (nama & foto) ----------
+// ---------- Coba versi kalian (nama & muka) ----------
 const inPasangan = $('#in-pasangan');
 const inPengirim = $('#in-pengirim');
-const inFoto = $('#in-foto');
-const fotoPreview = $('#foto-preview');
-const syncFoto = () => {
-  const photo = getPhoto();
-  fotoPreview.hidden = !photo;
-  if (photo) fotoPreview.querySelector('img').src = photo;
-};
 inPasangan.value = getNames().raw.pasangan || '';
 inPengirim.value = getNames().raw.pengirim || '';
 [inPasangan, inPengirim].forEach((el) => el.addEventListener('input', () => {
@@ -280,19 +273,6 @@ inPengirim.value = getNames().raw.pengirim || '';
   applyNames();
   renderStreak();
 }));
-inFoto.addEventListener('change', async () => {
-  const file = inFoto.files?.[0];
-  if (!file) return;
-  try {
-    await savePhoto(file);
-    toast('📸 Foto kepasang! Nanti muncul di puzzle & surat');
-  } catch {
-    toast('Yahh fotonya kegedean, coba foto lain yaa 🥺');
-  }
-  inFoto.value = '';
-  syncFoto();
-});
-$('#foto-hapus').addEventListener('click', () => { clearPhoto(); syncFoto(); });
 
 // Foto muka (demo): tap kotaknya buat pilih foto, tap lagi yang sudah ada buat ganti
 function syncFaces() {
@@ -343,14 +323,13 @@ if (CONFIG.demo) {
   $('#in-char1').addEventListener('change', (e) => updateLook({ characters: { pasangan: e.target.value } }));
   $('#in-char2').addEventListener('change', (e) => updateLook({ characters: { pengirim: e.target.value } }));
 }
-syncFoto();
 
 // ---------- Paket ----------
 function showPackages() {
   modal.querySelector('.modal-card').innerHTML = `
     <div class="owl-react happy"><span class="owl">${getChars().pasangan.emoji}</span><span class="owl-extra">💌</span></div>
     <h2>Bikin versi kalian!</h2>
-    <p class="detail">Semua isinya bisa diganti sesuai cerita kalian berdua</p>
+    <p class="detail">Kamu dapat akun CMS buat ngelola isi game-nya sendiri, jadi semuanya bisa diganti sesuai cerita kalian berdua</p>
     <div class="packages">
       ${CONFIG.packages.map((pk) => `
         <div class="package">
@@ -374,6 +353,7 @@ document.addEventListener('click', (e) => {
   stopGame();
   showPackages();
 });
+if (CONFIG.demo) $('#btn-play').textContent = 'Mainin versi kalian ▶';
 $('#btn-play').addEventListener('click', () => { sfx('click'); show('map'); });
 $('#btn-reset').addEventListener('click', () => {
   if (confirm('Yakin mau reset semua progress? Semua bintang bakal hilang 🥺')) {
@@ -542,7 +522,7 @@ function startLevel(i) {
 
 // Foto untuk puzzle/bonus: demo pakai foto upload lokal, game pasangan pakai foto dari CMS
 function photoFor(L) {
-  if (CONFIG.demo) return getPhoto() || SAMPLE_PHOTO;
+  if (CONFIG.demo) return SAMPLE_PHOTO;
   const p = CONFIG.photos || {};
   return (L && L.bonus && p.bonus?.[L.world]) || p.letter || SAMPLE_PHOTO;
 }
@@ -561,7 +541,7 @@ function levelParams(L) {
   // Yang main (pasangan) = terbang & jalan di labirin; yang ngasih (pengirim) = lari & jadi target lempar
   const faceA = getFace('pasangan');
   const faceB = getFace('pengirim');
-  if (L.type === 'catch') return { ...L.params, bonusImage: faceB || (CONFIG.demo ? getPhoto() : null), carrier: c.pengirim.emoji };
+  if (L.type === 'catch') return { ...L.params, bonusImage: faceB || null, carrier: c.pengirim.emoji };
   if (L.type === 'pop') return { ...L.params, good: [c.pasangan.emoji, c.pengirim.emoji] };
   if (L.type === 'fly') return { ...L.params, flyer: c.pasangan.emoji, face: faceA };
   if (L.type === 'simon') return { ...L.params, pads: [c.pasangan.emoji, c.pengirim.emoji, '💖', '⭐'] };

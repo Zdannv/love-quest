@@ -40,9 +40,11 @@ export const CONFIG = {
       note: '',
       tag: 'Paling pas buat mulai',
       features: [
+        'Akun CMS (halaman admin) pribadi buat ngelola isi game sendiri, kapan aja, langsung dari HP',
+        'Yang bisa kamu ganti: nama kalian, pesan tiap level, kuis, surat, foto surat & 5 puzzle foto',
+        'Perubahan langsung muncul di game pasanganmu, nggak perlu kirim link baru',
         '60 level + 5 bonus puzzle foto: 5 dunia, tiap dunia 12 game yang beda-beda',
         '13 jenis mini-game (terbang, lari, labirin, susun kue, lempar hati, dll.)',
-        'Nama, pesan tiap level, kuis, surat & foto bisa diganti kapan aja lewat halaman admin',
         'Streak berdua + notifikasi pengingat jam 7 malam',
         'Bisa dipasang di home screen & tetap bisa dimainin offline',
       ],
@@ -55,6 +57,7 @@ export const CONFIG = {
       tag: 'Tampilan khusus buat kalian',
       features: [
         'Semua isi paket Love Quest',
+        'Muka, tema, karakter & lagu juga bisa kamu atur dan ganti sendiri kapan aja di CMS',
         'Muka kalian jadi karakter game: yang terbang, lari, sampai target lempar hati 😆',
         'Tema warna pilihan kalian (6 pilihan)',
         'Karakter hewan kesukaan kalian (14 pilihan, misal 🦉🐱🐶🐰🐼)',
