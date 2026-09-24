@@ -304,3 +304,12 @@ $('#form-login').addEventListener('submit', async (e) => {
 $('#btn-logout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
 
 load();
+
+// Tombol mata: lihat / sembunyikan password
+document.querySelectorAll('.pass-eye').forEach((b) => b.addEventListener('click', () => {
+  const input = b.previousElementSibling;
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  b.textContent = show ? '🙈' : '👁️';
+  b.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Lihat password');
+}));

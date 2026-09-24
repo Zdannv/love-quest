@@ -115,3 +115,7 @@ details.panel > summary::-webkit-details-marker { display: none; }
 .couple-card .danger { color: #d9304f; }
 #login-help { margin: 12px 0 0; }
 .photo-slot .thumb.app-icon { aspect-ratio: 1; border-radius: 22%; width: 70%; }
+
+.pass-wrap { position: relative; display: block; }
+.pass-wrap input { width: 100%; padding-right: 52px; }
+.pass-eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: 0; background: none; font-size: 20px; padding: 6px; cursor: pointer; line-height: 1; }

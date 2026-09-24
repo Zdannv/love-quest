@@ -4,9 +4,9 @@ const SUPABASE_URL = 'https://paymeqnshhmjqypergji.supabase.co';
 const ANON_KEY = 'sb_publishable_pDiStBz1jEdLO9q3AOB3Bw_RfeZP57y'; // publishable key (sama dengan js/config.js)
 
 const DEFAULT_ICONS = [
-  { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-  { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-  { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+  { src: '/icons/icon-192.png?v=2', sizes: '192x192', type: 'image/png' },
+  { src: '/icons/icon-512.png?v=2', sizes: '512x512', type: 'image/png' },
+  { src: '/icons/icon-maskable-512.png?v=2', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
 ];
 
 async function loadContent(slug) {

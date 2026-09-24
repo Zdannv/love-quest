@@ -513,3 +513,12 @@ if (PREVIEW) {
   // Balik ke halaman ini (misal tombol Back setelah buka game): muat ulang biar nggak pakai tampilan lama
   window.addEventListener('pageshow', (e) => { if (e.persisted && !dirty) loadMine(); });
 }
+
+// Tombol mata: lihat / sembunyikan password
+document.querySelectorAll('.pass-eye').forEach((b) => b.addEventListener('click', () => {
+  const input = b.previousElementSibling;
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  b.textContent = show ? '🙈' : '👁️';
+  b.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Lihat password');
+}));
