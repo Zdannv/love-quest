@@ -377,14 +377,14 @@ async function save(message = 'Tersimpan 💖') {
   return ok;
 }
 async function doSave(message) {
-  const btn = $('#btn-save');
+  const pill = $('#save-bar');
   $('#save-state').textContent = 'Menyimpan…';
-  btn.disabled = true;
+  pill.classList.remove('failed');
   const { error } = await sb.from('couples').update({ content }).eq('id', couple.id);
-  btn.disabled = false;
   if (error) {
     console.error(error);
-    $('#save-state').textContent = 'Gagal nyimpen, klik Simpan buat coba lagi';
+    pill.classList.add('failed');
+    $('#save-state').textContent = 'Gagal nyimpen, tap buat coba lagi';
     toast('Gagal nyimpen, cek internet terus coba lagi 🥺');
     return false;
   }
@@ -394,7 +394,7 @@ async function doSave(message) {
   if (message) toast(message);
   return true;
 }
-$('#btn-save').addEventListener('click', () => save());
+$('#save-bar').addEventListener('click', () => { if ($('#save-bar').classList.contains('failed')) save(); });
 
 // Buka game: simpan dulu kalau masih ada perubahan
 $('#btn-open').addEventListener('click', async (e) => {

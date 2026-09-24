@@ -100,10 +100,8 @@
     </div>
   </main>
 
-  <div class="save-bar" id="save-bar" hidden>
-    <span id="save-state">Semua tersimpan ✓</span>
-    <button class="btn" id="btn-save">Simpan</button>
-  </div>
+  <!-- Status simpan otomatis (kecil, nggak nutupin isi). Kalau gagal, tap buat coba lagi. -->
+  <button class="save-pill" id="save-bar" type="button" hidden><span id="save-state">Semua tersimpan ✓</span></button>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="/js/admin.js"></script>

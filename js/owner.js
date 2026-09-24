@@ -17,7 +17,8 @@ function toast(text) {
 }
 
 const { url, anonKey, ownerFunction = 'owner-accounts' } = CONFIG.cloud;
-const sb = createClient(url, anonKey);
+// Login owner disimpan terpisah dari login CMS, biar nggak saling nimpa kalau tes akun pembeli di browser yang sama
+const sb = createClient(url, anonKey, { auth: { storageKey: 'lq-owner-auth' } });
 
 const todayWib = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
 function addDays(day, n) {
@@ -135,6 +136,7 @@ $('#couple-list').addEventListener('click', (e) => {
 // ---------- Kelola akun pembeli (lewat edge function, butuh kunci rahasia di server) ----------
 async function callOwner(body) {
   const { data: { session } } = await sb.auth.getSession();
+  if (!session) { location.reload(); throw new Error('Sesi login habis, masuk lagi yaa'); }
   let res;
   try {
     res = await fetch(`${url.replace(/\/$/, '')}/functions/v1/${ownerFunction}`, {
@@ -211,6 +213,9 @@ $('#form-new').addEventListener('submit', async (e) => {
     toast('Akun pembeli dibuat ✓');
     await refresh();
   } catch (err) {
+    const box = $('#new-result');
+    box.hidden = false;
+    box.innerHTML = `<b>❌ Akun belum jadi.</b><br>${esc(err.message)}`;
     toast(`Gagal: ${err.message}`);
   } finally {
     btn.disabled = false;
@@ -249,9 +254,18 @@ async function load() {
   const { data: { session } } = await sb.auth.getSession();
   $('#btn-logout').hidden = !session;
   if (!session) { $('#view-login').hidden = false; $('#view-list').hidden = true; return; }
-  const { data: isAdmin } = await sb.rpc('is_admin');
+  const { data: isAdmin, error: adminErr } = await sb.rpc('is_admin');
+  if (adminErr) {
+    // Biasanya sesi login sudah nggak berlaku (akun dihapus / password diganti): minta login ulang
+    await sb.auth.signOut().catch(() => {});
+    setStatus(`Sesi login nggak berlaku lagi (${adminErr.message}). Masuk lagi yaa.`);
+    $('#btn-logout').hidden = true;
+    $('#view-login').hidden = false;
+    $('#view-list').hidden = true;
+    return;
+  }
   if (!isAdmin) {
-    setStatus('Akun ini bukan admin. Jalankan baris terakhir migration-2.sql dengan email akun ini.');
+    setStatus(`Akun ${session.user.email} bukan admin. Jalankan baris terakhir migration-2.sql dengan email akun ini.`);
     $('#view-login').hidden = true;
     return;
   }

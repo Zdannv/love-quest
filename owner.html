@@ -38,12 +38,12 @@
       <section class="panel">
         <details id="new-box">
           <summary class="new-summary">➕ Tambah akun pembeli</summary>
-          <form id="form-new" class="form new-form">
+          <form id="form-new" class="form new-form" autocomplete="off">
             <p class="muted small">Isi setelah pembayaran masuk. Pembeli nanti login di <b id="cms-url">/admin</b> pakai email & password ini.</p>
             <div class="grid2">
-              <label>Email pembeli<input type="email" id="new-email" required autocomplete="off"></label>
+              <label>Email pembeli<input type="email" id="new-email" name="buyer-email" required autocomplete="off" data-lpignore="true" data-1p-ignore></label>
               <label>Password
-                <span class="row nowrap"><input id="new-pass" required minlength="6" autocomplete="off"><button type="button" class="btn ghost small-btn" id="btn-gen">🎲</button></span>
+                <span class="row nowrap"><input id="new-pass" name="buyer-password" required minlength="6" autocomplete="new-password" data-lpignore="true" data-1p-ignore><button type="button" class="btn ghost small-btn" id="btn-gen">🎲</button></span>
               </label>
             </div>
             <div class="grid2">

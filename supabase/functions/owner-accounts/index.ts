@@ -106,6 +106,9 @@ Deno.serve(async (req) => {
   if (body.action === 'delete') {
     const owner = await ownerOf(String(body.couple_id || ''));
     if (!owner) return json({ error: 'Game nggak ketemu' }, 404);
+    // Akun admin/owner nggak boleh kehapus dari sini
+    const { data: adminRow } = await db.from('admins').select('user_id').eq('user_id', owner).maybeSingle();
+    if (adminRow) return json({ error: 'Ini akun owner/admin, nggak bisa dihapus dari sini' }, 400);
     await removePhotos(owner).catch(() => {});
     // Akun dihapus → game, streak & langganan notifikasinya ikut terhapus (on delete cascade)
     const { error } = await db.auth.admin.deleteUser(owner);
