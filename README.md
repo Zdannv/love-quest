@@ -61,4 +61,6 @@ python3 -m http.server 5179
 
 ## Deploy
 
-Situs statis, bisa langsung di-deploy ke Vercel (framework: Other, tanpa build command). `vercel.json` sudah mengatur `/c/<kode>` dan `/admin`.
+**Cloudflare Pages (utama, lovequest.id):** Workers & Pages → Create → Pages → Connect to Git → repo ini. Framework preset **None**, build command kosong, output directory `/`. `_redirects` mengatur `/c/<kode>`, `_headers` mengatur service worker, dan `functions/c/[slug]/manifest.webmanifest.js` bikin manifest per pasangan. `/admin` & `/owner` otomatis dari `admin.html` & `owner.html`.
+
+**Vercel (cadangan):** `vercel.json` + `api/manifest.js` masih ada, jadi deploy lama tetap jalan.

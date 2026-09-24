@@ -27,8 +27,8 @@ export const CONFIG = {
 
   // Link pemesanan, contoh: 'https://wa.me/6281234567890?text=Halo%2C%20mau%20pesan%20Love%20Quest'
   // Kalau kosong, tombol pesan disembunyikan.
-  orderUrl: 'https://wa.me/6287855310680?text=' + encodeURIComponent('Halo! Aku mau pesan Love Quest 💖'),
-  whatsapp: '6287855310680', // dipakai juga di CMS buat bayar/perpanjang langganan
+  orderUrl: 'https://wa.me/6285136086902?text=' + encodeURIComponent('Halo! Aku mau pesan Love Quest 💖'),
+  whatsapp: '6285136086902', // dipakai juga di CMS buat bayar/perpanjang langganan
 
   // Model: semua pembeli langganan Rp30.000/bulan.
   // Premium = biaya pembuatan sekali di awal, bulan berikutnya tetap Rp30.000.
