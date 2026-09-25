@@ -31,11 +31,11 @@ export const CONFIG = {
   whatsapp: '6285136086902', // dipakai juga di CMS buat bayar / upgrade paket
 
   // Model: sekali bayar, akses selamanya (nggak ada biaya bulanan).
-  // Upgrade Love Quest → Premium = bayar selisihnya (Rp30.000).
+  // Upgrade Love Quest → Premium = bayar selisihnya (Rp20.000).
   packages: [
     {
       name: 'Love Quest',
-      price: 'Rp49.000',
+      price: 'Rp29.000',
       per: 'sekali bayar',
       note: 'Akses selamanya, tanpa biaya bulanan.',
       tag: 'Paling pas buat mulai',
@@ -51,9 +51,9 @@ export const CONFIG = {
     },
     {
       name: 'Love Quest Premium',
-      price: 'Rp79.000',
+      price: 'Rp49.000',
       per: 'sekali bayar',
-      note: 'Akses selamanya. Udah punya Love Quest? Upgrade ke Premium cukup Rp30.000.',
+      note: 'Akses selamanya. Udah punya Love Quest? Upgrade ke Premium cukup Rp20.000.',
       tag: 'Tampilan khusus buat kalian',
       features: [
         'Semua isi paket Love Quest',

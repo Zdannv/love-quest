@@ -39,7 +39,7 @@ Keamanan:
 9. **Authentication → Sign In / Providers**: matikan **Allow new users to sign up**, biar akun cuma bisa dibuat dari `/owner`.
 10. **SQL Editor**: jalankan `supabase/migration-6.sql` (logo aplikasi dari foto cuma buat paket Premium). Manifest per pasangan dilayani `api/manifest.js` (Vercel Function, otomatis ke-deploy).
 
-Alur jualan (sekali bayar, akses selamanya: Love Quest Rp49.000, Premium Rp79.000, upgrade Rp30.000): pembeli bayar lewat WhatsApp → kamu buka `/owner` → **➕ Tambah akun pembeli** (email, password, paket, masa aktif **♾️ Selamanya**) → salin pesan login yang muncul dan kirim ke pembeli. Dari kartu tiap pembeli kamu bisa ganti paket ke Premium, set selamanya / masa aktif tertentu, ganti password, atau hapus akun.
+Alur jualan (sekali bayar, akses selamanya: Love Quest Rp29.000, Premium Rp49.000, upgrade Rp20.000): pembeli bayar lewat WhatsApp → kamu buka `/owner` → **➕ Tambah akun pembeli** (email, password, paket, masa aktif **♾️ Selamanya**) → salin pesan login yang muncul dan kirim ke pembeli. Dari kartu tiap pembeli kamu bisa ganti paket ke Premium, set selamanya / masa aktif tertentu, ganti password, atau hapus akun.
 
 ## Menulis konten
 

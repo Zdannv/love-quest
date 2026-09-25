@@ -50,7 +50,7 @@ function render() {
   const f = $('#filter').value;
   const counts = { active: 0, soon: 0, expired: 0 };
   couples.forEach((c) => counts[stateOf(c)]++);
-  const PRICE = { basic: 49000, custom: 79000 };
+  const PRICE = { basic: 29000, custom: 49000 };
   const forever = couples.filter((c) => !c.paid_until && c.active).length;
   const income = couples.reduce((a, c) => a + (PRICE[c.plan] || 0), 0);
   $('#summary').innerHTML = `
@@ -81,7 +81,7 @@ function render() {
         <div class="grid2">
           <label>Paket
             <select data-f="plan">
-              <option value="basic" ${c.plan === 'basic' ? 'selected' : ''}>Love Quest (Rp49rb)</option>
+              <option value="basic" ${c.plan === 'basic' ? 'selected' : ''}>Love Quest (Rp29rb)</option>
               <option value="custom" ${c.plan === 'custom' ? 'selected' : ''}>Love Quest Premium</option>
             </select>
           </label>

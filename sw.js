@@ -1,6 +1,6 @@
 // Service worker Love Quest: bisa dipasang ke home screen, bisa dimainin offline,
 // dan menampilkan notifikasi streak.
-const CACHE = 'love-quest-v20';
+const CACHE = 'love-quest-v21';
 const FONT_CACHE = 'love-quest-fonts';
 const PHOTO_CACHE = 'love-quest-photos';
 
