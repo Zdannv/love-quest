@@ -754,3 +754,6 @@ body.is-demo .home-logo { display: block; width: 150px; height: 150px; border-ra
 body.is-demo .title-2 { font-size: 1em; }
 @keyframes heroFloat { 50% { transform: translateY(-10px); } }
 @media (min-width: 960px) { body.is-demo .home-logo { display: none; } }
+
+/* Game pasangan: bagian khusus demo langsung disembunyiin dari awal (sebelum JS jalan) */
+body.is-couple [data-demo-only] { display: none !important; }

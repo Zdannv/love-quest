@@ -19,6 +19,18 @@
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+  <script>
+    // Langsung pasang tampilan yang bener sebelum apa pun kelihatan (biar nggak kedip versi lama).
+    // Demo = halaman depan biasa; game pasangan (/c/…, ?c=, ?lihat=, atau app terpasang) bukan demo.
+    (function () {
+      var couple = /^\/c\//.test(location.pathname) || /[?&](c|lihat)=/.test(location.search);
+      try {
+        var standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+        if (!couple && standalone && localStorage.getItem('lq-last-couple')) couple = true;
+      } catch (e) {}
+      document.body.classList.add(couple ? 'is-couple' : 'is-demo');
+    })();
+  </script>
   <div id="bg-hearts" aria-hidden="true"></div>
 
   <main id="app">

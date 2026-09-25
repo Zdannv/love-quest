@@ -229,7 +229,7 @@ function applyNames() {
   applyLook();
   const { pasangan } = getNames();
   document.querySelectorAll('.nm').forEach((el) => (el.textContent = pasangan));
-  document.title = `${pasangan}'s Love Quest 💖`;
+  document.title = CONFIG.demo ? 'Love Quest 💖 Game couple buat pasanganmu' : `${pasangan}'s Love Quest 💖`;
 }
 applyNames();
 if (!CONFIG.demo) document.querySelectorAll('[data-demo-only]').forEach((el) => (el.hidden = true));
