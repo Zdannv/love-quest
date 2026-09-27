@@ -95,12 +95,24 @@ let autoSaveTimer = 0;
 function markDirty(on = true) {
   dirty = on;
   $('#save-bar').classList.toggle('dirty', on);
-  $('#save-state').textContent = on ? 'Menyimpan sebentar lagi…' : 'Semua tersimpan ✓';
+  $('#save-state').textContent = on ? 'Menyimpan sebentar lagi…' : 'Tersimpan';
   clearTimeout(autoSaveTimer);
   // Simpan otomatis 1 detik setelah berhenti ngedit, biar nggak ada yang hilang
   if (on) autoSaveTimer = setTimeout(() => save(null), 1000);
 }
 window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+// Ikon garis kecil (pengganti emoji di tampilan CMS)
+const svg = (d) => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  lock: svg('<rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
+  play: svg('<path d="M7 5v14l12-7z" fill="currentColor"/>'),
+  stop: svg('<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>'),
+  plus: svg('<path d="M12 5v14M5 12h14"/>'),
+  user: svg('<circle cx="12" cy="9" r="4"/><path d="M4.5 20c1-3.6 4-5.5 7.5-5.5s6.5 1.9 7.5 5.5"/>'),
+  eye: svg('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+  eyeOff: svg('<path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'),
+};
 
 // ---------- Paket & masa aktif ----------
 const fmtDate = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -115,8 +127,8 @@ function renderSubscription() {
     const wa = CONFIG.whatsapp && couple.plan !== 'custom' ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(up)}` : '';
     panel.className = 'panel sub-panel';
     panel.innerHTML = `
-      <div><div class="muted small">${esc(planName)}</div><b>✅ Aktif selamanya 💖</b></div>
-      ${wa ? `<a class="btn small-btn" href="${esc(wa)}" target="_blank" rel="noopener">✨ Upgrade ke Premium</a>` : ''}`;
+      <div><div class="muted small">${esc(planName)}</div><b><span class="dot ok"></span>Aktif selamanya</b></div>
+      ${wa ? `<a class="btn small-btn" href="${esc(wa)}" target="_blank" rel="noopener">Upgrade ke Premium</a>` : ''}`;
     panel.hidden = !couple.active;
     return;
   }
@@ -130,10 +142,10 @@ function renderSubscription() {
     <div>
       <div class="muted small">${esc(planName)}${trial ? ' · masa coba' : ''}</div>
       <b>${expired
-        ? '⛔ Masa aktif habis, game-nya nggak bisa dibuka pasanganmu'
-        : `✅ Aktif sampai ${fmtDate(couple.paid_until)}${daysLeft <= 3 ? ` (${daysLeft === 0 ? 'hari ini terakhir' : `${daysLeft} hari lagi`})` : ''}`}</b>
+        ? '<span class="dot bad"></span>Masa aktif habis, game-nya nggak bisa dibuka pasanganmu'
+        : `<span class="dot ${daysLeft <= 3 ? 'warn' : 'ok'}"></span>Aktif sampai ${fmtDate(couple.paid_until)}${daysLeft <= 3 ? ` (${daysLeft === 0 ? 'hari ini terakhir' : `${daysLeft} hari lagi`})` : ''}`}</b>
     </div>
-    ${wa ? `<a class="btn small-btn" href="${esc(wa)}" target="_blank" rel="noopener">${expired || trial ? '💳 Bayar via WhatsApp' : '🔁 Perpanjang'}</a>` : ''}`;
+    ${wa ? `<a class="btn small-btn" href="${esc(wa)}" target="_blank" rel="noopener">${expired || trial ? 'Bayar via WhatsApp' : 'Perpanjang'}</a>` : ''}`;
   panel.hidden = false;
 }
 
@@ -157,31 +169,45 @@ function renderEditor() {
   renderQuiz();
 }
 
+// Pesan & kuis ditampilin per dunia (tab), biar halamannya nggak kepanjangan
+const worldOpen = { msg: 0, quiz: 0 };
+const worldTabs = (kind) => `<div class="world-tabs" role="tablist" data-tabs="${kind}">
+  ${LEVEL_MAP.map((w, wi) => `<button type="button" role="tab" data-world-tab="${wi}" aria-selected="${wi === worldOpen[kind]}">Dunia ${wi + 1}</button>`).join('')}</div>`;
+document.addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-world-tab]');
+  if (!tab) return;
+  const box = tab.closest('[data-tabs]');
+  const wi = +tab.dataset.worldTab;
+  worldOpen[box.dataset.tabs] = wi;
+  box.querySelectorAll('[data-world-tab]').forEach((b) => b.setAttribute('aria-selected', String(b === tab)));
+  box.parentElement.querySelectorAll('.world-block').forEach((b) => { b.hidden = +b.dataset.world !== wi; });
+});
+
 function renderMessages() {
   const items = levelList();
-  $('#message-list').innerHTML = LEVEL_MAP.map((w, wi) => `
-    <div class="world-block">
-      <h3>${w.icon} Dunia ${wi + 1}: ${esc(w.name)}</h3>
+  $('#message-list').innerHTML = worldTabs('msg') + LEVEL_MAP.map((w, wi) => `
+    <div class="world-block" data-world="${wi}" ${wi === worldOpen.msg ? '' : 'hidden'}>
+      <h3>Dunia ${wi + 1} · ${esc(w.name)}</h3>
       ${items.filter((it) => it.world === wi).map((it) => `
-        <label class="msg-item">${it.bonus ? '⭐ Bonus · Puzzle Foto' : `Level ${it.num} · ${TYPE_NAME[it.type]}`}
+        <label class="msg-item">${it.bonus ? '<span>Bonus · Puzzle Foto</span>' : `<span><em>Level ${it.num}</em> · ${TYPE_NAME[it.type]}</span>`}
           <textarea rows="2" data-path="${it.field}.${it.index}">${esc(content[it.field][it.index] ?? '')}</textarea>
         </label>`).join('')}
     </div>`).join('');
 }
 
 function renderQuiz() {
-  $('#quiz-list').innerHTML = content.quiz.map((qs, wi) => `
-    <div class="world-block">
-      <h3>${LEVEL_MAP[wi].icon} Kuis Dunia ${wi + 1}</h3>
+  $('#quiz-list').innerHTML = worldTabs('quiz') + content.quiz.map((qs, wi) => `
+    <div class="world-block" data-world="${wi}" ${wi === worldOpen.quiz ? '' : 'hidden'}>
+      <h3>Kuis Dunia ${wi + 1} · ${esc(LEVEL_MAP[wi].name)}</h3>
       ${qs.map((q, qi) => `
         <div class="quiz-item">
-          <label>Pertanyaan ${qi + 1}<input data-path="quiz.${wi}.${qi}.q" value="${esc(q.q)}"></label>
+          <label class="q-label"><span class="q-num">${qi + 1}</span>Pertanyaan<input data-path="quiz.${wi}.${qi}.q" value="${esc(q.q)}"></label>
           <div class="opts">
             ${q.options.map((o, oi) => `<label>Pilihan ${'ABCD'[oi]}<input data-path="quiz.${wi}.${qi}.options.${oi}" value="${esc(o)}"></label>`).join('')}
           </div>
           <label>Jawaban benar
             <select data-path="quiz.${wi}.${qi}.answer" data-number>
-              <option value="-1" ${q.answer === -1 ? 'selected' : ''}>Semua benar 😆</option>
+              <option value="-1" ${q.answer === -1 ? 'selected' : ''}>Semua benar</option>
               ${[0, 1, 2, 3].map((i) => `<option value="${i}" ${q.answer === i ? 'selected' : ''}>${'ABCD'[i]}</option>`).join('')}
             </select>
           </label>
@@ -199,12 +225,12 @@ const preview = createPlayer(
 let previewing = null;
 
 function renderMusic() {
-  const opts = [...Object.entries(TRACKS).map(([id, t]) => [id, t.name]), ['off', 'Tanpa lagu 🔇']];
+  const opts = [...Object.entries(TRACKS).map(([id, t]) => [id, t.name]), ['off', 'Tanpa lagu']];
   $('#music-list').innerHTML = (isCustom() ? '' : upsellNote('Pilihan lagu')) + opts.map(([id, name]) => `
     <label class="music-opt ${isCustom() ? '' : 'locked'}">
       <input type="radio" name="music" value="${id}" ${content.music === id ? 'checked' : ''} ${isCustom() ? '' : 'disabled'}>
       <span>${esc(name)}</span>
-      ${id === 'off' ? '' : `<button class="btn ghost small-btn" type="button" data-preview="${id}">${previewing === id ? '⏹ Stop' : '▶ Dengerin'}</button>`}
+      ${id === 'off' ? '' : `<button class="play-btn ${previewing === id ? 'on' : ''}" type="button" data-preview="${id}" aria-label="${previewing === id ? 'Stop' : 'Dengerin'}">${previewing === id ? ICON.stop : ICON.play}</button>`}
     </label>`).join('');
 }
 
@@ -228,7 +254,7 @@ function upsellNote(what) {
   const url = CONFIG.whatsapp
     ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(`Halo! Aku mau upgrade ke Love Quest Premium 💖\nKode game: ${couple.slug}`)}`
     : '';
-  return `<div class="locked-note">🔒 ${what} tersedia di paket <b>Love Quest Premium</b>.
+  return `<div class="locked-note">${ICON.lock}<span>${what} tersedia di paket <b>Premium</b>.</span>
     ${url ? `<a class="btn small-btn" href="${esc(url)}" target="_blank" rel="noopener">Upgrade via WhatsApp</a>` : ''}</div>`;
 }
 
@@ -242,11 +268,11 @@ function renderLook() {
   $('#look-editor').innerHTML = `
     ${isCustom ? '' : `
       <div class="locked-note">
-        🔒 Tema & karakter tersedia di paket <b>Love Quest Premium</b>.
+        ${ICON.lock}<span>Tema &amp; karakter tersedia di paket <b>Premium</b>.</span>
         ${upsell ? `<a class="btn small-btn" href="${esc(upsell)}" target="_blank" rel="noopener">Upgrade via WhatsApp</a>` : ''}
       </div>`}
     <fieldset class="look-fields" ${isCustom ? '' : 'disabled'}>
-      <div class="muted small">Tema warna</div>
+      <div class="field-label">Tema warna</div>
       <div class="theme-chips">
         ${Object.entries(THEMES).map(([id, t]) => `
           <button type="button" class="theme-chip ${content.theme === id ? 'on' : ''}" data-theme-id="${id}" style="--c:${t.swatch}" title="${esc(t.name)}"></button>`).join('')}
@@ -274,11 +300,11 @@ $('#look-editor').addEventListener('change', (e) => {
 
 // ---------- Foto ----------
 const PHOTO_SLOTS = [
-  { key: 'icon', label: '📱 Logo aplikasi (ikon di home screen & tab browser)', icon: true, premium: true },
-  { key: 'faces.pasangan', label: '😊 Muka pasangan (yang terbang & jalan di labirin)', face: true, premium: true },
-  { key: 'faces.pengirim', label: '😆 Muka kamu (yang lari & jadi target lempar hati)', face: true, premium: true },
-  { key: 'letter', label: 'Foto utama (surat)' },
-  ...LEVEL_MAP.map((w, i) => ({ key: `bonus.${i}`, label: `Puzzle Dunia ${i + 1} ${w.icon}` })),
+  { key: 'icon', label: 'Logo aplikasi', hint: 'Ikon di home screen', icon: true, premium: true },
+  { key: 'faces.pasangan', label: 'Muka pasangan', hint: 'Yang terbang & jalan di labirin', face: true, premium: true },
+  { key: 'faces.pengirim', label: 'Muka kamu', hint: 'Yang lari & jadi target', face: true, premium: true },
+  { key: 'letter', label: 'Foto utama', hint: 'Dipakai di surat' },
+  ...LEVEL_MAP.map((w, i) => ({ key: `bonus.${i}`, label: `Puzzle Dunia ${i + 1}`, hint: w.name })),
 ];
 
 function renderPhotos() {
@@ -289,16 +315,16 @@ function renderPhotos() {
     if (s.premium && locked) {
       return `
       <div class="photo-slot locked">
+        <div class="thumb ${shape}">${ICON.lock}</div>
         <b>${esc(s.label)}</b>
-        <div class="thumb ${shape}">🔒</div>
         <small class="muted">Paket Premium</small>
       </div>`;
     }
     return `
       <div class="photo-slot">
+        <div class="thumb ${shape}" style="${src ? `background-image:url('${esc(src)}')` : ''}">${src ? '' : s.face ? ICON.user : ICON.plus}</div>
         <b>${esc(s.label)}</b>
-        <div class="thumb ${shape}" style="${src ? `background-image:url('${esc(src)}')` : ''}">${src ? '' : s.icon ? '💖' : s.face ? '😊' : '📷'}</div>
-        ${s.icon ? '<small class="muted">Foto dipotong bulat + bingkai warna tema. Yang udah pasang di HP mungkin perlu pasang ulang biar ikonnya ganti.</small>' : ''}
+        <small class="muted">${esc(s.hint)}</small>
         <div class="row">
           <label class="btn ghost small-btn file-btn">${src ? 'Ganti' : 'Upload'}<input type="file" accept="image/*" data-photo="${s.key}"></label>
           ${src ? `<button class="link-btn" type="button" data-photo-del="${s.key}">hapus</button>` : ''}
@@ -372,7 +398,7 @@ $('#photo-list').addEventListener('change', async (e) => {
   const key = input.dataset.photo;
   const slot = PHOTO_SLOTS.find((x) => x.key === key);
   if (slot?.premium && !isCustom()) { input.value = ''; return; }
-  toast('📤 Lagi upload foto…');
+  toast('Lagi upload foto…');
   try {
     const blob = slot?.icon ? await makeIcon(file) : await resizeImage(file, slot?.face ? 500 : 800);
     const path = `${couple.owner}/${Date.now()}-${randomSlug()}.jpg`;
@@ -438,7 +464,7 @@ async function doSave(message) {
   }
   dirty = false;
   $('#save-bar').classList.remove('dirty');
-  $('#save-state').textContent = 'Semua tersimpan ✓';
+  $('#save-state').textContent = 'Tersimpan';
   if (message) toast(message);
   return true;
 }
@@ -506,7 +532,7 @@ if (PREVIEW) {
   content = defaultContent();
   show('editor');
   renderEditor();
-  setStatus('👀 Mode contoh: kamu bisa lihat & coba editornya, tapi nggak ada yang disimpan.');
+  setStatus('Mode contoh: kamu bisa lihat & coba editornya, tapi nggak ada yang disimpan.');
   $('#btn-logout').hidden = true;
 } else {
   loadMine();
@@ -515,10 +541,11 @@ if (PREVIEW) {
 }
 
 // Tombol mata: lihat / sembunyikan password
+document.querySelectorAll('.pass-eye').forEach((b) => { b.innerHTML = ICON.eye; });
 document.querySelectorAll('.pass-eye').forEach((b) => b.addEventListener('click', () => {
   const input = b.previousElementSibling;
   const show = input.type === 'password';
   input.type = show ? 'text' : 'password';
-  b.textContent = show ? '🙈' : '👁️';
+  b.innerHTML = show ? ICON.eyeOff : ICON.eye;
   b.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Lihat password');
 }));
