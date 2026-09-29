@@ -5,7 +5,7 @@ import { SHOWCASES } from './showcase.js';
 import { LEVEL_MAP, PATTERN, EXTRA_SLOTS, TYPE_NAME, typeOf } from './level-map.js';
 import { sfx, toggleMute, isMuted, toggleMusic, isMusicOff } from './audio.js';
 import { confetti } from './confetti.js';
-import { esc, pick } from './util.js';
+import { esc, pick, shuffle } from './util.js';
 import { startMemory } from './games/memory.js';
 import { startCatch } from './games/catch.js';
 import { startPop } from './games/pop.js';
@@ -152,7 +152,9 @@ function hintFor(L) {
   switch (L.type) {
     case 'memory': return `Cari ${p.pairs} pasang kartu kembar dalam ${p.time} detik!`;
     case 'catch': return `Geser ${c.pengirim.emoji} buat nangkep ${p.good.join('')}, hindari ${p.bad.join('')}! Target ${p.target}. Ada bonus jatuh? Tangkep! +10`;
-    case 'pop': return `Tap ${p.good.join('')} secepatnya (${p.gold} = +3), jangan tap ${p.bad[0]}! Target ${p.target}.`;
+    case 'pop': return p.faces?.length
+      ? `Tap muka ${p.faces.length > 1 ? `${n.pasangan} & ${n.pengirim}` : 'yang muncul'} secepatnya (${p.gold} = +3), jangan tap ${p.bad[0]}! Target ${p.target}.`
+      : `Tap ${p.good.join('')} secepatnya (${p.gold} = +3), jangan tap ${p.bad[0]}! Target ${p.target}.`;
     case 'puzzle': return 'Tap 2 kepingan buat tukar posisi sampai fotonya utuh! Tahan 👀 buat intip.';
     case 'odd': return `Cari 1 emoji yang beda dari yang lain! ${p.rounds} ronde, salah tap -3 detik.`;
     case 'simon': return `Perhatiin urutan ${c.pasangan.emoji}${c.pengirim.emoji}💖⭐ yang nyala, terus ulangi! Target ${p.target} urutan.`;
@@ -522,6 +524,13 @@ function startLevel(i) {
 }
 
 // Foto untuk puzzle/bonus: demo pakai foto upload lokal, game pasangan pakai foto dari CMS
+// Foto yang beneran diupload (bukan foto contoh)
+function userPhotos() {
+  if (CONFIG.demo) return [];
+  const p = CONFIG.photos || {};
+  return [p.letter, ...(p.bonus || [])];
+}
+
 function photoFor(L) {
   if (CONFIG.demo) return SAMPLE_PHOTO;
   const p = CONFIG.photos || {};
@@ -543,7 +552,17 @@ function levelParams(L) {
   const faceA = getFace('pasangan');
   const faceB = getFace('pengirim');
   if (L.type === 'catch') return { ...L.params, bonusImage: faceB || null, carrier: c.pengirim.emoji };
-  if (L.type === 'pop') return { ...L.params, good: [c.pasangan.emoji, c.pengirim.emoji] };
+  if (L.type === 'pop') {
+    // Kalau ada foto muka (Premium), yang muncul dari lubang muka kalian
+    const faces = [faceA, faceB].filter(Boolean);
+    return { ...L.params, good: [c.pasangan.emoji, c.pengirim.emoji], faces };
+  }
+  if (L.type === 'memory') {
+    // Sebagian kartu pakai foto kalian (muka, foto utama, foto puzzle), sisanya emoji
+    const photos = [...new Set([faceA, faceB, ...userPhotos()].filter(Boolean))];
+    const n = Math.min(photos.length, Math.ceil(L.params.pairs / 2));
+    return { ...L.params, photos: shuffle(photos).slice(0, n) };
+  }
   if (L.type === 'fly') return { ...L.params, flyer: c.pasangan.emoji, face: faceA };
   if (L.type === 'simon') return { ...L.params, pads: [c.pasangan.emoji, c.pengirim.emoji, '💖', '⭐'] };
   if (L.type === 'runner') return { ...L.params, face: faceB, emoji: c.pengirim.emoji };

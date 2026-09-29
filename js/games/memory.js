@@ -2,7 +2,8 @@
 import { shuffle } from '../util.js';
 
 export function startMemory(stage, p, api) {
-  const icons = shuffle([...p.emojis]).slice(0, p.pairs);
+  const photos = (p.photos || []).map((src) => `img:${src}`);
+  const icons = [...photos, ...shuffle([...p.emojis]).slice(0, p.pairs - photos.length)];
   const deck = shuffle([...icons, ...icons]);
   const cols = deck.length === 6 ? 3 : 4;
   const rows = Math.ceil(deck.length / cols);
@@ -21,7 +22,7 @@ export function startMemory(stage, p, api) {
     card.dataset.em = em;
     card.setAttribute('aria-label', 'Kartu tertutup');
     card.style.animationDelay = `${i * 35}ms`;
-    card.innerHTML = `<span class="card-inner"><span class="face back">💗</span><span class="face front">${em}</span></span>`;
+    card.innerHTML = `<span class="card-inner"><span class="face back">💗</span><span class="face front">${em.startsWith('img:') ? `<img class="card-photo" src="${em.slice(4)}" alt="">` : em}</span></span>`;
     card.addEventListener('click', () => flip(card));
     grid.appendChild(card);
   });

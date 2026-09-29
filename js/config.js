@@ -42,6 +42,7 @@ export const CONFIG = {
       features: [
         'Akun CMS (halaman admin) pribadi buat ngelola isi game sendiri, kapan aja, langsung dari HP',
         'Yang bisa kamu ganti: nama kalian, pesan tiap level, kuis, surat, foto surat & 5 puzzle foto',
+        'Foto kalian juga muncul di kartu game Kartu Kembar',
         'Perubahan langsung muncul di game pasanganmu, nggak perlu kirim link baru',
         '60 level + 5 bonus puzzle foto: 5 dunia, tiap dunia 12 game yang beda-beda',
         '13 jenis mini-game (terbang, lari, labirin, susun kue, lempar hati, dll.)',
@@ -58,7 +59,7 @@ export const CONFIG = {
       features: [
         'Semua isi paket Love Quest',
         'Muka, logo, tema, karakter & lagu juga bisa kamu atur dan ganti sendiri kapan aja di CMS',
-        'Muka kalian jadi karakter game: yang terbang, lari, sampai target lempar hati',
+        'Muka kalian jadi karakter game: yang terbang, lari, target lempar hati, sampai yang muncul di Tap si Imut',
         'Logo aplikasi di HP pakai foto kalian',
         'Tema warna pilihan kalian (6 pilihan)',
         'Karakter hewan kesukaan kalian (14 pilihan)',

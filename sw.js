@@ -1,6 +1,6 @@
 // Service worker Love Quest: bisa dipasang ke home screen, bisa dimainin offline,
 // dan menampilkan notifikasi streak.
-const CACHE = 'love-quest-v23';
+const CACHE = 'love-quest-v24';
 const FONT_CACHE = 'love-quest-fonts';
 const PHOTO_CACHE = 'love-quest-photos';
 
@@ -14,7 +14,7 @@ const PRECACHE = [
   '/js/games/odd.js', '/js/games/simon.js', '/js/games/fly.js', '/js/games/stack.js', '/js/games/runner.js',
   '/js/games/throw.js', '/js/games/maze.js', '/js/games/timing.js',
   '/img/contoh-foto.jpg',
-  ...['nadia', 'raka', 'salsa', 'dimas', 'ayu', 'bima', 'nadia-raka', 'salsa-dimas', 'ayu-bima'].map((n) => `/img/contoh/${n}.jpg`),
+  ...['kirana', 'arga', 'kirana-arga'].map((n) => `/img/contoh/${n}.jpg`),
   '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-512.png', '/icons/apple-touch-icon.png', '/icons/badge-96.png', '/icons/favicon-64.png',
 ];
 

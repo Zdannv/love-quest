@@ -1,4 +1,4 @@
-// Tap si Imut: owl & kucing muncul dari lubang, tap secepatnya. Jangan tap lebah!
+// Tap si Imut: karakter (atau muka kalian kalau ada fotonya) muncul dari lubang, tap secepatnya. Jangan tap lebah!
 import { rand, pick, starsFor, floatText, shake } from '../util.js';
 
 export function startPop(stage, p, api) {
@@ -33,7 +33,11 @@ export function startPop(stage, p, api) {
     const h = pick(free);
     const r = Math.random();
     h.kind = r < p.badRate ? 'bad' : r < p.badRate + 0.07 ? 'gold' : 'good';
-    h.btn.textContent = h.kind === 'bad' ? pick(p.bad) : h.kind === 'gold' ? p.gold : pick(p.good);
+    if (h.kind === 'good' && p.faces?.length) {
+      h.btn.innerHTML = `<img class="critter-face" src="${pick(p.faces)}" alt="">`;
+    } else {
+      h.btn.textContent = h.kind === 'bad' ? pick(p.bad) : h.kind === 'gold' ? p.gold : pick(p.good);
+    }
     h.active = true;
     h.el.classList.remove('hit', 'ouch');
     h.el.classList.add('up');
