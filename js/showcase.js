@@ -1,10 +1,10 @@
 // Contoh "versi jadi" buat halaman depan: pasangan fiktif yang sudah di-custom lengkap.
-// Dibuka lewat /?lihat=<id>. Semuanya lokal (tanpa database). Pakai foto asli (atas izin yang punya foto).
+// Dibuka lewat /?lihat=<id>. Semuanya lokal (tanpa database). Foto contoh: gambar AI berlisensi gratis (Freepik).
 const IMG = '/img/contoh/';
 
 export const SHOWCASES = {
   'kirana-arga': {
-    tagline: 'Pakai foto asli · Tema Biru Langit · 🐹🦊 · lagu Lucu',
+    tagline: 'Pakai foto kalian · Tema Biru Langit · 🐹🦊 · lagu Lucu',
     names: { pasangan: 'Kirana', pengirim: 'Arga' },
     theme: 'sky',
     characters: { pasangan: 'hamster', pengirim: 'fox' },
