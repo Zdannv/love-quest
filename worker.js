@@ -52,9 +52,30 @@ async function manifest(slug) {
   });
 }
 
+// Video: iPhone (Safari) cuma mau muter video kalau server bisa kirim sepotong-sepotong (Range → 206)
+async function serveVideo(request, env) {
+  const res = await env.ASSETS.fetch(new Request(request.url, { method: 'GET' }));
+  if (!res.ok) return res;
+  const buf = await res.arrayBuffer();
+  const size = buf.byteLength;
+  const head = request.method === 'HEAD';
+  const base = { 'Content-Type': res.headers.get('Content-Type') || 'video/mp4', 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=86400' };
+  const m = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get('Range') || '');
+  if (!m || (m[1] === '' && m[2] === '')) return new Response(head ? null : buf, { headers: { ...base, 'Content-Length': String(size) } });
+  let start, end;
+  if (m[1] === '') { start = Math.max(0, size - Number(m[2])); end = size - 1; }
+  else { start = Number(m[1]); end = m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1); }
+  if (start >= size || start > end) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
+  return new Response(head ? null : buf.slice(start, end + 1), {
+    status: 206,
+    headers: { ...base, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': String(end - start + 1) },
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/video/')) return serveVideo(request, env);
     const m = url.pathname.match(/^\/c\/([a-z0-9]{10,32})(\/manifest\.webmanifest|\/?)$/);
     if (m && m[2] === '/manifest.webmanifest') return manifest(m[1]);
     if (m) return env.ASSETS.fetch(new Request(new URL('/', url), request)); // game pasangan = index.html

@@ -1,5 +1,5 @@
 // Cloudflare Workers (lovequest.id): file statis dilayani langsung dari assets,
-// worker.js cuma jalan buat /c/* (game pasangan + manifest per pasangan).
+// worker.js cuma jalan buat /c/* (game pasangan + manifest per pasangan) & /video/* (biar bisa diputar di iPhone).
 {
   "name": "love-quest",
   "main": "worker.js",
@@ -9,6 +9,6 @@
     "binding": "ASSETS",
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "none",
-    "run_worker_first": ["/c/*"]
+    "run_worker_first": ["/c/*", "/video/*"]
   }
 }
