@@ -61,6 +61,7 @@ function applyAppIcon(slug, icon) {
 }
 
 function showError(text) {
+  document.body.classList.remove('booting');
   document.body.innerHTML = `
     <main style="min-height:100dvh;display:grid;place-items:center;padding:24px;text-align:center;font-family:Fredoka,sans-serif;color:#6a2c52">
       <div><div style="font-size:64px">🦉💧</div><h1 style="color:#e8558f">Yahh…</h1><p>${text}</p></div>

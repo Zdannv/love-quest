@@ -29,6 +29,11 @@
         if (!couple && standalone && localStorage.getItem('lq-last-couple')) couple = true;
       } catch (e) {}
       document.body.classList.add(couple ? 'is-couple' : 'is-demo');
+      // Game pasangan: sembunyiin tampilan bawaan sampai nama & tema pasangan kepasang (lihat main.js)
+      if (couple) {
+        document.body.classList.add('booting');
+        setTimeout(function () { document.body.classList.remove('booting'); }, 10000); // jaga-jaga
+      }
     })();
   </script>
   <div id="bg-hearts" aria-hidden="true"></div>

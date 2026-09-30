@@ -883,3 +883,15 @@ body.is-couple [data-demo-only] { display: none !important; }
 .tutorial h2 { margin: 0 0 6px; font-size: 22px; color: var(--pink-deep); }
 .tutorial p { margin: 0 0 12px; color: var(--ink-soft); font-size: 15px; }
 .tutorial video { width: min(100%, 320px); aspect-ratio: 9 / 16; border-radius: 18px; background: #1c1226; box-shadow: 0 10px 24px rgba(106, 44, 82, .2); }
+
+/* Game pasangan lagi dimuat: tampilan bawaan disembunyiin biar nggak kedip "Ayang's Love Quest" */
+body.booting #app, body.booting #bg-hearts { visibility: hidden; }
+body.booting::after {
+  content: '💖'; position: fixed; inset: 0; display: grid; place-items: center; font-size: 64px;
+  animation: bootPulse 1s ease-in-out infinite;
+}
+body.booting::before {
+  content: 'Lagi nyiapin game kalian…'; position: fixed; left: 0; right: 0; top: calc(50% + 52px); text-align: center;
+  font-weight: 600; font-size: 16px; color: var(--ink-soft);
+}
+@keyframes bootPulse { 50% { transform: scale(1.18); } }

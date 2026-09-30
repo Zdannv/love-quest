@@ -8,7 +8,7 @@ import { ONLINE_GAMES, LEVEL_GAMES } from './online-games.js';
 import { DUO_LEVELS, DUO_NAMES, recordDuo, duoUnlocked } from './duo-levels.js';
 import { askProfile, forget as forgetProfile } from './profile.js';
 import { LEVEL_MAP, PATTERN, EXTRA_SLOTS, TYPE_NAME, typeOf } from './level-map.js';
-import { sfx, toggleMute, isMuted, toggleMusic, isMusicOff } from './audio.js';
+import { sfx, toggleMute, isMuted, toggleMusic, isMusicOff, holdMusic } from './audio.js';
 import { confetti } from './confetti.js';
 import { esc, pick, shuffle } from './util.js';
 import { startMemory } from './games/memory.js';
@@ -248,6 +248,7 @@ function applyNames() {
 applyNames();
 if (!CONFIG.demo) document.querySelectorAll('[data-demo-only]').forEach((el) => (el.hidden = true));
 document.body.classList.toggle('is-demo', Boolean(CONFIG.demo)); // tata letak desktop halaman depan
+document.body.classList.remove('booting'); // nama & tema udah kepasang, tampilan boleh muncul
 
 // ---------- Contoh versi jadi ----------
 // Galeri di halaman depan demo
@@ -277,6 +278,13 @@ if (CONFIG.showcase) {
   document.body.prepend(bar);
   document.body.classList.add('has-showcase-bar');
 }
+
+// ---------- Video tutorial: lagu latar diem dulu selama videonya diputar ----------
+document.querySelectorAll('.tutorial video').forEach((v) => {
+  v.addEventListener('play', () => holdMusic(true));
+  v.addEventListener('pause', () => holdMusic(false));
+  v.addEventListener('ended', () => holdMusic(false));
+});
 
 // ---------- Paket ----------
 function showPackages() {

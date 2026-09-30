@@ -73,9 +73,11 @@ const player = createPlayer(
   },
 );
 
+let musicHold = false; // lagi ada video yang diputar → lagu latar diem dulu
+
 function syncMusic() {
   const track = CONFIG.music;
-  if (musicOff || document.hidden || !track || track === 'off') player.stop();
+  if (musicOff || musicHold || document.hidden || !track || track === 'off') player.stop();
   else if (!player.playing) player.play(track);
 }
 
@@ -97,6 +99,12 @@ export function toggleMute() {
 }
 
 export const isMusicOff = () => musicOff;
+
+// Tahan lagu latar sementara (misal pas video tutorial diputar), tanpa ngubah setelan lagu
+export function holdMusic(on) {
+  musicHold = on;
+  syncMusic();
+}
 
 export function toggleMusic() {
   musicOff = !musicOff;
