@@ -2,6 +2,9 @@ import { CONFIG } from './config.js';
 import { getNames, setNames, fill, getLook, setLook, getChars, getFace, saveFace, clearFace } from './personal.js';
 import { THEMES, CHARACTERS, applyTheme } from './themes.js';
 import { SHOWCASES } from './showcase.js';
+import { initTalk } from './talk.js';
+import { mountOnline, enterLobby, inviteGame, on as onNet, send as sendNet, me as meNet, peer as peerNet, playerLook } from './online.js';
+import { ONLINE_GAMES } from './online-games.js';
 import { LEVEL_MAP, PATTERN, EXTRA_SLOTS, TYPE_NAME, typeOf } from './level-map.js';
 import { sfx, toggleMute, isMuted, toggleMusic, isMusicOff } from './audio.js';
 import { confetti } from './confetti.js';
@@ -200,7 +203,8 @@ const letterOpen = () => TEST_MODE || CONFIG.demo || CONFIG.showcase || cleared(
 
 // ---------- Layar ----------
 const $ = (s) => document.querySelector(s);
-const screens = { home: $('#screen-home'), map: $('#screen-map'), game: $('#screen-game'), letter: $('#screen-letter') };
+const screens = { home: $('#screen-home'), map: $('#screen-map'), game: $('#screen-game'), letter: $('#screen-letter'), talk: $('#screen-talk'), online: $('#screen-online') };
+const talk = initTalk({ sfx }); // Kartu Deep Talk
 const stageEl = $('#stage');
 const modal = $('#modal');
 
@@ -210,8 +214,14 @@ function show(name) {
   if (name === 'map') renderMap();
   if (name === 'home' || name === 'map') refreshStreak();
   if (name === 'letter') renderLetter();
+  if (name === 'talk') talk.reset();
+  else talk.setSync(false);
+  if (name === 'online') enterLobby();
   window.scrollTo(0, 0);
 }
+
+// ---------- Kartu Deep Talk ----------
+$('#btn-talk').addEventListener('click', () => { sfx('click'); show('talk'); });
 
 document.addEventListener('click', (e) => {
   const go = e.target.closest('[data-go]');
@@ -604,7 +614,99 @@ function stopGame() {
   clearTimeout(sayTimer);
 }
 
-$('#btn-quit').addEventListener('click', () => { sfx('click'); stopGame(); closeModal(); show('map'); });
+$('#btn-quit').addEventListener('click', () => {
+  sfx('click');
+  const wasOnline = current?.online;
+  stopGame();
+  closeModal();
+  if (wasOnline) { sendNet('quit'); show('online'); } else show('map');
+});
+
+// ---------- Main Bareng (online) ----------
+mountOnline({
+  sfx, toast, closeModal,
+  modal: (html) => { modal.querySelector('.modal-card').innerHTML = html; modal.classList.remove('hidden'); },
+  startGame: (game, seed) => startOnline(game, seed),
+  openTalk: () => { show('talk'); talk.setSync(true); },
+});
+$('#btn-online').addEventListener('click', () => { sfx('click'); show('online'); });
+
+function onlineParams(game) {
+  if (game === 'fly') return { ...LEVELS.find((L) => L.type === 'fly').params };
+  if (game === 'puzzle') return { image: photoFor(null), aspect: '3 / 4' };
+  if (game === 'memory') {
+    const photos = [...new Set([getFace('pasangan'), getFace('pengirim'), ...userPhotos()].filter(Boolean))];
+    return { emojis: WORLDS[0].memory, photos };
+  }
+  return {};
+}
+
+function startOnline(game, seed) {
+  stopGame();
+  closeModal();
+  const G = ONLINE_GAMES[game];
+  const m = meNet(), p = peerNet();
+  if (!G || !p) { show('online'); return; }
+  show('game');
+  screens.game.dataset.theme = WORLDS[0].theme;
+  stageEl.innerHTML = '';
+  $('#hud-title').textContent = `Main Bareng · ${G.name}`;
+  $('#hud-stats').textContent = '';
+  hintText = G.desc;
+  const token = {};
+  current = { i: -1, token, game: null, online: game };
+  const live = () => current?.token === token;
+  const ctx = {
+    seed, send: sendNet, on: onNet, params: onlineParams(game),
+    me: { ...playerLook(m.role, m.name), role: m.role },
+    peer: { ...playerLook(p.role, p.name), role: p.role },
+  };
+  const api = {
+    setStats: (s) => { if (live()) $('#hud-stats').textContent = s; },
+    sfx,
+    say: (text, mood) => { if (live()) owlSay(fill(text), mood); },
+    streak: () => 0,
+    finish: (r) => onlineFinish(token, game, r),
+  };
+  const begin = () => { if (!live()) return; owlHint(); current.game = G.start(stageEl, api, ctx); };
+  if (G.countdown) { owlSay('Siap-siap! 💞', 'happy', 0); countdown(token, begin); }
+  else begin();
+}
+
+function onlineFinish(token, game, r) {
+  if (current?.token !== token) return;
+  if (r.win) { sfx('win'); confetti(); } else sfx('lose');
+  setTimeout(() => {
+    if (current?.token !== token) return;
+    stopGame();
+    modal.querySelector('.modal-card').innerHTML = `
+      <div class="modal-emoji bounce">${r.icon || '💞'}</div>
+      <h2>${esc(r.title)}</h2>
+      <p class="detail">${esc(r.detail)}</p>
+      <div class="modal-actions">
+        <button class="btn ghost" data-go="online">🎮 Lobby</button>
+        <button class="btn" data-ol-again="${game}">Main lagi 🔁</button>
+      </div>`;
+    modal.classList.remove('hidden');
+  }, 700);
+}
+modal.addEventListener('click', (e) => {
+  const again = e.target.closest('[data-ol-again]');
+  if (!again) return;
+  sfx('click');
+  closeModal();
+  show('online');
+  inviteGame(again.dataset.olAgain);
+});
+const peerGone = (text) => {
+  if (!current?.online) return;
+  stopGame();
+  closeModal();
+  show('online');
+  toast(text);
+};
+onNet('quit', () => peerGone(`${peerNet()?.name || 'Dia'} keluar dari game 🥺`));
+onNet('peer-left', () => peerGone('Yahh, koneksinya putus 🥺'));
 
 const LOSE_LINES = [
   'Hampir! Coba sekali lagi ya sayang 🥺',

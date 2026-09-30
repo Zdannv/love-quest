@@ -2,7 +2,7 @@
 // ambil isinya dari CMS dulu. Kalau nggak ada kode, jalan sebagai demo.
 import { CONFIG } from './config.js';
 
-const CONTENT_KEYS = ['names', 'messages', 'stageMessages', 'bonusMessages', 'quiz', 'finalLetter', 'music', 'photos', 'theme', 'characters'];
+const CONTENT_KEYS = ['names', 'messages', 'stageMessages', 'bonusMessages', 'quiz', 'finalLetter', 'music', 'photos', 'theme', 'characters', 'talkCustom'];
 
 function slugFromUrl() {
   const m = location.pathname.match(/^\/c\/([a-z0-9]{10,32})\/?$/);

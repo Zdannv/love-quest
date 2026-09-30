@@ -195,3 +195,4 @@ details.panel > textarea { width: calc(100% - 32px); display: block; }
 #login-help a { color: var(--accent); font-weight: 600; }
 .photo-slot .row { flex-wrap: nowrap; gap: 2px; }
 .save-pill { white-space: nowrap; }
+#talk-custom { min-height: 150px; }

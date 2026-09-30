@@ -11,6 +11,10 @@ export const SHOWCASES = {
     music: 'lucu',
     photo: 'kirana-arga.jpg',
     faces: { pasangan: 'kirana.jpg', pengirim: 'arga.jpg' },
+    talkCustom: [
+      'Kapan pertama kali kamu ngerasa kangen aku?',
+      'Kalau kita ke Bandung lagi, mau ngulang ke mana dulu?',
+    ],
     messages: {
       0: 'Level pertama beres! Liat deh, kartunya ada muka kita hehe 📸',
       2: 'Jago banget nge-tap muka Arga, kayak pas kamu nyubit pipi aku 😤',
@@ -41,5 +45,6 @@ export function applyShowcase(CONFIG, id) {
   };
   CONFIG.messages = CONFIG.messages.map((m, i) => s.messages[i] ?? m);
   CONFIG.finalLetter = s.finalLetter;
+  CONFIG.talkCustom = s.talkCustom || [];
   return true;
 }

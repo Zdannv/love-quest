@@ -762,3 +762,65 @@ body.is-couple [data-demo-only] { display: none !important; }
 .critter-face { width: 100%; height: 100%; max-width: 88px; aspect-ratio: 1; object-fit: cover; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,.18); display: block; margin: 0 auto; pointer-events: none; }
 .card-photo { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; pointer-events: none; }
 .front:has(.card-photo) { padding: 0; overflow: hidden; }
+
+/* ---------- Kartu Deep Talk ---------- */
+.talk-btn { font-size: 16px; padding: 11px 20px; }
+#screen-talk { padding: 0 16px 40px; max-width: 540px; margin: 0 auto; width: 100%; }
+.topbar-gap { width: 46px; }
+.talk-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.talk-title { margin: 4px 0 0; font-size: 30px; color: var(--pink-deep); }
+.talk-sub { margin: -6px 0 0; color: var(--ink-soft); font-size: 15px; }
+.talk-cats { display: flex; gap: 8px; overflow-x: auto; width: calc(100% + 32px); margin: 0 -16px; padding: 4px 16px 8px; scrollbar-width: none; }
+.talk-cats::-webkit-scrollbar { display: none; }
+.talk-cat { flex-shrink: 0; border: 0; background: #fff; color: var(--ink); font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: 999px; box-shadow: 0 3px 0 var(--accent-shadow, #f3c3d8); white-space: nowrap; }
+.talk-cat.on { background: var(--pink); color: #fff; box-shadow: 0 3px 0 var(--pink-deep); }
+.talk-card { --talk: var(--pink); width: min(100%, 360px); aspect-ratio: 3 / 4; border: 0; padding: 0; background: none; perspective: 1200px; cursor: pointer; }
+.talk-inner { position: relative; display: block; width: 100%; height: 100%; transition: transform .5s cubic-bezier(.3, 1.2, .5, 1); transform-style: preserve-3d; }
+.talk-card.flipped .talk-inner { transform: rotateY(180deg); }
+.talk-back, .talk-front { position: absolute; inset: 0; border-radius: 28px; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px 24px; box-shadow: 0 14px 30px rgba(106, 44, 82, .18); }
+.talk-back { background: repeating-linear-gradient(45deg, rgba(255,255,255,.14) 0 14px, transparent 14px 28px), linear-gradient(150deg, var(--accent-light, #ff9cc4), var(--pink-deep)); color: #fff; gap: 14px; border: 6px solid #fff; }
+.talk-logo { font-size: 64px; animation: hop 1.6s ease-in-out infinite; }
+.talk-back b { font-size: 20px; }
+.talk-front { background: #fff; transform: rotateY(180deg); border: 6px solid var(--talk); gap: 18px; }
+.talk-front small { font-size: 14px; font-weight: 700; color: #fff; background: var(--talk); padding: 6px 14px; border-radius: 999px; }
+.talk-front p { margin: 0; font-size: clamp(22px, 6.4vw, 28px); line-height: 1.3; font-weight: 600; color: var(--ink); }
+.talk-wrap > .btn { min-width: 220px; }
+
+/* ---------- Main Bareng (online) ---------- */
+.home-extra { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+#screen-online { padding: 0 16px 40px; max-width: 540px; margin: 0 auto; width: 100%; }
+.ol-card { width: 100%; background: #fff; border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+.ol-label { margin: 0 0 10px; font-weight: 600; color: var(--ink-soft); font-size: 14px; }
+.ol-who-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ol-who-btn { border: 2px solid var(--pink-soft); background: #fff; border-radius: 14px; padding: 10px; font-size: 16px; font-weight: 600; color: var(--ink); }
+.ol-who-btn.on { background: var(--pink); border-color: var(--pink); color: #fff; }
+.ol-players { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.ol-player { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 96px; opacity: .55; transition: opacity .3s; }
+.ol-player.on { opacity: 1; }
+.ol-ava { width: 64px; height: 64px; border-radius: 50%; background: var(--pink-soft); display: grid; place-items: center; font-size: 34px; overflow: hidden; border: 3px solid #fff; box-shadow: 0 4px 10px rgba(214, 80, 140, .2); }
+.ol-ava img { width: 100%; height: 100%; object-fit: cover; }
+.ol-player.on .ol-ava { box-shadow: 0 0 0 3px #3cc4a0, 0 4px 10px rgba(60, 196, 160, .3); }
+.ol-player b { font-size: 16px; }
+.ol-player small { font-size: 12px; color: var(--ink-soft); }
+.ol-player.on small { color: #25a384; font-weight: 600; }
+.ol-vs { font-size: 26px; animation: hop 1.4s ease-in-out infinite; }
+.ol-status { margin: 12px 0 0; font-size: 15px; color: var(--ink-soft); }
+.ol-status.ok { color: #25a384; font-weight: 600; }
+.ol-code { margin: 8px 0 0; font-size: 15px; }
+.ol-code b { font-size: 26px; letter-spacing: 4px; color: var(--pink-deep); }
+.ol-code-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+.ol-join { display: flex; gap: 6px; }
+.ol-join input { width: 86px; font: inherit; font-size: 16px; text-align: center; letter-spacing: 3px; border: 2px solid var(--pink-soft); border-radius: 12px; padding: 6px 8px; }
+.ol-games { width: 100%; display: grid; gap: 10px; }
+.ol-game { display: flex; align-items: center; gap: 14px; text-align: left; border: 0; background: #fff; border-radius: 18px; padding: 12px 14px; box-shadow: 0 4px 0 var(--accent-shadow, #f3c3d8); color: var(--ink); }
+.ol-game:disabled { opacity: .5; }
+.ol-game:not(:disabled):active { transform: translateY(3px); box-shadow: 0 1px 0 var(--accent-shadow, #f3c3d8); }
+.ol-game-icon { width: 48px; height: 48px; flex-shrink: 0; border-radius: 14px; background: var(--pink-soft); display: grid; place-items: center; font-size: 26px; }
+.ol-game b { display: block; font-size: 17px; }
+.ol-game small { font-size: 13px; color: var(--ink-soft); }
+.ol-tebak-who { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; color: var(--pink-deep); margin-bottom: 6px; }
+.ol-mini { width: 30px; height: 30px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--pink-soft); font-size: 18px; }
+.ol-mini img { width: 100%; height: 100%; object-fit: cover; }
+.opt.picked { outline: 3px solid var(--pink); }
+.tile.peer-sel { box-shadow: 0 0 0 4px #9a6bff, 0 6px 14px rgba(154, 107, 255, .4); }
+.memory-grid.not-my-turn { opacity: .75; }

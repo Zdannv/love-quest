@@ -55,6 +55,7 @@ function defaultContent() {
     theme: DEFAULT_THEME,
     characters: { ...DEFAULT_CHARACTERS },
     photos: { icon: null, letter: null, bonus: LEVEL_MAP.map(() => null), faces: { pasangan: null, pengirim: null } },
+    talkCustom: [],
   };
 }
 
@@ -72,6 +73,7 @@ function withDefaults(c) {
     bonus: fill(d.photos.bonus, c.photos?.bonus),
     faces: { ...d.photos.faces, ...(c.photos?.faces || {}) },
   };
+  out.talkCustom = Array.isArray(c.talkCustom) ? c.talkCustom : [];
   return out;
 }
 
@@ -162,6 +164,7 @@ function renderEditor() {
   // Semua input berlabel data-path langsung terhubung ke `content`
   document.querySelectorAll('#view-editor [data-path]').forEach((el) => { el.value = getPath(content, el.dataset.path) ?? ''; });
 
+  $('#talk-custom').value = content.talkCustom.join('\n');
   renderMusic();
   renderLook();
   renderPhotos();
@@ -431,6 +434,11 @@ $('#view-editor').addEventListener('input', (e) => {
   const el = e.target.closest('[data-path]');
   if (!el) return;
   setPath(content, el.dataset.path, el.hasAttribute('data-number') ? Number(el.value) : el.value);
+  markDirty();
+});
+// Kartu Deep Talk tambahan: satu pertanyaan per baris
+$('#talk-custom').addEventListener('input', (e) => {
+  content.talkCustom = e.target.value.split('\n').map((q) => q.trim()).filter(Boolean).slice(0, 100);
   markDirty();
 });
 $('#view-editor').addEventListener('change', (e) => {

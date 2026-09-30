@@ -1,9 +1,14 @@
 // Terbang Tinggi: tap buat bikin karakter terbang, lewati tiang bunga dan ambil 💖.
 // Dibuat santai: 3 nyawa, dan kalau nabrak owl cuma kedip lalu lanjut terbang.
+// Mode balapan online (p.race): tiang pakai angka acak yang sama (p.rng), karakter lawan ikut kelihatan.
 import { rand, drawEmoji, drawFace, loadImage } from '../util.js';
 
 export function startFly(stage, p, api) {
   const face = loadImage(p.face);
+  const rng = p.rng || Math.random;
+  const rnd = (a, b) => a + rng() * (b - a);
+  const race = p.race || null;
+  const ghostFace = race ? loadImage(race.face) : null;
   const canvas = document.createElement('canvas');
   canvas.className = 'catch-canvas';
   stage.appendChild(canvas);
@@ -43,9 +48,9 @@ export function startFly(stage, p, api) {
   function addPillar(x) {
     const gap = p.gap * k;
     const margin = 60 * k;
-    const gy = rand(margin + gap / 2, H - margin - gap / 2);
+    const gy = rnd(margin + gap / 2, H - margin - gap / 2);
     pillars.push({ x, gy, gap, passed: false });
-    if (Math.random() < 0.8) hearts.push({ x: x + pillarW / 2, y: gy + rand(-gap / 4, gap / 4), got: false });
+    if (rng() < 0.8) hearts.push({ x: x + pillarW / 2, y: gy + rnd(-gap / 4, gap / 4), got: false });
   }
 
   function addFloat(x, y, text, color) { floats.push({ x, y, text, color, life: 1 }); }
@@ -125,6 +130,24 @@ export function startFly(stage, p, api) {
     }
     for (const h of hearts) drawEmoji(ctx, '💖', h.x, h.y + Math.sin((h.x + performance.now() / 5) / 30) * 4, 26 * k);
 
+    if (race) {
+      // Lawan: posisi tingginya dikirim lewat online, digambar agak transparan di sebelah kita
+      const g = race.ghost();
+      if (g) {
+        const gx = owl.x + 34 * k;
+        ctx.save();
+        ctx.globalAlpha = g.alive ? 0.55 : 0.25;
+        ctx.translate(gx, g.y * H);
+        if (ghostFace) drawFace(ctx, ghostFace, 0, 0, owl.size * 0.42, race.emoji || '🐱');
+        else drawEmoji(ctx, race.emoji || '🐱', 0, 0, owl.size * 0.85);
+        ctx.globalAlpha = g.alive ? 0.9 : 0.4;
+        ctx.font = `600 ${Math.round(12 * k)}px Fredoka, sans-serif`;
+        ctx.fillStyle = '#6a2c52';
+        ctx.fillText(race.name, 0, -owl.size * 0.62);
+        ctx.restore();
+      }
+    }
+
     ctx.save();
     ctx.translate(owl.x, owl.y);
     ctx.rotate(Math.max(-0.4, Math.min(0.6, owl.vy / (900 * k))));
@@ -153,7 +176,10 @@ export function startFly(stage, p, api) {
     }
     ctx.globalAlpha = 1;
 
-    const s = `🌸 ${passed}/${p.target} · 💖 ${collected} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}`;
+    const hearts3 = `${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}`;
+    const s = race
+      ? `🌸 Kamu ${passed} · ${race.name} ${race.ghost()?.passed ?? 0} · ${hearts3}`
+      : `🌸 ${passed}/${p.target} · 💖 ${collected} · ${hearts3}`;
     if (s !== lastStats) { api.setStats(s); lastStats = s; }
   }
 
@@ -162,6 +188,7 @@ export function startFly(stage, p, api) {
     const dt = Math.min(0.04, (now - last) / 1000);
     last = now;
     if (!done) update(dt);
+    race?.tick({ y: owl.y / H, passed, alive: !done });
     draw();
   }
   raf = requestAnimationFrame(loop);
@@ -170,6 +197,7 @@ export function startFly(stage, p, api) {
     if (done) return;
     done = true;
     const stars = win ? Math.max(1, lives) : 0;
+    if (race) { race.tick({ y: owl.y / H, passed, alive: false }, true); api.finish({ win, passed, collected }); return; }
     api.finish({ win, stars, detail: win ? `Lewat ${passed} tiang, dapet ${collected} 💖` : `Lewat ${passed} dari ${p.target} tiang` });
   }
 
