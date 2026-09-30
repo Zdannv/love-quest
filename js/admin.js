@@ -56,6 +56,7 @@ function defaultContent() {
     characters: { ...DEFAULT_CHARACTERS },
     photos: { icon: null, letter: null, bonus: LEVEL_MAP.map(() => null), faces: { pasangan: null, pengirim: null } },
     talkCustom: [],
+    profiles: { pasangan: null, pengirim: null },
   };
 }
 
@@ -74,6 +75,7 @@ function withDefaults(c) {
     faces: { ...d.photos.faces, ...(c.photos?.faces || {}) },
   };
   out.talkCustom = Array.isArray(c.talkCustom) ? c.talkCustom : [];
+  out.profiles = { ...d.profiles, ...(c.profiles || {}) };
   return out;
 }
 
@@ -165,6 +167,7 @@ function renderEditor() {
   document.querySelectorAll('#view-editor [data-path]').forEach((el) => { el.value = getPath(content, el.dataset.path) ?? ''; });
 
   $('#talk-custom').value = content.talkCustom.join('\n');
+  renderBirthdays();
   renderMusic();
   renderLook();
   renderPhotos();
@@ -436,6 +439,26 @@ $('#view-editor').addEventListener('input', (e) => {
   setPath(content, el.dataset.path, el.hasAttribute('data-number') ? Number(el.value) : el.value);
   markDirty();
 });
+// Profil berdua: tanggal lahir → kode acak (sha256 dari kode game + tanggal), tanggal aslinya nggak disimpan
+async function birthdayHash(date) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${couple.slug}|${date}`));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+function renderBirthdays() {
+  for (const r of ['pasangan', 'pengirim']) {
+    $(`[data-bd-state="${r}"]`).textContent = content.profiles[r] ? '✓ Udah diisi (isi lagi kalau mau ganti)' : 'Belum diisi';
+    $(`[data-bd-state="${r}"]`).classList.toggle('ok', !!content.profiles[r]);
+  }
+}
+document.querySelectorAll('[data-birthday]').forEach((input) => input.addEventListener('change', async () => {
+  if (!input.value) return;
+  content.profiles[input.dataset.birthday] = await birthdayHash(input.value);
+  input.value = '';
+  renderBirthdays();
+  markDirty();
+  toast('Tanggal lahir tersimpan 🎂');
+}));
+
 // Kartu Deep Talk tambahan: satu pertanyaan per baris
 $('#talk-custom').addEventListener('input', (e) => {
   content.talkCustom = e.target.value.split('\n').map((q) => q.trim()).filter(Boolean).slice(0, 100);

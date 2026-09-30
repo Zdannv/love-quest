@@ -1,14 +1,17 @@
-// Main Bareng online: dua HP nyambung lewat Supabase Realtime (broadcast + presence), tanpa database.
+// Main Berdua (online): dua HP nyambung lewat Supabase Realtime (broadcast + presence), tanpa database.
 // Game pasangan otomatis masuk room berdua. Bisa juga pakai kode 4 angka buat main sama temen.
+// Isinya: peta 30 level kerja sama (duo-levels.js) + game bebas (balapan, gantian, Deep Talk bareng).
 import { CONFIG } from './config.js';
 import { getNames, getFace, getChars } from './personal.js';
-import { getPlayer } from './streak.js';
 import { esc } from './util.js';
 import { ONLINE_GAMES } from './online-games.js';
+import { whoAmI, askProfile, forget } from './profile.js';
+import { LEVEL_MAP } from './level-map.js';
+import { DUO_LEVELS, DUO_NAMES, DUO_ICONS, duoStars, duoUnlocked, mergeDuo } from './duo-levels.js';
 
 const $ = (s) => document.querySelector(s);
-const ROLE_KEY = 'lq-online-role';
 const ID_KEY = 'lq-online-id';
+const WORLD_THEME = ['w-flower', 'w-candy', 'w-beach', 'w-night', 'w-home'];
 
 const myId = (() => {
   try {
@@ -21,13 +24,7 @@ const myId = (() => {
 // Room pasangan cuma buat game asli (bukan demo / contoh), biar pengunjung demo nggak nyasar ke room yang sama
 const coupleRoom = () => (!CONFIG.demo && !CONFIG.showcase && CONFIG.slug ? `c-${CONFIG.slug}` : null);
 
-const net = {
-  code: null,
-  channel: null,
-  peer: null,
-  status: 'off', // off | connecting | on | error
-  listeners: {},
-};
+const net = { code: null, channel: null, peer: null, status: 'off', listeners: {} };
 
 function emitLocal(type, data) { (net.listeners[type] || []).slice().forEach((fn) => fn(data)); }
 export function on(type, fn) {
@@ -39,22 +36,12 @@ export function send(type, data = {}) {
 }
 
 // ---------- Siapa aku ----------
-export function myRole() {
-  try {
-    const r = localStorage.getItem(ROLE_KEY);
-    if (r === 'pasangan' || r === 'pengirim') return r;
-  } catch {}
-  const p = !CONFIG.demo && !CONFIG.showcase ? getPlayer() : null;
-  return p || null;
-}
-function setRole(r) { try { localStorage.setItem(ROLE_KEY, r); } catch {} }
+export const myRole = () => whoAmI();
 export const nameOf = (role) => getNames()[role] || (role === 'pasangan' ? 'Pemain 1' : 'Pemain 2');
 export const me = () => ({ id: myId, role: myRole(), name: nameOf(myRole()) });
 export const peer = () => net.peer;
 export function playerLook(role, fallbackName) {
-  const chars = getChars();
-  const f = getFace(role);
-  return { name: fallbackName || nameOf(role), face: f || null, emoji: chars[role]?.emoji || '💖' };
+  return { name: fallbackName || nameOf(role), face: getFace(role) || null, emoji: getChars()[role]?.emoji || '💖' };
 }
 
 // ---------- Koneksi ----------
@@ -66,10 +53,7 @@ function client() {
 
 async function leaveRoom() {
   const ch = net.channel;
-  net.channel = null;
-  net.peer = null;
-  net.code = null;
-  net.status = 'off';
+  Object.assign(net, { channel: null, peer: null, code: null, status: 'off' });
   if (ch) { try { await ch.unsubscribe(); (await client()).removeChannel(ch); } catch {} }
 }
 
@@ -87,6 +71,7 @@ async function joinRoom(code) {
       const before = net.peer?.id;
       net.peer = others[0] || null;
       if (before && !net.peer) emitLocal('peer-left');
+      if (net.peer && net.peer.id !== before) send('duo-prog', { stars: duoStars() }); // samain progres level
       render();
     });
     ch.on('broadcast', { event: 'm' }, ({ payload }) => { if (payload?.from !== myId) emitLocal(payload.t, payload); });
@@ -104,8 +89,8 @@ async function joinRoom(code) {
   render();
 }
 
-// ---------- Tampilan lobby ----------
-let ui = null; // { sfx, toast, startGame(game, seed), openTalk() }
+// ---------- Tampilan ----------
+let ui = null; // { sfx, toast, modal(html), closeModal(), startGame(game, seed), startLevel(idx, seed), openTalk() }
 let pendingInvite = null;
 
 function avatar(role, name, online) {
@@ -114,88 +99,129 @@ function avatar(role, name, online) {
   return `<div class="ol-player ${online ? 'on' : ''}"><div class="ol-ava">${img}</div><b>${esc(look.name)}</b><small>${online ? 'online' : 'belum masuk'}</small></div>`;
 }
 
+const ready = () => net.status === 'on' && net.peer && myRole() && net.peer.role !== myRole();
+
 function render() {
   if (!ui) return;
   const role = myRole();
-  const names = getNames();
-  // Pilih: aku yang mana
-  $('#ol-who').innerHTML = `
-    <p class="ol-label">Kamu siapa?</p>
-    <div class="ol-who-btns">
-      ${['pasangan', 'pengirim'].map((r) => `<button type="button" class="ol-who-btn ${role === r ? 'on' : ''}" data-role="${r}">${esc(names[r] || nameOf(r))}</button>`).join('')}
-    </div>`;
-
   const cr = coupleRoom();
   const p = net.peer;
   const clash = p && role && p.role === role;
+  const other = role === 'pasangan' ? 'pengirim' : 'pasangan';
   let status = '';
-  if (!role) status = 'Pilih dulu kamu yang mana 👆';
+  if (!role) status = 'Masuk ke profilmu dulu yaa';
   else if (net.status === 'connecting') status = 'Lagi nyambung…';
   else if (net.status === 'error') status = 'Gagal nyambung, cek internet terus coba lagi 🥺';
-  else if (!net.code) status = cr ? '' : 'Bikin room baru atau masukin kode dari temenmu 👇';
-  else if (!p) status = cr ? `Nunggu ${esc(nameOf(role === 'pasangan' ? 'pengirim' : 'pasangan'))} buka game ini juga…` : 'Kirim kode ini ke temen / pasanganmu, terus tunggu dia gabung…';
-  else if (clash) status = 'Kalian milih nama yang sama, salah satu ganti dulu yaa 👆';
-  else status = `${esc(p.name)} udah masuk! Pilih game di bawah 🎮`;
+  else if (!net.code) status = 'Bikin room baru atau masukin kode dari temenmu 👇';
+  else if (!p) status = cr && net.code === cr ? `Nunggu ${esc(nameOf(other))} buka game ini juga…` : 'Kirim kode ini ke temen / pasanganmu, terus tunggu dia gabung…';
+  else if (clash) status = `Kalian masuk pakai profil yang sama. Salah satu ganti profil dulu yaa`;
+  else status = `${esc(p.name)} udah masuk! Pilih level di bawah 🎮`;
 
-  const other = role === 'pasangan' ? 'pengirim' : 'pasangan';
+  const codeOpen = !cr || net.code !== cr;
   $('#ol-room').innerHTML = `
     <div class="ol-players">
       ${avatar(role || 'pasangan', role ? nameOf(role) : 'Kamu', net.status === 'on')}
       <span class="ol-vs">💞</span>
       ${p ? avatar(p.role, p.name, true) : avatar(other, cr ? nameOf(other) : 'Temanmu', false)}
     </div>
-    <p class="ol-status ${p && !clash ? 'ok' : ''}">${status}</p>
-    ${net.code && !(cr && net.code === cr) ? `<p class="ol-code">Kode room: <b>${esc(net.code)}</b></p>` : ''}
-    <div class="ol-code-row">
-      ${cr && net.code !== cr ? '<button type="button" class="btn ghost small-btn" data-ol="couple">Balik ke room berdua</button>' : ''}
-      <button type="button" class="btn ghost small-btn" data-ol="new">${cr ? 'Main sama temen (kode baru)' : 'Bikin room baru'}</button>
-      <form class="ol-join" data-ol-join><input inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="Kode" aria-label="Kode room"><button class="btn small-btn" type="submit">Gabung</button></form>
-    </div>`;
+    <p class="ol-status ${ready() ? 'ok' : ''}">${status}</p>
+    ${role ? `<p class="ol-me">Masuk sebagai <b>${esc(nameOf(role))}</b> · <button class="link-btn" type="button" data-ol="switch">bukan kamu?</button></p>`
+      : '<button class="btn small-btn" type="button" data-ol="profile">Masuk ke profil</button>'}
+    <details class="ol-friends" ${codeOpen ? 'open' : ''}>
+      <summary>👯 Main sama temen pakai kode</summary>
+      ${net.code && net.code !== cr ? `<p class="ol-code">Kode room: <b>${esc(net.code)}</b></p>` : ''}
+      <div class="ol-code-row">
+        ${cr && net.code !== cr ? '<button type="button" class="btn ghost small-btn" data-ol="couple">Balik ke room berdua</button>' : ''}
+        <button type="button" class="btn ghost small-btn" data-ol="new">Bikin room baru</button>
+        <form class="ol-join" data-ol-join><input inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="Kode" aria-label="Kode room"><button class="btn small-btn" type="submit">Gabung</button></form>
+      </div>
+    </details>`;
 
-  const ready = net.status === 'on' && p && !clash && role;
-  $('#ol-games').innerHTML = Object.entries(ONLINE_GAMES).map(([id, g]) => `
-    <button type="button" class="ol-game" data-game="${id}" ${ready ? '' : 'disabled'}>
+  // Peta level berdua
+  const stars = duoStars();
+  const total = Object.values(stars).reduce((a, b) => a + b, 0);
+  $('#ol-map').innerHTML = `<p class="ol-section">🗺️ Petualangan berdua <span>⭐ ${total}/${DUO_LEVELS.length * 3}</span></p>` + LEVEL_MAP.map((w, wi) => {
+    const levels = DUO_LEVELS.filter((L) => L.world === wi);
+    const open = duoUnlocked(levels[0], stars);
+    return `
+      <section class="world ${WORLD_THEME[wi]} ${open ? '' : 'locked'}">
+        <div class="world-head">
+          <span class="world-icon">${w.icon}</span>
+          <div><small>Dunia ${wi + 1}</small><h2>${esc(w.name)}</h2></div>
+        </div>
+        <div class="levels">
+          ${levels.map((L) => {
+            const s = stars[L.id] || 0;
+            const unlocked = duoUnlocked(L, stars);
+            const current = unlocked && !s;
+            return `<button class="lvl ${unlocked ? '' : 'locked'} ${s ? 'done' : ''} ${current ? 'current' : ''}" data-duo="${L.idx}" ${unlocked ? '' : 'disabled'}>
+              <span class="lvl-type">${unlocked ? DUO_ICONS[L.type] : '🔒'}</span>
+              <span class="lvl-num">${L.num}</span>
+              <span class="lvl-stars">${[0, 1, 2].map((k) => (k < s ? '★' : '<i>★</i>')).join('')}</span>
+            </button>`;
+          }).join('')}
+        </div>
+      </section>`;
+  }).join('');
+
+  $('#ol-games').innerHTML = `<p class="ol-section">🎲 Main bebas</p>` + Object.entries(ONLINE_GAMES).map(([id, g]) => `
+    <button type="button" class="ol-game" data-game="${id}">
       <span class="ol-game-icon">${g.icon}</span>
       <span><b>${esc(g.name)}</b><small>${esc(g.desc)}</small></span>
     </button>`).join('');
 }
 
-export function inviteGame(game) {
+function needPartner() {
+  if (!myRole()) { ui.toast('Masuk ke profilmu dulu yaa'); return true; }
+  if (!ready()) { ui.toast(net.peer ? 'Kalian pakai profil yang sama 🤔' : 'Tunggu pasanganmu masuk dulu yaa 💞'); return true; }
+  return false;
+}
+
+// Ajak main: game bebas (game) atau level (level = nomor urut)
+export function inviteGame(game, level = null) {
+  if (needPartner()) return;
   const seed = Math.floor(Math.random() * 1e9);
-  pendingInvite = { game, seed };
-  send('invite', { game, seed, name: me().name });
+  pendingInvite = { game, seed, level };
+  send('invite', { game, seed, level, name: me().name });
   ui.sfx('click');
+  const title = level != null ? `Level ${DUO_LEVELS[level].num} · ${DUO_NAMES[DUO_LEVELS[level].type]}` : ONLINE_GAMES[game].name;
+  const icon = level != null ? DUO_ICONS[DUO_LEVELS[level].type] : ONLINE_GAMES[game].icon;
   ui.modal(`
-    <div class="modal-emoji">${ONLINE_GAMES[game].icon}</div>
+    <div class="modal-emoji">${icon}</div>
     <h2>Ngajak ${esc(net.peer?.name || '')}…</h2>
-    <p class="detail">Nunggu dia pencet "Ayo" buat main <b>${esc(ONLINE_GAMES[game].name)}</b></p>
+    <p class="detail">Nunggu dia pencet "Ayo" buat main <b>${esc(title)}</b></p>
     <div class="modal-actions"><button class="btn ghost" data-ol-act="cancel">Batal</button></div>`);
 }
 
-function start(game, seed) {
+function start(inv) {
   pendingInvite = null;
   ui.closeModal();
-  if (game === 'talk') ui.openTalk();
-  else ui.startGame(game, seed);
+  if (inv.level != null) ui.startLevel(inv.level, inv.seed);
+  else if (inv.game === 'talk') ui.openTalk();
+  else ui.startGame(inv.game, inv.seed);
 }
 
 export function mountOnline(opts) {
   ui = opts;
-  $('#screen-online').addEventListener('click', (e) => {
-    const r = e.target.closest('[data-role]');
-    if (r) {
+  $('#screen-online').addEventListener('click', async (e) => {
+    const act = e.target.closest('[data-ol]')?.dataset.ol;
+    if (act === 'profile' || act === 'switch') {
       ui.sfx('click');
-      setRole(r.dataset.role);
-      if (net.channel && net.status === 'on') net.channel.track(me());
-      else if (!net.code && coupleRoom()) joinRoom(coupleRoom());
+      if (act === 'switch') forget();
+      const role = await askProfile({ sfx: ui.sfx });
+      if (role) {
+        if (net.channel && net.status === 'on') net.channel.track(me());
+        else if (coupleRoom()) joinRoom(coupleRoom());
+      }
       render();
       return;
     }
-    const act = e.target.closest('[data-ol]')?.dataset.ol;
     if (act === 'new') { ui.sfx('click'); joinRoom(String(Math.floor(1000 + Math.random() * 9000))); }
     if (act === 'couple') { ui.sfx('click'); joinRoom(coupleRoom()); }
+    const lvl = e.target.closest('[data-duo]');
+    if (lvl && !lvl.disabled) inviteGame('level', +lvl.dataset.duo);
     const g = e.target.closest('[data-game]');
-    if (g && !g.disabled) inviteGame(g.dataset.game);
+    if (g) inviteGame(g.dataset.game);
   });
   $('#screen-online').addEventListener('submit', (e) => {
     if (!e.target.matches('[data-ol-join]')) return;
@@ -206,39 +232,51 @@ export function mountOnline(opts) {
     joinRoom(code);
   });
   // Tombol di modal (ajakan main)
-  document.querySelector('#modal').addEventListener('click', (e) => {
-    const act = e.target.closest('[data-ol-act]')?.dataset.olAct;
-    if (!act) return;
+  $('#modal').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-ol-act]');
+    if (!btn) return;
     ui.sfx('click');
-    const inv = JSON.parse(e.target.closest('[data-ol-act]').dataset.inv || 'null');
+    const act = btn.dataset.olAct;
     if (act === 'cancel') { send('cancel'); pendingInvite = null; ui.closeModal(); }
     if (act === 'no') { send('decline'); ui.closeModal(); }
-    if (act === 'yes' && inv) { send('accept', inv); start(inv.game, inv.seed); }
+    if (act === 'yes') {
+      const inv = JSON.parse(btn.dataset.inv || 'null');
+      if (inv) { send('accept', inv); start(inv); }
+    }
   });
 
   on('invite', (d) => {
-    const g = ONLINE_GAMES[d.game];
-    if (!g) return;
+    const isLevel = d.level != null && DUO_LEVELS[d.level];
+    const g = isLevel ? null : ONLINE_GAMES[d.game];
+    if (!isLevel && !g) return;
+    const L = isLevel ? DUO_LEVELS[d.level] : null;
     ui.sfx('pop');
     navigator.vibrate?.(40);
     ui.modal(`
-      <div class="modal-emoji bounce">${g.icon}</div>
+      <div class="modal-emoji bounce">${isLevel ? DUO_ICONS[L.type] : g.icon}</div>
       <h2>${esc(d.name)} ngajak main!</h2>
-      <p class="detail"><b>${esc(g.name)}</b> · ${esc(g.desc)}</p>
+      <p class="detail"><b>${esc(isLevel ? `Level ${L.num} · ${DUO_NAMES[L.type]}` : g.name)}</b>${isLevel ? '' : ` · ${esc(g.desc)}`}</p>
       <div class="modal-actions">
         <button class="btn ghost" data-ol-act="no">Nanti</button>
-        <button class="btn" data-ol-act="yes" data-inv='${esc(JSON.stringify({ game: d.game, seed: d.seed }))}'>Ayo! 🎮</button>
+        <button class="btn" data-ol-act="yes" data-inv='${esc(JSON.stringify({ game: d.game, seed: d.seed, level: d.level ?? null }))}'>Ayo! 🎮</button>
       </div>`);
   });
-  on('accept', (d) => { if (pendingInvite && d.game === pendingInvite.game) start(d.game, d.seed); });
+  on('accept', (d) => { if (pendingInvite && d.game === pendingInvite.game && d.seed === pendingInvite.seed) start(d); });
   on('decline', () => { if (pendingInvite) { pendingInvite = null; ui.closeModal(); ui.toast(`${net.peer?.name || 'Dia'} lagi nggak bisa, nanti yaa 🥺`); } });
   on('cancel', () => ui.closeModal());
   on('peer-left', () => { if (pendingInvite) { pendingInvite = null; ui.closeModal(); } });
+  on('duo-prog', (d) => { if (mergeDuo(d.stars)) render(); });
 }
 
-// Dipanggil tiap buka layar Main Bareng
-export function enterLobby() {
-  if (!net.code && myRole() && coupleRoom()) joinRoom(coupleRoom());
+// Dipanggil tiap buka layar Main Berdua
+export async function enterLobby() {
+  render();
+  if (!myRole()) {
+    const role = await askProfile({ sfx: ui?.sfx });
+    if (!role) { render(); return; }
+  }
+  if (!net.code && coupleRoom()) joinRoom(coupleRoom());
   render();
 }
+export const refreshLobby = () => render();
 export const isOnline = () => net.status === 'on' && !!net.peer;

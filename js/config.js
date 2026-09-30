@@ -46,7 +46,7 @@ export const CONFIG = {
         'Perubahan langsung muncul di game pasanganmu, nggak perlu kirim link baru',
         '60 level + 5 bonus puzzle foto: 5 dunia, tiap dunia 12 game yang beda-beda',
         '13 jenis mini-game (terbang, lari, labirin, susun kue, lempar hati, dll.)',
-        'Main Bareng online dari HP masing-masing: balapan terbang, tebak pasangan, puzzle & kartu kembar bareng',
+        'Main Berdua online dari HP masing-masing: 30 level kerja sama + game bebas (balapan, tebak pasangan, puzzle, dll.)',
         'Kartu Deep Talk: 100 pertanyaan buat ngobrol berdua, bisa ditambah pertanyaan sendiri',
         'Streak berdua + notifikasi pengingat jam 7 malam',
         'Bisa dipasang di home screen & tetap bisa dimainin offline',
@@ -72,6 +72,9 @@ export const CONFIG = {
 
   // Pertanyaan Kartu Deep Talk tambahan dari pembeli (lewat CMS), satu string per kartu
   talkCustom: [],
+
+  // Kode tanggal lahir berdua (diisi dari CMS) buat masuk ke profil: { pasangan: hash, pengirim: hash }
+  profiles: {},
 
   // Pesan untuk level utama (6 per dunia, urut dunia 1 → 5)
   messages: [

@@ -11,6 +11,7 @@ export const SHOWCASES = {
     music: 'lucu',
     photo: 'kirana-arga.jpg',
     faces: { pasangan: 'kirana.jpg', pengirim: 'arga.jpg' },
+    birthdays: { pasangan: '2015-02-14', pengirim: '2013-05-20' },
     talkCustom: [
       'Kapan pertama kali kamu ngerasa kangen aku?',
       'Kalau kita ke Bandung lagi, mau ngulang ke mana dulu?',
@@ -46,5 +47,6 @@ export function applyShowcase(CONFIG, id) {
   CONFIG.messages = CONFIG.messages.map((m, i) => s.messages[i] ?? m);
   CONFIG.finalLetter = s.finalLetter;
   CONFIG.talkCustom = s.talkCustom || [];
+  CONFIG.showcaseBirthdays = s.birthdays || null;
   return true;
 }

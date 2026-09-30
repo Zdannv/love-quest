@@ -87,8 +87,12 @@ const TEBAK = [
   ['Gaya liburan', ['Full itinerary 🗺️', 'Santai aja 🌿', 'Kulineran 🍜', 'Belanja 🛍️']],
 ];
 
+const starsBy = (ratio, pass, two, three) => (ratio >= three ? 3 : ratio >= two ? 2 : ratio >= pass ? 1 : 0);
+
 function startTebak(stage, api, ctx) {
-  const ROUNDS = 8;
+  const lv = ctx.level?.params;
+  const samaan = ctx.level?.type === 'samaan';
+  const ROUNDS = lv?.rounds || 8;
   const rng = seeded(ctx.seed);
   const qs = shuffleWith(rng, [...TEBAK]).slice(0, ROUNDS);
   const answers = {}; // answers[r] = { pasangan: k, pengirim: k }
@@ -106,9 +110,12 @@ function startTebak(stage, api, ctx) {
     const subj = person(subjectRole(r));
     const iAmSubject = subj === ctx.me;
     api.setStats(`❓ ${r + 1}/${ROUNDS} · 💞 Kompak ${score}`);
+    const who = samaan
+      ? `<span class="ol-mini">${ava(ctx.me)}</span>Tanpa ngobrol, pilih yang sama!<span class="ol-mini">${ava(ctx.peer)}</span>`
+      : `<span class="ol-mini">${ava(subj)}</span>${iAmSubject ? 'Jawab tentang kamu' : `Tebak jawaban ${esc(subj.name)}`}`;
     box.innerHTML = `
       <div class="quiz-card">
-        <div class="ol-tebak-who"><span class="ol-mini">${ava(subj)}</span>${iAmSubject ? 'Jawab tentang kamu' : `Tebak jawaban ${esc(subj.name)}`}</div>
+        <div class="ol-tebak-who">${who}</div>
         <div class="quiz-q">${esc(q)}?</div>
         <div class="quiz-opts">${opts.map((o, k) => `<button class="opt" data-k="${k}">${esc(o)}</button>`).join('')}</div>
         <div class="quiz-fb" aria-live="polite"></div>
@@ -130,15 +137,17 @@ function startTebak(stage, api, ctx) {
     const a = answers[r];
     if (!a || a.pasangan == null || a.pengirim == null) return;
     const subjRole = subjectRole(r);
-    const truth = a[subjRole];
-    const guess = a[subjRole === 'pasangan' ? 'pengirim' : 'pasangan'];
+    const truth = samaan ? a[ctx.peer.role] : a[subjRole];
+    const guess = samaan ? a[ctx.me.role] : a[subjRole === 'pasangan' ? 'pengirim' : 'pasangan'];
     const ok = truth === guess;
     if (ok) score++;
     const btns = box.querySelectorAll('.opt');
     btns[truth]?.classList.add('right');
     if (!ok) btns[guess]?.classList.add('wrong');
     const fb = box.querySelector('.quiz-fb');
-    fb.textContent = ok ? 'Kompak! Tebakannya bener 💞' : `Meleset! Jawaban ${person(subjRole).name}: ${qs[r][1][truth]}`;
+    fb.textContent = samaan
+      ? (ok ? 'Samaan! Sehati banget 💞' : `Beda! ${ctx.peer.name} milih ${qs[r][1][truth]}`)
+      : (ok ? 'Kompak! Tebakannya bener 💞' : `Meleset! Jawaban ${person(subjRole).name}: ${qs[r][1][truth]}`);
     fb.className = `quiz-fb ${ok ? 'ok' : 'nope'}`;
     api.sfx(ok ? 'good' : 'bad');
     api.setStats(`❓ ${r + 1}/${ROUNDS} · 💞 Kompak ${score}`);
@@ -150,6 +159,13 @@ function startTebak(stage, api, ctx) {
   }
   function finish() {
     done = true;
+    if (lv) {
+      const ratio = score / ROUNDS;
+      const stars = starsBy(ratio, lv.pass, lv.pass + 0.2, lv.pass + 0.4);
+      api.finish({ win: stars > 0, stars, icon: stars ? '💞' : '🤭', title: `${samaan ? 'Samaan' : 'Kompak'} ${score}/${ROUNDS}`,
+        detail: stars ? (stars === 3 ? 'Sehati parah! 💍' : 'Kompak! Lanjut ke level berikutnya 💞') : `Butuh minimal ${Math.ceil(ROUNDS * lv.pass)} yang cocok, coba lagi yuk 🤭` });
+      return;
+    }
     const label = score >= 7 ? 'Jodoh banget ini mah 💍' : score >= 5 ? 'Kompak parah! 💞' : score >= 3 ? 'Lumayan kenal lah ya 😆' : 'Kayaknya perlu lebih sering ngobrol nih 🤭';
     api.finish({ win: true, icon: score >= 5 ? '💞' : '🤭', title: `Kompak ${score}/${ROUNDS}`, detail: label });
   }
@@ -159,7 +175,8 @@ function startTebak(stage, api, ctx) {
 
 // ---------- Puzzle Bareng ----------
 function startPuzzleTogether(stage, api, ctx) {
-  const n = 3, total = n * n;
+  const lv = ctx.level?.params;
+  const n = lv?.size || 3, total = n * n;
   const rng = seeded(ctx.seed);
   let order;
   do { order = shuffleWith(rng, [...Array(total).keys()]); } while (order.every((v, i) => v === i));
@@ -182,6 +199,19 @@ function startPuzzleTogether(stage, api, ctx) {
   });
   let sel = -1, peerSel = -1, moves = 0, done = false;
   const t0 = performance.now();
+  let tick = 0;
+  if (lv) {
+    tick = setInterval(() => {
+      if (done) return;
+      const left = lv.time - (performance.now() - t0) / 1000;
+      if (left <= 0) {
+        done = true;
+        clearInterval(tick);
+        api.finish({ win: false, stars: 0, icon: '⏰', title: 'Waktunya habis', detail: 'Hampir! Coba lagi, bagi tugas biar cepet 💪' });
+      }
+      paint();
+    }, 500);
+  }
   function paint() {
     slots.forEach((t, pos) => {
       t.style.backgroundPosition = bgPos(order[pos]);
@@ -189,14 +219,17 @@ function startPuzzleTogether(stage, api, ctx) {
       t.classList.toggle('sel', pos === sel);
       t.classList.toggle('peer-sel', pos === peerSel);
     });
-    api.setStats(`🧩 ${order.filter((v, i) => v === i).length}/${total} pas · 👆 ${moves}`);
+    const left = lv ? ` · ⏱ ${Math.max(0, Math.ceil(lv.time - (performance.now() - t0) / 1000))}s` : '';
+    api.setStats(`🧩 ${order.filter((v, i) => v === i).length}/${total} pas · 👆 ${moves}${left}`);
   }
   function check() {
     if (done || !order.every((v, i) => v === i)) return;
     done = true;
     board.classList.add('solved');
+    clearInterval(tick);
     const secs = Math.round((performance.now() - t0) / 1000);
-    setTimeout(() => api.finish({ win: true, icon: '🧩', title: 'Fotonya utuh lagi!', detail: `Kalian beresin bareng dalam ${secs} detik, ${moves} langkah 💞` }), 600);
+    const stars = lv ? starsBy(1 - secs / lv.time, 0, 0.3, 0.6) || 1 : undefined;
+    setTimeout(() => api.finish({ win: true, stars, icon: '🧩', title: 'Fotonya utuh lagi!', detail: `Kalian beresin bareng dalam ${secs} detik, ${moves} langkah 💞` }), 600);
   }
   board.addEventListener('pointerdown', (e) => {
     const t = e.target.closest('.tile');
@@ -219,7 +252,7 @@ function startPuzzleTogether(stage, api, ctx) {
   ];
   api.say(`Susun fotonya bareng ${ctx.peer.name}! Kepingan yang lagi dia pilih warnanya ungu 💜`, 'happy');
   paint();
-  return { destroy() { done = true; offs.forEach((f) => f()); } };
+  return { destroy() { done = true; clearInterval(tick); offs.forEach((f) => f()); } };
 }
 
 // ---------- Kartu Kembar Gantian ----------
@@ -301,6 +334,188 @@ function startMemoryTurns(stage, api, ctx) {
   stats();
   return { destroy() { done = true; off(); clearTimeout(timer); } };
 }
+
+// ---------- Level: Terbang Berdua (tiang kalian dijumlah) ----------
+function startFlyCoop(stage, api, ctx) {
+  const lv = ctx.level.params;
+  let peerState = { y: 0.45, passed: 0, alive: true };
+  let mine = null, lastSent = 0, shown = false;
+  const offs = [ctx.on('fly', (d) => { peerState = d; check(); })];
+  function check() {
+    if (shown || !mine || peerState.alive) return;
+    shown = true;
+    const total = mine.passed + peerState.passed;
+    const stars = starsBy(total / lv.target, 1, 1.3, 1.6);
+    api.finish({
+      win: stars > 0, stars, icon: stars ? '🕊️' : '😵',
+      title: stars ? `Berdua lewat ${total} tiang!` : `Baru ${total} dari ${lv.target} tiang`,
+      detail: `Kamu ${mine.passed} · ${ctx.peer.name} ${peerState.passed}${stars ? '' : ' · coba lagi, pasti bisa!'}`,
+    });
+  }
+  const game = startFly(stage, {
+    ...ctx.params, ...lv, target: 999, rng: seeded(ctx.seed), face: ctx.me.face, flyer: ctx.me.emoji,
+    race: {
+      name: ctx.peer.name, face: ctx.peer.face, emoji: ctx.peer.emoji, coopTarget: lv.target,
+      ghost: () => peerState,
+      tick(state, force) {
+        const now = performance.now();
+        if (!force && now - lastSent < 120) return;
+        lastSent = now;
+        ctx.send('fly', state);
+      },
+    },
+  }, {
+    ...api,
+    finish: (r) => {
+      mine = r;
+      api.say(peerState.alive ? `Semangatin ${ctx.peer.name}, dia masih terbang! 📣` : 'Yuk liat hasilnya!', 'happy');
+      check();
+    },
+  });
+  api.say(`Lewatin ${lv.target} tiang berdua! Tiang kalian dijumlah 💞`, 'happy');
+  return { destroy() { offs.forEach((f) => f()); game.destroy(); } };
+}
+
+// ---------- Level: Cari yang Beda (siapa cepet dia dapet, skornya berdua) ----------
+const ODD_PAIRS = [['🐱', '😺'], ['💗', '💖'], ['🌸', '🌺'], ['🍓', '🍒'], ['🐶', '🐕'], ['⭐', '🌟'], ['🍩', '🍪'], ['🐰', '🐇'], ['🌙', '🌛'], ['🧁', '🍰'], ['🐻', '🧸'], ['🍊', '🍑']];
+function startOddCoop(stage, api, ctx) {
+  const lv = ctx.level.params;
+  const rng = seeded(ctx.seed);
+  const rounds = [...Array(lv.rounds)].map(() => {
+    const [a, b] = ODD_PAIRS[Math.floor(rng() * ODD_PAIRS.length)];
+    const flip = rng() < 0.5;
+    return { base: flip ? b : a, odd: flip ? a : b, at: Math.floor(rng() * lv.size * lv.size) };
+  });
+  const wrap = document.createElement('div');
+  wrap.className = 'odd-wrap';
+  wrap.innerHTML = `<div class="odd-grid" style="--n:${lv.size}"></div>`;
+  stage.appendChild(wrap);
+  const grid = wrap.querySelector('.odd-grid');
+  let r = 0, penalty = 0, done = false, mineHits = 0;
+  const t0 = performance.now();
+  const left = () => lv.time - penalty - (performance.now() - t0) / 1000;
+  function render() {
+    const R = rounds[r];
+    grid.innerHTML = [...Array(lv.size * lv.size)].map((_, i) => `<button class="odd-cell" data-i="${i}">${i === R.at ? R.odd : R.base}</button>`).join('');
+  }
+  function stats() { api.setStats(`🔍 ${r}/${lv.rounds} · ⏱ ${Math.max(0, Math.ceil(left()))}s`); }
+  function next(byMe) {
+    if (byMe) mineHits++;
+    api.sfx('good');
+    grid.querySelector(`[data-i="${rounds[r].at}"]`)?.classList.add('found');
+    r++;
+    stats();
+    if (r >= lv.rounds) return end(true);
+    setTimeout(() => { if (!done) render(); }, 250);
+  }
+  grid.addEventListener('pointerdown', (e) => {
+    const c = e.target.closest('.odd-cell');
+    if (!c || done) return;
+    e.preventDefault();
+    const i = +c.dataset.i;
+    if (i === rounds[r].at) { ctx.send('odd-hit', { r }); next(true); }
+    else { penalty += 2; api.sfx('bad'); c.classList.add('nope'); ctx.send('odd-miss', {}); stats(); }
+  });
+  const offs = [
+    ctx.on('odd-hit', (d) => { if (!done && d.r === r) next(false); }),
+    ctx.on('odd-miss', () => { penalty += 2; stats(); }),
+  ];
+  const iv = setInterval(() => { if (done) return; stats(); if (left() <= 0) end(false); }, 250);
+  function end(win) {
+    if (done) return;
+    done = true;
+    clearInterval(iv);
+    const stars = win ? (left() / lv.time >= 0.5 ? 3 : left() / lv.time >= 0.25 ? 2 : 1) : 0;
+    api.finish({
+      win, stars, icon: win ? '🔍' : '⏰',
+      title: win ? 'Ketemu semua!' : 'Waktunya habis',
+      detail: win ? `Kamu nemu ${mineHits}, ${ctx.peer.name} nemu ${lv.rounds - mineHits} 💞` : `Baru ${r} dari ${lv.rounds}. Salah tap ngurangin 2 detik lho!`,
+    });
+  }
+  api.say('Cari 1 yang beda! Siapa pun yang nemu, poinnya buat berdua 💞', 'happy');
+  render();
+  stats();
+  return { destroy() { done = true; clearInterval(iv); offs.forEach((f) => f()); } };
+}
+
+// ---------- Level: Kartu Kembar Bareng (gantian, skornya berdua, gerakan terbatas) ----------
+function startMemoryCoop(stage, api, ctx) {
+  const lv = ctx.level.params;
+  const pairs = lv.pairs;
+  const limit = Math.round(pairs * 2.6);
+  const rng = seeded(ctx.seed);
+  const photos = (ctx.params.photos || []).slice(0, Math.ceil(pairs / 2)).map((s) => `img:${s}`);
+  const icons = [...photos, ...shuffleWith(rng, [...ctx.params.emojis]).slice(0, pairs - photos.length)];
+  const deck = shuffleWith(rng, [...icons, ...icons]);
+  const grid = document.createElement('div');
+  grid.className = 'memory-grid';
+  const cols = 4;
+  grid.style.setProperty('--cols', cols);
+  grid.style.setProperty('--ratio', (Math.ceil(deck.length / cols) * 1.2) / cols);
+  grid.innerHTML = deck.map((em, i) => `<button class="card" data-i="${i}"><span class="card-inner"><span class="face back">💗</span><span class="face front">${em.startsWith('img:') ? `<img class="card-photo" src="${esc(em.slice(4))}" alt="">` : em}</span></span></button>`).join('');
+  stage.appendChild(grid);
+  const cards = [...grid.children];
+  let turn = 'pasangan', open = [], lock = false, matched = 0, moves = 0, done = false, timer = 0;
+  function stats() {
+    api.setStats(`🃏 ${matched}/${pairs} · 👆 ${moves}/${limit} · Giliran: ${turn === ctx.me.role ? 'kamu' : ctx.peer.name}`);
+    grid.classList.toggle('not-my-turn', turn !== ctx.me.role);
+  }
+  function flip(i) {
+    const c = cards[i];
+    if (done || lock || open.includes(i) || c.classList.contains('matched')) return false;
+    c.classList.add('flipped');
+    api.sfx('flip');
+    open.push(i);
+    if (open.length === 2) {
+      moves++;
+      const [a, b] = open;
+      const ok = deck[a] === deck[b];
+      lock = true;
+      timer = setTimeout(() => {
+        if (ok) { cards[a].classList.add('matched'); cards[b].classList.add('matched'); matched++; api.sfx('good'); }
+        else { cards[a].classList.remove('flipped'); cards[b].classList.remove('flipped'); }
+        open = [];
+        lock = false;
+        turn = turn === 'pasangan' ? 'pengirim' : 'pasangan'; // gantian tiap 2 kartu
+        stats();
+        if (matched === pairs) end(true);
+        else if (moves >= limit) end(false);
+        else if (turn === ctx.me.role) api.say('Giliran kamu! 👆', 'happy');
+      }, ok ? 350 : 850);
+    }
+    stats();
+    return true;
+  }
+  grid.addEventListener('click', (e) => {
+    const c = e.target.closest('.card');
+    if (!c || turn !== ctx.me.role) return;
+    const i = +c.dataset.i;
+    if (flip(i)) ctx.send('mm-flip', { i });
+  });
+  const off = ctx.on('mm-flip', (d) => flip(d.i));
+  function end(win) {
+    done = true;
+    const stars = win ? (moves <= pairs * 1.6 ? 3 : moves <= pairs * 2.1 ? 2 : 1) : 0;
+    setTimeout(() => api.finish({
+      win, stars, icon: win ? '🃏' : '😵',
+      title: win ? `Beres dalam ${moves} gerakan!` : 'Gerakannya habis',
+      detail: win ? 'Gantian buka kartu, kompak! 💞' : `Baru ${matched} dari ${pairs} pasang. Inget-inget kartunya bareng yaa`,
+    }), 400);
+  }
+  api.say(`Gantian buka 2 kartu. Kumpulin ${pairs} pasang dalam ${limit} gerakan! ${turn === ctx.me.role ? 'Kamu duluan 👆' : ''}`, 'happy');
+  stats();
+  return { destroy() { done = true; off(); clearTimeout(timer); } };
+}
+
+// Game buat peta level Main Berdua
+export const LEVEL_GAMES = {
+  flyco: { start: startFlyCoop, countdown: true },
+  tebak: { start: startTebak },
+  samaan: { start: startTebak },
+  odd: { start: startOddCoop, countdown: true },
+  memoryco: { start: startMemoryCoop, countdown: true },
+  puzzle: { start: startPuzzleTogether },
+};
 
 export const ONLINE_GAMES = {
   fly: { name: 'Terbang Balapan', icon: '🕊️', desc: 'Siapa yang paling jauh terbangnya', start: startFlyRace, countdown: true },

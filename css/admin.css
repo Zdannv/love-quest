@@ -196,3 +196,4 @@ details.panel > textarea { width: calc(100% - 32px); display: block; }
 .photo-slot .row { flex-wrap: nowrap; gap: 2px; }
 .save-pill { white-space: nowrap; }
 #talk-custom { min-height: 150px; }
+.bd-state { font-weight: 500; color: var(--text-soft); } .bd-state.ok { color: #1f9d6f; }

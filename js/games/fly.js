@@ -177,7 +177,9 @@ export function startFly(stage, p, api) {
     ctx.globalAlpha = 1;
 
     const hearts3 = `${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}`;
-    const s = race
+    const s = race?.coopTarget
+      ? `🌸 Berdua ${passed + (race.ghost()?.passed ?? 0)}/${race.coopTarget} · ${hearts3}`
+      : race
       ? `🌸 Kamu ${passed} · ${race.name} ${race.ghost()?.passed ?? 0} · ${hearts3}`
       : `🌸 ${passed}/${p.target} · 💖 ${collected} · ${hearts3}`;
     if (s !== lastStats) { api.setStats(s); lastStats = s; }

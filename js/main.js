@@ -3,8 +3,10 @@ import { getNames, setNames, fill, getLook, setLook, getChars, getFace, saveFace
 import { THEMES, CHARACTERS, applyTheme } from './themes.js';
 import { SHOWCASES } from './showcase.js';
 import { initTalk } from './talk.js';
-import { mountOnline, enterLobby, inviteGame, on as onNet, send as sendNet, me as meNet, peer as peerNet, playerLook } from './online.js';
-import { ONLINE_GAMES } from './online-games.js';
+import { mountOnline, enterLobby, refreshLobby, inviteGame, on as onNet, send as sendNet, me as meNet, peer as peerNet, playerLook } from './online.js';
+import { ONLINE_GAMES, LEVEL_GAMES } from './online-games.js';
+import { DUO_LEVELS, DUO_NAMES, recordDuo, duoUnlocked } from './duo-levels.js';
+import { askProfile, forget as forgetProfile } from './profile.js';
 import { LEVEL_MAP, PATTERN, EXTRA_SLOTS, TYPE_NAME, typeOf } from './level-map.js';
 import { sfx, toggleMute, isMuted, toggleMusic, isMusicOff } from './audio.js';
 import { confetti } from './confetti.js';
@@ -367,7 +369,25 @@ document.addEventListener('click', (e) => {
   showPackages();
 });
 if (CONFIG.demo) $('#btn-play').textContent = 'Mainin versi kalian ▶';
-$('#btn-play').addEventListener('click', () => { sfx('click'); show('map'); });
+// Main yuk → pilih mode: sendiri (peta level) atau berdua (online)
+$('#btn-play').addEventListener('click', () => {
+  sfx('click');
+  modal.querySelector('.modal-card').innerHTML = `
+    <h2>Mau main gimana?</h2>
+    <div class="mode-pick">
+      <button class="mode-card" type="button" data-mode="solo"><span>🎮</span><b>Main Sendiri</b><small>${MAIN.length} level + bonus puzzle foto</small></button>
+      <button class="mode-card duo" type="button" data-mode="duo"><span>💞</span><b>Main Berdua</b><small>Online bareng pasangan / temen dari HP masing-masing</small></button>
+    </div>
+    <button class="link-btn" type="button" data-act="close">batal</button>`;
+  modal.classList.remove('hidden');
+});
+modal.addEventListener('click', (e) => {
+  const mode = e.target.closest('[data-mode]')?.dataset.mode;
+  if (!mode) return;
+  sfx('click');
+  closeModal();
+  show(mode === 'solo' ? 'map' : 'online');
+});
 $('#btn-reset').addEventListener('click', () => {
   if (confirm('Yakin mau reset semua progress? Semua bintang bakal hilang 🥺')) {
     progress = { stars: {} };
@@ -627,11 +647,13 @@ mountOnline({
   sfx, toast, closeModal,
   modal: (html) => { modal.querySelector('.modal-card').innerHTML = html; modal.classList.remove('hidden'); },
   startGame: (game, seed) => startOnline(game, seed),
+  startLevel: (idx, seed) => startOnline('level', seed, idx),
   openTalk: () => { show('talk'); talk.setSync(true); },
 });
-$('#btn-online').addEventListener('click', () => { sfx('click'); show('online'); });
 
 function onlineParams(game) {
+  if (game === 'flyco') game = 'fly';
+  if (game === 'memoryco') game = 'memory';
   if (game === 'fly') return { ...LEVELS.find((L) => L.type === 'fly').params };
   if (game === 'puzzle') return { image: photoFor(null), aspect: '3 / 4' };
   if (game === 'memory') {
@@ -641,23 +663,24 @@ function onlineParams(game) {
   return {};
 }
 
-function startOnline(game, seed) {
+function startOnline(game, seed, levelIdx = null) {
   stopGame();
   closeModal();
-  const G = ONLINE_GAMES[game];
+  const L = levelIdx != null ? DUO_LEVELS[levelIdx] : null;
+  const G = L ? LEVEL_GAMES[L.type] : ONLINE_GAMES[game];
   const m = meNet(), p = peerNet();
   if (!G || !p) { show('online'); return; }
   show('game');
-  screens.game.dataset.theme = WORLDS[0].theme;
+  screens.game.dataset.theme = WORLDS[L ? L.world : 0].theme;
   stageEl.innerHTML = '';
-  $('#hud-title').textContent = `Main Bareng · ${G.name}`;
+  $('#hud-title').textContent = L ? `Berdua · Level ${L.num} · ${DUO_NAMES[L.type]}` : `Main Bareng · ${G.name}`;
   $('#hud-stats').textContent = '';
-  hintText = G.desc;
+  hintText = L ? `Level ${L.num}: ${DUO_NAMES[L.type]} bareng ${p.name} 💞` : G.desc;
   const token = {};
   current = { i: -1, token, game: null, online: game };
   const live = () => current?.token === token;
   const ctx = {
-    seed, send: sendNet, on: onNet, params: onlineParams(game),
+    seed, send: sendNet, on: onNet, params: onlineParams(L ? L.type : game), level: L,
     me: { ...playerLook(m.role, m.name), role: m.role },
     peer: { ...playerLook(p.role, p.name), role: p.role },
   };
@@ -666,37 +689,47 @@ function startOnline(game, seed) {
     sfx,
     say: (text, mood) => { if (live()) owlSay(fill(text), mood); },
     streak: () => 0,
-    finish: (r) => onlineFinish(token, game, r),
+    finish: (r) => onlineFinish(token, game, r, L),
   };
   const begin = () => { if (!live()) return; owlHint(); current.game = G.start(stageEl, api, ctx); };
   if (G.countdown) { owlSay('Siap-siap! 💞', 'happy', 0); countdown(token, begin); }
   else begin();
 }
 
-function onlineFinish(token, game, r) {
+function onlineFinish(token, game, r, L) {
   if (current?.token !== token) return;
   if (r.win) { sfx('win'); confetti(); } else sfx('lose');
+  if (L && r.stars) recordDuo(L.id, r.stars);
+  if (L) recordPlay().then((isNew) => { if (isNew) { refreshStreak(true); if (!pendingPlays()) notifyPlayed(); } }).catch(() => {});
   setTimeout(() => {
     if (current?.token !== token) return;
     stopGame();
+    const next = L && r.win ? DUO_LEVELS[L.idx + 1] : null;
+    const stars = L && r.win ? `<div class="stars">${[0, 1, 2].map((k) => `<span class="star ${k < r.stars ? 'on' : ''}" style="animation-delay:${0.25 + k * 0.25}s">★</span>`).join('')}</div>` : '';
     modal.querySelector('.modal-card').innerHTML = `
       <div class="modal-emoji bounce">${r.icon || '💞'}</div>
+      ${L ? `<p class="detail">Level ${L.num} · ${DUO_NAMES[L.type]}</p>` : ''}
       <h2>${esc(r.title)}</h2>
+      ${stars}
       <p class="detail">${esc(r.detail)}</p>
       <div class="modal-actions">
-        <button class="btn ghost" data-go="online">🎮 Lobby</button>
-        <button class="btn" data-ol-again="${game}">Main lagi 🔁</button>
+        <button class="btn ghost" data-go="online">${L ? '🗺️ Peta' : '🎮 Lobby'}</button>
+        ${L ? `<button class="btn ${next ? 'ghost' : ''}" data-ol-level="${L.idx}">🔁 Ulangi</button>` : `<button class="btn" data-ol-again="${game}">Main lagi 🔁</button>`}
+        ${next && duoUnlocked(next) ? `<button class="btn" data-ol-level="${next.idx}">Lanjut ▶</button>` : ''}
       </div>`;
     modal.classList.remove('hidden');
+    refreshLobby();
   }, 700);
 }
 modal.addEventListener('click', (e) => {
   const again = e.target.closest('[data-ol-again]');
-  if (!again) return;
+  const lvl = e.target.closest('[data-ol-level]');
+  if (!again && !lvl) return;
   sfx('click');
   closeModal();
   show('online');
-  inviteGame(again.dataset.olAgain);
+  if (lvl) inviteGame('level', +lvl.dataset.olLevel);
+  else inviteGame(again.dataset.olAgain);
 });
 const peerGone = (text) => {
   if (!current?.online) return;
@@ -839,10 +872,8 @@ function streakCard() {
   const me = getPlayer();
   if (!me) {
     return `<div class="streak-card">
-      <div class="who-pick">
-        <button class="btn ghost" data-who="pasangan">${ICON.pasangan} ${esc(NAME.pasangan)}</button>
-        <button class="btn ghost" data-who="pengirim">${ICON.pengirim} ${esc(NAME.pengirim)}</button>
-      </div>
+      <p class="streak-msg">Masuk ke profilmu biar streak berdua kalian kecatet 🔥</p>
+      <div class="who-pick"><button class="btn ghost" data-profile>Masuk ke profil</button></div>
     </div>`;
   }
   if (!streakData) {
@@ -913,17 +944,15 @@ async function refreshStreak(justPlayed = false) {
 }
 
 document.addEventListener('click', (e) => {
-  const pick = e.target.closest('[data-who]');
-  if (pick) {
+  if (e.target.closest('[data-profile]')) {
     sfx('click');
-    setPlayer(pick.dataset.who);
-    streakData = null;
-    refreshStreak();
+    askProfile({ sfx }).then((role) => { if (role) { streakData = null; refreshStreak(); } });
     return;
   }
   if (e.target.closest('[data-who-reset]')) {
     sfx('click');
     clearPlayer();
+    forgetProfile();
     renderStreak();
   }
 });
