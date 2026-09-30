@@ -895,3 +895,17 @@ body.booting::before {
   font-weight: 600; font-size: 16px; color: var(--ink-soft);
 }
 @keyframes bootPulse { 50% { transform: scale(1.18); } }
+
+/* Tab Petualangan / Per game (Main Sendiri & Main Berdua) */
+.mode-tabs { display: flex; gap: 6px; padding: 5px; margin: 4px 0 14px; background: rgba(255,255,255,.7); border-radius: 16px; box-shadow: 0 3px 0 var(--accent-shadow, #f3c3d8); width: 100%; }
+.mode-tabs button { flex: 1; border: 0; background: none; font: inherit; font-weight: 600; font-size: 14px; color: var(--ink-soft); padding: 9px 6px; border-radius: 12px; white-space: nowrap; }
+.mode-tabs button[aria-selected=true] { background: var(--pink); color: #fff; box-shadow: 0 3px 0 var(--pink-deep); }
+.track-list { display: grid; gap: 10px; width: 100%; }
+.track-prog { margin-left: auto; text-align: right; font-weight: 700; color: var(--pink-deep); font-size: 15px; white-space: nowrap; }
+.track-prog small { display: block; font-size: 12px; color: var(--ink-soft); font-weight: 600; }
+.ol-back { display: block; margin: 0 0 8px; text-align: left; }
+.track-card { text-align: left; }
+
+/* Hasil mode skor */
+.score-big { font-size: 64px; font-weight: 700; color: var(--pink-deep); line-height: 1; margin: 6px 0 2px; }
+.score-big small { display: block; font-size: 16px; color: var(--ink-soft); font-weight: 600; margin-top: 4px; }

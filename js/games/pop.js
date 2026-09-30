@@ -107,7 +107,7 @@ export function startPop(stage, p, api) {
     holes.forEach(hide);
     const win = score >= p.target;
     api.finish({
-      win,
+      win, score,
       stars: win ? Math.max(1, starsFor(score, p.target)) : 0,
       detail: win ? `Skor ${score} ⭐` : `Skor ${score}, butuh ${p.target}`,
     });

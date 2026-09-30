@@ -126,7 +126,7 @@ export function startStack(stage, p, api) {
       ctx.fillText(f.text, W / 2, y);
     }
     ctx.globalAlpha = 1;
-    const s = `🎂 ${placed()}/${p.target} · ✨ ${perfects} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}`;
+    const s = p.endless ? `🎂 Skor ${placed()} · 🏆 ${Math.max(p.best || 0, placed())} · ✨ ${perfects} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}` : `🎂 ${placed()}/${p.target} · ✨ ${perfects} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}`;
     if (s !== lastStats) { api.setStats(s); lastStats = s; }
   }
 
@@ -142,7 +142,8 @@ export function startStack(stage, p, api) {
     if (done) return;
     done = true;
     const stars = !win ? 0 : Math.max(1, Math.min(3, lives + (perfects >= 3 ? 1 : 0) - (p.lives - 3)));
-    api.finish({ win, stars, detail: win ? `Kue ${p.target} tingkat jadi! (${perfects} perfect)` : `Kuenya jadi ${placed()} tingkat` });
+    if (p.endless) { api.finish({ win: true, score: placed(), detail: `Kuenya ${placed()} tingkat (${perfects} perfect)` }); return; }
+    api.finish({ win, stars, score: placed(), detail: win ? `Kue ${p.target} tingkat jadi! (${perfects} perfect)` : `Kuenya jadi ${placed()} tingkat` });
   }
 
   reset();

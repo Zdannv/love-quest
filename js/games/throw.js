@@ -131,7 +131,7 @@ export function startThrow(stage, p, api) {
     done = true;
     const spare = p.throws - thrown;
     const stars = !win ? 0 : spare >= 3 ? 3 : spare >= 1 ? 2 : 1;
-    api.finish({ win, stars, detail: win ? `Kena ${hits} kali, sisa ${spare} lemparan` : `Kena ${hits} dari ${p.target}` });
+    api.finish({ win, stars, score: hits, detail: win ? `Kena ${hits} kali, sisa ${spare} lemparan` : `Kena ${hits} dari ${p.target}` });
   }
 
   return {

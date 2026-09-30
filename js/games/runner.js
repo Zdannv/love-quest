@@ -58,7 +58,7 @@ export function startRunner(stage, p, api) {
     if (spawnIn <= 0) {
       const tall = Math.random() < 0.3;
       obstacles.push({ x: size.W + 30, em: pick(p.obstacles), size: (tall ? 46 : 34) * size.k, passed: false });
-      spawnIn = rand(p.gapMin, p.gapMax) * (1 - 0.25 * Math.min(1, t / p.time));
+      spawnIn = rand(p.gapMin, p.gapMax) * (1 - (p.endless ? 0.35 * Math.min(1, t / 90) : 0.25 * Math.min(1, t / p.time)));
     }
     heartIn -= dt;
     if (heartIn <= 0) {
@@ -142,7 +142,7 @@ export function startRunner(stage, p, api) {
       ctx.fillText('Tap buat lompat! (bisa 2x) 👆', W / 2, H * 0.3);
     }
 
-    const s = `⏱ ${Math.max(0, Math.ceil(p.time - t))}s · 💖 ${collected} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}`;
+    const s = p.endless ? `🏃 ${Math.floor(t)} dtk · 🏆 ${Math.max(p.best || 0, Math.floor(t))} · 💖 ${collected} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}` : `⏱ ${Math.max(0, Math.ceil(p.time - t))}s · 💖 ${collected} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}`;
     if (s !== lastStats) { api.setStats(s); lastStats = s; }
   }
 
@@ -159,6 +159,7 @@ export function startRunner(stage, p, api) {
     if (done) return;
     done = true;
     const stars = win ? Math.max(1, lives - (p.lives - 3)) : 0;
+    if (p.endless) { api.finish({ win: true, score: Math.floor(t), detail: `Bertahan ${Math.floor(t)} detik, dapet ${collected} 💖` }); return; }
     api.finish({ win, stars, detail: win ? `Berhasil lari ${p.time} detik, dapet ${collected} 💖` : 'Kebanyakan kesandung 🥺' });
   }
 

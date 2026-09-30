@@ -115,7 +115,7 @@ export function startCatch(stage, p, api) {
     spawnIn -= dt;
     if (spawnIn <= 0) {
       spawn();
-      spawnIn = p.spawn * rand(0.7, 1.3) * (1 - 0.25 * (t / p.time));
+      spawnIn = p.spawn * rand(0.7, 1.3) * (1 - (p.endless ? 0.4 * Math.min(1, t / 90) : 0.25 * (t / p.time)));
     }
 
     const py = H - player.size * 0.9;
@@ -141,7 +141,7 @@ export function startCatch(stage, p, api) {
     shakeT = Math.max(0, shakeT - dt);
     hurtT = Math.max(0, hurtT - dt);
 
-    const s = `⏱ ${Math.max(0, Math.ceil(left))}s · 💖 ${score}/${p.target} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}`;
+    const s = p.endless ? `💖 Skor ${score} · 🏆 ${Math.max(p.best || 0, score)} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}` : `⏱ ${Math.max(0, Math.ceil(left))}s · 💖 ${score}/${p.target} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}`;
     if (s !== lastStats) { api.setStats(s); lastStats = s; }
     if (left <= 0) end(score >= p.target, 'time');
   }
@@ -226,7 +226,8 @@ export function startCatch(stage, p, api) {
     done = true;
     const detail = win ? `Skor ${score} 💖`
       : why === 'lives' ? 'Kena 💔 terlalu banyak' : `Skor ${score}, butuh ${p.target}`;
-    api.finish({ win, stars: win ? Math.max(1, starsFor(score, p.target)) : 0, detail });
+    if (p.endless) { api.finish({ win: true, score, detail: `Dapet ${score} 💖` }); return; }
+    api.finish({ win, score, stars: win ? Math.max(1, starsFor(score, p.target)) : 0, detail });
   }
 
   return {

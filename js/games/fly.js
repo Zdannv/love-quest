@@ -46,7 +46,7 @@ export function startFly(stage, p, api) {
   window.addEventListener('resize', resize);
 
   function addPillar(x) {
-    const gap = p.gap * k;
+    const gap = (p.endless ? Math.max(p.gap - 60, p.gap - passed * 1.5) : p.gap) * k;
     const margin = 60 * k;
     const gy = rnd(margin + gap / 2, H - margin - gap / 2);
     pillars.push({ x, gy, gap, passed: false });
@@ -78,7 +78,7 @@ export function startFly(stage, p, api) {
     if (owl.y < owl.size / 2) { owl.y = owl.size / 2; owl.vy = 0; }
     if (owl.y > H - owl.size / 2) { owl.y = H - owl.size / 2; owl.vy = -330 * k; hit(); }
 
-    const speed = p.speed * k;
+    const speed = (p.endless ? Math.min(p.speed + 120, p.speed + passed * 2.5) : p.speed) * k;
     spawnX -= speed * dt;
     if (spawnX <= 0) { addPillar(W + 10); spawnX = p.spacing * k; }
 
@@ -181,6 +181,8 @@ export function startFly(stage, p, api) {
       ? `🌸 Berdua ${passed + (race.ghost()?.passed ?? 0)}/${race.coopTarget} · ${hearts3}`
       : race
       ? `🌸 Kamu ${passed} · ${race.name} ${race.ghost()?.passed ?? 0} · ${hearts3}`
+      : p.endless
+      ? `🌸 Skor ${passed} · 🏆 ${Math.max(p.best || 0, passed)} · ${hearts3}`
       : `🌸 ${passed}/${p.target} · 💖 ${collected} · ${hearts3}`;
     if (s !== lastStats) { api.setStats(s); lastStats = s; }
   }
@@ -199,6 +201,7 @@ export function startFly(stage, p, api) {
     if (done) return;
     done = true;
     const stars = win ? Math.max(1, lives) : 0;
+    if (p.endless) { api.finish({ win: true, score: passed, detail: `Lewat ${passed} tiang, dapet ${collected} 💖` }); return; }
     if (race) { race.tick({ y: owl.y / H, passed, alive: false }, true); api.finish({ win, passed, collected }); return; }
     api.finish({ win, stars, detail: win ? `Lewat ${passed} tiang, dapet ${collected} 💖` : `Lewat ${passed} dari ${p.target} tiang` });
   }

@@ -5,7 +5,7 @@ import { SHOWCASES } from './showcase.js';
 import { initTalk } from './talk.js';
 import { mountOnline, enterLobby, refreshLobby, inviteGame, on as onNet, send as sendNet, me as meNet, peer as peerNet, playerLook } from './online.js';
 import { ONLINE_GAMES, LEVEL_GAMES } from './online-games.js';
-import { DUO_LEVELS, DUO_NAMES, recordDuo, duoUnlocked } from './duo-levels.js';
+import { DUO_NAMES, recordDuo, duoUnlocked, getDuoLevel, nextDuoLevel, duoLabel } from './duo-levels.js';
 import { askProfile, forget as forgetProfile } from './profile.js';
 import { LEVEL_MAP, PATTERN, EXTRA_SLOTS, TYPE_NAME, typeOf } from './level-map.js';
 import { sfx, toggleMute, isMuted, toggleMusic, isMusicOff, holdMusic } from './audio.js';
@@ -151,6 +151,7 @@ const MAX_STARS = LEVELS.length * 3;
 const MAIN = LEVELS.filter((L) => !L.bonus);
 
 function hintFor(L) {
+  if (L.endless) return `Main terus sampai nyawa habis, makin lama makin susah! Rekor kamu: ${L.params.best || 0} ${SCORE_UNIT[L.type]} 🏆`;
   const p = levelParams(L); // sudah berisi karakter & nama pilihan
   const c = getChars();
   const n = getNames();
@@ -173,6 +174,58 @@ function hintFor(L) {
   }
 }
 const levelLabel = (L) => (L.bonus ? 'Bonus ⭐' : `Level ${L.num}`);
+
+// ---------- Main Sendiri: Pilih game (tiap jenis game punya level sendiri, makin susah) ----------
+const SOLO_TYPES = ['fly', 'runner', 'stack', 'catch', 'timing', 'simon', 'memory', 'pop', 'puzzle', 'odd', 'throw', 'maze', 'quiz'];
+const trackLen = (t) => (t === 'quiz' ? Math.min(5, CONFIG.quiz.length) : 10);
+const worldParams = (wi, type) => [wi, wi - 1, wi + 1, wi - 2, 0].map((x) => LEVELS.find((L) => L.world === x && L.type === type && !L.bonus)?.params).find(Boolean);
+// k = level 0..9 → setelan game (dipakai juga buat Main Berdua yang skornya dijumlah). Karakter & muka diisi levelParams().
+function trackParams(type, k) {
+  const wi = Math.min(4, Math.floor(k / 2));
+  const w = WORLDS[wi];
+  const d = k * 0.4; // 0 … 3.6
+  const odd = k % 2; // level ganjil di dunia yang sama sedikit lebih susah
+  switch (type) {
+    case 'memory': { const pairs = [3, 4, 4, 5, 6, 6, 8, 8, 10, 10][k]; return { pairs, emojis: w.memory, time: Math.round(pairs * (7 - Math.min(wi, 3) * 0.6) + 12) }; }
+    case 'catch': return catchParams(w, d);
+    case 'pop': return popParams(wi, d);
+    case 'quiz': return { questions: CONFIG.quiz[k] || CONFIG.quiz[0] };
+    case 'puzzle': return PUZZLE(k < 3 ? 3 : k < 7 ? 4 : 5, 90 + k * 15);
+    case 'odd': return G.odd(5 + k, k < 4 ? 5 : 6, 38 + k * 3);
+    case 'simon': return G.simon(4 + Math.ceil(k / 2), Math.round(700 - k * 25));
+    case 'fly': return G.fly(5 + k, Math.round(230 - k * 5), 135 + k * 5, Math.round(245 - k * 3));
+    case 'stack': return { type: 'stack', target: 6 + Math.floor(k / 2), speed: 160 + k * 14, speedUp: 6, lives: 3 };
+    case 'runner': { const b = worldParams(wi, 'runner'); return { ...b, time: b.time + odd * 2, speed: b.speed + odd * 12 }; }
+    case 'throw': { const b = G.throw(wi); return { ...b, speed: b.speed + odd * 12 }; }
+    case 'maze': { const b = G.maze(wi); return { ...b, time: b.time - odd * 5 }; }
+    case 'timing': { const b = G.timing(wi); return { ...b, speed: +(b.speed + odd * 0.08).toFixed(2) }; }
+    default: return {};
+  }
+}
+function soloTrack(type, k) {
+  if (!SOLO_TYPES.includes(type) || k < 0 || k >= trackLen(type)) return null;
+  // Puzzle per game: fotonya gantian pakai foto puzzle tiap dunia
+  const world = type === 'puzzle' ? k % 5 : Math.min(4, Math.floor(k / 2));
+  return { id: `s-${type}-${k}`, track: type, k, num: k + 1, type, world, params: trackParams(type, k) };
+}
+// Mode skor: game yang bisa dimainin terus → nggak ada level, main sampai nyawa habis, simpan rekor
+const ENDLESS = ['fly', 'runner', 'stack', 'catch', 'timing', 'simon'];
+const BEST_KEY = () => `lq-best-${CONFIG.slug || CONFIG.showcase || 'demo'}`;
+const bestScores = () => { try { return JSON.parse(localStorage.getItem(BEST_KEY()) || '{}'); } catch { return {}; } };
+function saveBest(type, score) {
+  const all = bestScores();
+  if (score <= (all[type] || 0)) return false;
+  all[type] = score;
+  try { localStorage.setItem(BEST_KEY(), JSON.stringify(all)); } catch {}
+  return true;
+}
+const SCORE_UNIT = { fly: 'tiang', runner: 'detik', stack: 'tingkat', catch: 'poin', timing: 'kena', simon: 'urutan' };
+function endlessLevel(type) {
+  const inf = Number.POSITIVE_INFINITY;
+  const params = { ...trackParams(type, 1), endless: true, best: bestScores()[type] || 0, ...(type === 'runner' || type === 'catch' ? { time: inf } : { target: inf }) };
+  return { id: `e-${type}`, track: type, endless: true, num: 0, k: 0, type, world: 0, params };
+}
+const trackOpen = (L) => TEST_MODE || CONFIG.showcase || L.k === 0 || (progress.stars[`s-${L.track}-${L.k - 1}`] || 0) > 0;
 
 // ---------- Progres (disimpan di browser) ----------
 const SAVE_KEY = CONFIG.demo ? 'lq-demo-progress' : `lq-progress-${CONFIG.slug}`;
@@ -363,7 +416,10 @@ function letterText() {
 
 const worldsEl = $('#worlds');
 
+let soloTab = 'adv', soloTrackType = '';
 function renderMap() {
+  $('#solo-tabs').innerHTML = [['adv', '🗺️ Petualangan'], ['per', '🎯 Pilih game']].map(([id, t]) => `<button type="button" role="tab" data-solo-tab="${id}" aria-selected="${soloTab === id}">${t}</button>`).join('');
+  if (soloTab === 'per') return renderTracks();
   const total = LEVELS.reduce((a, L) => a + starsOf(L), 0);
   $('#star-count').textContent = TEST_MODE ? '🔓 Mode tes' : `${total}/${MAX_STARS}`;
   const next = LEVELS.find((L) => unlocked(L) && !cleared(L));
@@ -411,7 +467,70 @@ function renderMap() {
   if (cur) requestAnimationFrame(() => cur.scrollIntoView({ block: 'center', behavior: 'smooth' }));
 }
 
+function renderTracks() {
+  const st = (id) => progress.stars[id] || 0;
+  if (soloTrackType) {
+    const t = soloTrackType;
+    const levels = [...Array(trackLen(t))].map((_, k) => soloTrack(t, k));
+    const got = levels.reduce((a, L) => a + st(L.id), 0);
+    const cur = levels.find((L) => trackOpen(L) && !st(L.id));
+    worldsEl.innerHTML = `
+      <button type="button" class="link-btn ol-back" data-solo-track="">← semua game</button>
+      <section class="world w-flower track-card">
+        <header class="world-head">
+          <span class="world-icon">${TYPE_ICON[t]}</span>
+          <div><small>Makin tinggi levelnya, makin susah</small><h2>${TYPE_NAME[t]}</h2></div>
+          <span class="world-stars">⭐ ${got}/${levels.length * 3}</span>
+        </header>
+        <div class="levels">${levels.map((L) => {
+          const s = st(L.id), ok = trackOpen(L);
+          return `<button class="lvl ${!ok ? 'locked' : L === cur ? 'current' : s ? 'done' : ''}" data-track-lvl="${L.k}" ${ok ? '' : 'disabled'}>
+            <span class="lvl-type">${ok ? TYPE_ICON[t] : '🔒'}</span><span class="lvl-num">${L.num}</span>
+            <span class="lvl-stars">${'★'.repeat(s)}<i>${'★'.repeat(3 - s)}</i></span></button>`;
+        }).join('')}</div>
+      </section>`;
+    $('#star-count').textContent = `${got}/${levels.length * 3}`;
+    return;
+  }
+  let all = 0;
+  const card = (t) => {
+    if (ENDLESS.includes(t)) {
+      return `<button type="button" class="ol-game" data-endless="${t}">
+        <span class="ol-game-icon">${TYPE_ICON[t]}</span>
+        <span><b>${TYPE_NAME[t]}</b><small>Main terus sampai nyawa habis</small></span>
+        <span class="track-prog">🏆 ${bestScores()[t] || 0}<small>rekor</small></span>
+      </button>`;
+    }
+    const n = trackLen(t);
+    const got = [...Array(n)].reduce((a, _, k) => a + st(`s-${t}-${k}`), 0);
+    const done = [...Array(n)].filter((_, k) => st(`s-${t}-${k}`)).length;
+    all += got;
+    return `<button type="button" class="ol-game" data-solo-track="${t}">
+      <span class="ol-game-icon">${TYPE_ICON[t]}</span>
+      <span><b>${TYPE_NAME[t]}</b><small>${n} level</small></span>
+      <span class="track-prog">${done}/${n}<small>⭐ ${got}</small></span>
+    </button>`;
+  };
+  worldsEl.innerHTML = `<p class="ol-section">🏆 Mode skor: main terus, kejar rekor</p><div class="track-list">${SOLO_TYPES.filter((t) => ENDLESS.includes(t)).map(card).join('')}</div>`
+    + `<p class="ol-section" style="margin-top:18px">⭐ Pakai level: makin tinggi makin susah</p><div class="track-list">${SOLO_TYPES.filter((t) => !ENDLESS.includes(t)).map(card).join('')}</div>`;
+  $('#star-count').textContent = `${all}`;
+}
+$('#solo-tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-solo-tab]');
+  if (!b) return;
+  sfx('click');
+  soloTab = b.dataset.soloTab;
+  soloTrackType = '';
+  renderMap();
+});
+
 worldsEl.addEventListener('click', (e) => {
+  const en = e.target.closest('[data-endless]');
+  if (en) { sfx('click'); startLevel(endlessLevel(en.dataset.endless)); return; }
+  const tr = e.target.closest('[data-solo-track]');
+  if (tr) { sfx('click'); soloTrackType = tr.dataset.soloTrack; renderMap(); window.scrollTo(0, 0); return; }
+  const tl = e.target.closest('[data-track-lvl]');
+  if (tl && !tl.disabled) { sfx('click'); startLevel(soloTrack(soloTrackType, +tl.dataset.trackLvl)); return; }
   const b = e.target.closest('.lvl');
   if (b && !b.disabled) { sfx('click'); startLevel(+b.dataset.i); return; }
   if (e.target.closest('#btn-letter:not([disabled])')) { sfx('click'); show('letter'); }
@@ -457,17 +576,17 @@ let current = null; // { i, token, game }
 function startLevel(i) {
   stopGame();
   closeModal();
-  const L = LEVELS[i];
+  const L = typeof i === 'object' ? i : LEVELS[i]; // angka = level peta, objek = level per game / mode skor
   show('game');
   screens.game.dataset.theme = WORLDS[L.world].theme;
   stageEl.innerHTML = '';
-  $('#hud-title').textContent = `${levelLabel(L)} · ${TYPE_NAME[L.type]}`;
+  $('#hud-title').textContent = L.endless ? `${TYPE_NAME[L.type]} · Mode skor 🏆` : L.track ? `${TYPE_NAME[L.type]} · Level ${L.num}` : `${levelLabel(L)} · ${TYPE_NAME[L.type]}`;
   hintText = hintFor(L);
   $('#hud-stats').textContent = '';
 
   const token = {};
   let combo = 0;
-  current = { i, token, game: null };
+  current = { i, L, token, game: null };
   const live = () => current?.token === token;
   const api = {
     setStats: (s) => { if (live()) $('#hud-stats').textContent = s; },
@@ -513,7 +632,7 @@ function userPhotos() {
 function photoFor(L) {
   if (CONFIG.demo) return SAMPLE_PHOTO;
   const p = CONFIG.photos || {};
-  return (L && L.bonus && p.bonus?.[L.world]) || p.letter || SAMPLE_PHOTO;
+  return (L && (L.bonus || L.track === 'puzzle') && p.bonus?.[L.world]) || p.letter || SAMPLE_PHOTO;
 }
 
 function levelParams(L) {
@@ -595,12 +714,18 @@ $('#btn-quit').addEventListener('click', () => {
 mountOnline({
   sfx, toast, closeModal,
   modal: (html) => { modal.querySelector('.modal-card').innerHTML = html; modal.classList.remove('hidden'); },
-  startGame: (game, seed) => startOnline(game, seed),
-  startLevel: (idx, seed) => startOnline('level', seed, idx),
+  startGame: (game, seed, extra) => startOnline(game, seed, null, extra),
+  startLevel: (id, seed, extra) => startOnline('level', seed, id, extra),
   openTalk: () => { show('talk'); talk.setSync(true); },
 });
 
-function onlineParams(game) {
+function onlineParams(game, L) {
+  // Game "skor dijumlah": pakai setelan game sendirian di level yang sama (lengkap sama karakter & muka)
+  const SUM_BASE = { popco: 'pop', catchco: 'catch', stackco: 'stack', throwco: 'throw' };
+  if (SUM_BASE[game]) {
+    const k = L?.params.k ?? 0;
+    return levelParams({ type: SUM_BASE[game], world: Math.min(4, Math.floor(k / 2)), params: trackParams(SUM_BASE[game], k) });
+  }
   if (game === 'flyco') game = 'fly';
   if (game === 'memoryco') game = 'memory';
   if (game === 'fly') return { ...LEVELS.find((L) => L.type === 'fly').params };
@@ -612,24 +737,24 @@ function onlineParams(game) {
   return {};
 }
 
-function startOnline(game, seed, levelIdx = null) {
+function startOnline(game, seed, levelId = null, extra = {}) {
   stopGame();
   closeModal();
-  const L = levelIdx != null ? DUO_LEVELS[levelIdx] : null;
+  const L = getDuoLevel(levelId);
   const G = L ? LEVEL_GAMES[L.type] : ONLINE_GAMES[game];
   const m = meNet(), p = peerNet();
   if (!G || !p) { show('online'); return; }
   show('game');
   screens.game.dataset.theme = WORLDS[L ? L.world : 0].theme;
   stageEl.innerHTML = '';
-  $('#hud-title').textContent = L ? `Berdua · Level ${L.num} · ${DUO_NAMES[L.type]}` : `Main Bareng · ${G.name}`;
+  $('#hud-title').textContent = L ? `Berdua · ${duoLabel(L)}${L.track ? '' : ' · ' + DUO_NAMES[L.type]}` : `Main Bareng · ${G.name}`;
   $('#hud-stats').textContent = '';
   hintText = L ? `Level ${L.num}: ${DUO_NAMES[L.type]} bareng ${p.name} 💞` : G.desc;
   const token = {};
   current = { i: -1, token, game: null, online: game };
   const live = () => current?.token === token;
   const ctx = {
-    seed, send: sendNet, on: onNet, params: onlineParams(L ? L.type : game), level: L,
+    seed, send: sendNet, on: onNet, params: onlineParams(L ? L.type : game, L), level: L, extra,
     me: { ...playerLook(m.role, m.name), role: m.role },
     peer: { ...playerLook(p.role, p.name), role: p.role },
   };
@@ -653,18 +778,18 @@ function onlineFinish(token, game, r, L) {
   setTimeout(() => {
     if (current?.token !== token) return;
     stopGame();
-    const next = L && r.win ? DUO_LEVELS[L.idx + 1] : null;
+    const next = L && r.win ? nextDuoLevel(L) : null;
     const stars = L && r.win ? `<div class="stars">${[0, 1, 2].map((k) => `<span class="star ${k < r.stars ? 'on' : ''}" style="animation-delay:${0.25 + k * 0.25}s">★</span>`).join('')}</div>` : '';
     modal.querySelector('.modal-card').innerHTML = `
       <div class="modal-emoji bounce">${r.icon || '💞'}</div>
-      ${L ? `<p class="detail">Level ${L.num} · ${DUO_NAMES[L.type]}</p>` : ''}
+      ${L ? `<p class="detail">${esc(duoLabel(L))}${L.track ? '' : ' · ' + DUO_NAMES[L.type]}</p>` : ''}
       <h2>${esc(r.title)}</h2>
       ${stars}
       <p class="detail">${esc(r.detail)}</p>
       <div class="modal-actions">
         <button class="btn ghost" data-go="online">${L ? '🗺️ Peta' : '🎮 Lobby'}</button>
-        ${L ? `<button class="btn ${next ? 'ghost' : ''}" data-ol-level="${L.idx}">🔁 Ulangi</button>` : `<button class="btn" data-ol-again="${game}">Main lagi 🔁</button>`}
-        ${next && duoUnlocked(next) ? `<button class="btn" data-ol-level="${next.idx}">Lanjut ▶</button>` : ''}
+        ${L ? `<button class="btn ${next ? 'ghost' : ''}" data-ol-level="${L.id}">🔁 Ulangi</button>` : `<button class="btn" data-ol-again="${game}">Main lagi 🔁</button>`}
+        ${next && duoUnlocked(next) ? `<button class="btn" data-ol-level="${next.id}">Lanjut ▶</button>` : ''}
       </div>`;
     modal.classList.remove('hidden');
     refreshLobby();
@@ -677,7 +802,7 @@ modal.addEventListener('click', (e) => {
   sfx('click');
   closeModal();
   show('online');
-  if (lvl) inviteGame('level', +lvl.dataset.olLevel);
+  if (lvl) inviteGame('level', lvl.dataset.olLevel);
   else inviteGame(again.dataset.olAgain);
 });
 const peerGone = (text) => {
@@ -699,7 +824,8 @@ const LOSE_LINES = [
 
 function onFinish(token, r) {
   if (current?.token !== token) return;
-  const L = LEVELS[current.i];
+  const L = current.L;
+  if (L.endless) return endlessFinish(token, L, r);
   recordPlay()
     .then((isNew) => { if (isNew) { refreshStreak(true); if (!pendingPlays()) notifyPlayed(); } })
     .catch(() => {});
@@ -720,7 +846,51 @@ function onFinish(token, r) {
   }, 700);
 }
 
+function endlessFinish(token, L, r) {
+  recordPlay().then((isNew) => { if (isNew) { refreshStreak(true); if (!pendingPlays()) notifyPlayed(); } }).catch(() => {});
+  const old = bestScores()[L.type] || 0;
+  const record = saveBest(L.type, r.score || 0);
+  if (record) { sfx('win'); confetti(); owlSay(fill('{suara}!! Rekor baru! 🏆'), 'happy', 0); } else { sfx('lose'); owlSay(fill(pick(OWL_LOSE)), 'sad', 0); }
+  setTimeout(() => {
+    if (current?.token !== token) return;
+    stopGame();
+    resultL = L;
+    const unit = SCORE_UNIT[L.type];
+    modal.querySelector('.modal-card').innerHTML = `
+      <div class="owl-react ${record ? 'happy' : 'sad'}"><span class="owl">${getChars().pasangan.emoji}</span><span class="owl-extra">${record ? '🏆' : '💪'}</span></div>
+      <p class="detail">${TYPE_NAME[L.type]} · Mode skor</p>
+      <div class="score-big">${r.score || 0}<small>${unit}</small></div>
+      <h2>${record ? 'Rekor baru! 🎉' : `Rekor kamu ${old} ${unit}`}</h2>
+      <p class="detail">${esc(r.detail || '')}${record && old ? ` · rekor lama ${old}` : ''}</p>
+      <div class="modal-actions">
+        <button class="btn ghost" data-go="map">🎯 Pilih game</button>
+        <button class="btn" data-act="retry">Main lagi 🔁</button>
+      </div>`;
+    modal.classList.remove('hidden');
+  }, 700);
+}
+
+let resultL = null;
+function showTrackResult(L, r) {
+  const next = r.win ? soloTrack(L.track, L.k + 1) : null;
+  const stars = [0, 1, 2].map((k) => `<span class="star ${k < r.stars ? 'on' : ''}" style="animation-delay:${0.25 + k * 0.25}s">★</span>`).join('');
+  modal.querySelector('.modal-card').innerHTML = `
+    <div class="owl-react ${r.win ? 'happy' : 'sad'}"><span class="owl">${getChars().pasangan.emoji}</span><span class="owl-extra">${r.win ? (next ? '🎉' : '👑') : '💧'}</span></div>
+    <p class="owl-line">${esc(fill(pick(r.win ? OWL_WIN : OWL_LOSE)))}</p>
+    <h2>${r.win ? `${TYPE_NAME[L.type]} level ${L.num} beres!` : 'Yahh, belum berhasil'}</h2>
+    ${r.win ? `<div class="stars">${stars}</div>` : ''}
+    <p class="detail">${esc(r.detail)}${r.win && !next ? ' · Semua level game ini udah tamat! 🏆' : ''}</p>
+    <div class="modal-actions">
+      <button class="btn ghost" data-go="map">🎯 Pilih game</button>
+      <button class="btn ${next ? 'ghost' : ''}" data-act="retry">🔁 Ulangi</button>
+      ${next ? '<button class="btn" data-act="next">Lanjut ▶</button>' : ''}
+    </div>`;
+  modal.classList.remove('hidden');
+}
+
 function showResult(L, r) {
+  resultL = L;
+  if (L.track) return showTrackResult(L, r);
   const i = L.idx;
   const isLast = i === LEVELS.length - 1;
   const opensLetter = L.id === LETTER_LEVEL;
@@ -769,6 +939,12 @@ modal.addEventListener('click', (e) => {
   sfx('click');
   const i = +modal.dataset.level;
   closeModal();
+  if (resultL?.endless && act === 'retry') { startLevel(endlessLevel(resultL.type)); return; }
+  if (resultL?.track && (act === 'retry' || act === 'next')) {
+    const L = act === 'retry' ? resultL : soloTrack(resultL.track, resultL.k + 1);
+    if (L) startLevel(L); else show('map');
+    return;
+  }
   if (act === 'retry') startLevel(i);
   else if (act === 'next') {
     const next = LEVELS.slice(i + 1).find(unlocked);

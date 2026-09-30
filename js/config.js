@@ -46,6 +46,7 @@ export const CONFIG = {
         'Perubahan langsung muncul di game pasanganmu, nggak perlu kirim link baru',
         '60 level + 5 bonus puzzle foto: 5 dunia, tiap dunia 12 game yang beda-beda',
         '13 jenis mini-game (terbang, lari, labirin, susun kue, lempar hati, dll.)',
+        'Mode Pilih game: main satu game favorit sampai levelnya makin susah, atau kejar rekor skor',
         'Main Berdua online dari HP masing-masing: 30 level kerja sama + game bebas (balapan, tebak pasangan, puzzle, dll.)',
         'Kartu Deep Talk: 100 pertanyaan buat ngobrol berdua, bisa ditambah pertanyaan sendiri',
         'Streak berdua + notifikasi pengingat jam 7 malam',

@@ -63,7 +63,7 @@ export function startTiming(stage, p, api) {
   window.addEventListener('keydown', onKey);
 
   function stats() {
-    api.setStats(`💘 ${hits}/${p.target} · ✨ ${perfects} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}`);
+    api.setStats(p.endless ? `💘 Skor ${hits} · 🏆 ${Math.max(p.best || 0, hits)} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}` : `💘 ${hits}/${p.target} · ✨ ${perfects} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}`);
   }
 
   function loop(now) {
@@ -82,6 +82,7 @@ export function startTiming(stage, p, api) {
     done = true;
     cancelAnimationFrame(raf);
     const stars = !win ? 0 : Math.max(1, Math.min(3, lives - (p.lives - 3) + (perfects >= 3 ? 1 : 0)));
+    if (p.endless) { api.finish({ win: true, score: hits, detail: `Kena ${hits} kali (${perfects} perfect)` }); return; }
     api.finish({ win, stars, detail: win ? `Kena ${hits} kali (${perfects} perfect)` : `Kena ${hits} dari ${p.target}` });
   }
 

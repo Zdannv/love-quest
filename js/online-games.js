@@ -3,6 +3,11 @@
 //   ctx.send(type, data), ctx.on(type, fn) → fungsi buat berhenti dengerin, ctx.params (isi dari game biasa)
 // Dua HP pakai seed yang sama, jadi urutan soal / kartu / kepingan sama persis.
 import { startFly } from './games/fly.js';
+import { startPop } from './games/pop.js';
+import { startCatch } from './games/catch.js';
+import { startStack } from './games/stack.js';
+import { startThrow } from './games/throw.js';
+import { TEBAK as TEBAK_Q, SAMAAN as SAMAAN_Q, markQuestions } from './couple-questions.js';
 import { esc } from './util.js';
 
 export function seeded(seed) {
@@ -63,38 +68,19 @@ function startFlyRace(stage, api, ctx) {
   return { destroy() { offs.forEach((f) => f()); game.destroy(); } };
 }
 
-// ---------- Tebak Pasangan ----------
-const TEBAK = [
-  ['Liburan impian', ['Pantai 🏖️', 'Gunung ⛰️', 'Kota 🏙️', 'Rebahan di rumah 🛋️']],
-  ['Makanan kalau lagi bad mood', ['Mie instan 🍜', 'Martabak 🥞', 'Es krim 🍦', 'Seblak 🌶️']],
-  ['Kencan paling asik', ['Nonton film 🎬', 'Kulineran 🍢', 'Jalan-jalan sore 🌇', 'Ngobrol di rumah 🏠']],
-  ['Minuman favorit', ['Kopi ☕', 'Teh 🍵', 'Boba 🧋', 'Air putih aja 💧']],
-  ['Kalau lagi capek, pengennya', ['Tidur 😴', 'Dipeluk 🤗', 'Makan enak 🍱', 'Nonton 📺']],
-  ['Genre film favorit', ['Horor 👻', 'Romantis 💕', 'Komedi 😂', 'Action 💥']],
-  ['Waktu paling semangat', ['Pagi 🌅', 'Siang ☀️', 'Sore 🌇', 'Tengah malem 🌙']],
-  ['Hewan favorit', ['Kucing 🐱', 'Anjing 🐶', 'Kelinci 🐰', 'Panda 🐼']],
-  ['Cara nunjukin sayang', ['Kata-kata 💬', 'Pelukan 🤗', 'Hadiah 🎁', 'Nemenin 🫶']],
-  ['Cuaca favorit', ['Hujan 🌧️', 'Cerah ☀️', 'Mendung ☁️', 'Malem dingin 🌙']],
-  ['Kalau lagi kesel, biasanya', ['Diem dulu 🤐', 'Langsung ngomong 🗣️', 'Nangis 🥲', 'Ngambek 😤']],
-  ['Jajanan favorit', ['Cilok 🍡', 'Batagor 🥟', 'Gorengan 🍤', 'Roti bakar 🍞']],
-  ['Warna favorit', ['Pink 🩷', 'Biru 💙', 'Hijau 💚', 'Hitam 🖤']],
-  ['Hal yang paling bikin bete', ['Nunggu lama ⏳', 'Dicuekin 😶', 'Laper 😫', 'Macet 🚗']],
-  ['Negara yang pengen didatengin', ['Jepang 🗾', 'Korea 🇰🇷', 'Turki 🕌', 'Eropa 🏰']],
-  ['Kebiasaan sebelum tidur', ['Main HP 📱', 'Dengerin lagu 🎧', 'Nonton 📺', 'Langsung tidur 😴']],
-  ['Superpower pilihan', ['Teleport ✨', 'Baca pikiran 🧠', 'Menghilang 👻', 'Terbang 🕊️']],
-  ['Sarapan favorit', ['Nasi uduk 🍚', 'Roti 🍞', 'Bubur 🥣', 'Skip sarapan 🙈']],
-  ['Paling nggak bisa hidup tanpa', ['HP 📱', 'Musik 🎵', 'Kopi ☕', 'Kasur 🛏️']],
-  ['Gaya liburan', ['Full itinerary 🗺️', 'Santai aja 🌿', 'Kulineran 🍜', 'Belanja 🛍️']],
-];
-
+// ---------- Tebak Pasangan / Samaan Yuk (soal dari couple-questions.js) ----------
 const starsBy = (ratio, pass, two, three) => (ratio >= three ? 3 : ratio >= two ? 2 : ratio >= pass ? 1 : 0);
 
 function startTebak(stage, api, ctx) {
   const lv = ctx.level?.params;
   const samaan = ctx.level?.type === 'samaan';
   const ROUNDS = lv?.rounds || 8;
-  const rng = seeded(ctx.seed);
-  const qs = shuffleWith(rng, [...TEBAK]).slice(0, ROUNDS);
+  const bank = samaan ? SAMAAN_Q : TEBAK_Q;
+  // Soal dipilih HP yang ngajak (biar nggak keulang) & dikirim bareng ajakan; kalau nggak ada, acak pakai seed
+  const ids = (ctx.extra?.qs || []).filter((i) => bank[i]).slice(0, ROUNDS);
+  if (ids.length < ROUNDS) ids.push(...shuffleWith(seeded(ctx.seed), bank.map((_, i) => i)).filter((i) => !ids.includes(i)).slice(0, ROUNDS - ids.length));
+  markQuestions(samaan ? 'samaan' : 'tebak', ids);
+  const qs = ids.map((i) => bank[i]);
   const answers = {}; // answers[r] = { pasangan: k, pengirim: k }
   let r = 0, score = 0, done = false, timer = 0;
   const box = document.createElement('div');
@@ -116,7 +102,7 @@ function startTebak(stage, api, ctx) {
     box.innerHTML = `
       <div class="quiz-card">
         <div class="ol-tebak-who">${who}</div>
-        <div class="quiz-q">${esc(q)}?</div>
+        <div class="quiz-q">${esc(!samaan && !iAmSubject ? q.replace(/\baku\b/gi, subj.name) : q)}?</div>
         <div class="quiz-opts">${opts.map((o, k) => `<button class="opt" data-k="${k}">${esc(o)}</button>`).join('')}</div>
         <div class="quiz-fb" aria-live="polite"></div>
       </div>`;
@@ -539,6 +525,115 @@ function startMemoryCoop(stage, api, ctx) {
   return { destroy() { done = true; off(); clearTimeout(timer); } };
 }
 
+// ---------- Level: Ingat Urutan Bareng (gantian tiap langkah) ----------
+const SIMON_PADS = [{ em: '🦉', cls: 'owl' }, { em: '🐱', cls: 'cat' }, { em: '💖', cls: 'heart' }, { em: '⭐', cls: 'star' }];
+function startSimonCoop(stage, api, ctx) {
+  const lv = ctx.level.params;
+  const rng = seeded(ctx.seed);
+  const full = [...Array(lv.target + 2)].map(() => Math.floor(rng() * 4));
+  const wrap = document.createElement('div');
+  wrap.className = 'simon-wrap';
+  const who = (r) => (ctx.me.role === r ? ctx.me : ctx.peer);
+  const padsDef = [{ em: who('pasangan').emoji, cls: 'owl' }, { em: who('pengirim').emoji, cls: 'cat' }, SIMON_PADS[2], SIMON_PADS[3]];
+  wrap.innerHTML = `<div class="ol-turn"></div><div class="simon-grid">${padsDef.map((p, i) => `<button class="simon-pad ${p.cls}" data-i="${i}" disabled>${p.em}</button>`).join('')}</div>`;
+  stage.appendChild(wrap);
+  const banner = wrap.querySelector('.ol-turn');
+  const pads = [...wrap.querySelectorAll('.simon-pad')];
+  let len = 3, step = 0, lives = 3, done = false, accepting = false, timers = [];
+  const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+  const whoAt = (i) => (i % 2 === 0 ? 'pasangan' : 'pengirim'); // langkah genap Fall/pasangan, ganjil pengirim
+  function stats() { api.setStats(`🎵 ${len - 1}/${lv.target} · ${'❤️'.repeat(lives)}${'🤍'.repeat(3 - lives)}`); }
+  function showTurn() {
+    if (!accepting) { banner.className = 'ol-turn'; banner.innerHTML = '<b>Perhatiin urutannya…</b><span>Nanti kalian gantian ngulang, satu-satu</span>'; return; }
+    const mine = whoAt(step) === ctx.me.role;
+    banner.className = `ol-turn ${mine ? 'mine' : ''}`;
+    banner.innerHTML = mine ? `<b>Giliran kamu!</b><span>Tap urutan ke-${step + 1}</span>` : `<b>Giliran ${esc(ctx.peer.name)}</b><span>Urutan ke-${step + 1}, tunggu yaa ⏳</span>`;
+    pads.forEach((p) => (p.disabled = !mine));
+  }
+  function flash(i, ms) { pads[i].classList.add('lit'); api.sfx(`note${i}`); later(() => pads[i].classList.remove('lit'), ms * 0.7); }
+  function play() {
+    accepting = false; step = 0; showTurn(); pads.forEach((p) => (p.disabled = true));
+    for (let k = 0; k < len; k++) later(() => flash(full[k], lv.speed), 600 + k * lv.speed);
+    later(() => { accepting = true; showTurn(); }, 600 + len * lv.speed);
+  }
+  function press(i) {
+    if (!accepting || done) return;
+    flash(i, 300);
+    if (i !== full[step]) {
+      lives--; accepting = false; api.sfx('bad'); pads[i].classList.add('wrong'); later(() => pads[i].classList.remove('wrong'), 400);
+      stats();
+      if (lives <= 0) return end(false);
+      api.say('Yahh salah 😵 perhatiin lagi yaa, diulang', 'sad');
+      later(play, 1100);
+      return;
+    }
+    step++;
+    if (step >= len) {
+      accepting = false; api.sfx('good');
+      if (len - 1 >= lv.target) return end(true);
+      len++; stats();
+      api.say('Kompak! Urutannya nambah satu 💞', 'happy');
+      later(play, 900);
+    } else showTurn();
+  }
+  wrap.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('.simon-pad');
+    if (!b || b.disabled) return;
+    e.preventDefault();
+    if (whoAt(step) !== ctx.me.role) return;
+    const i = +b.dataset.i;
+    ctx.send('sm-tap', { i, step, len });
+    press(i);
+  });
+  const off = ctx.on('sm-tap', (d) => { if (d.step === step && d.len === len) press(d.i); });
+  function end(win) {
+    done = true; timers.forEach(clearTimeout); pads.forEach((p) => (p.disabled = true));
+    const stars = win ? lives : 0;
+    api.finish({ win, stars, icon: win ? '🎵' : '😵', title: win ? `Hafal ${lv.target} urutan berdua!` : 'Nyawanya habis', detail: win ? 'Kalian kompak banget ngingetnya 💞' : `Sampai ${len - 1} urutan. Coba lagi yuk!` });
+  }
+  api.say('Perhatiin urutan yang nyala, terus kalian ulang gantian satu-satu!', 'happy');
+  stats();
+  later(play, 400);
+  return { destroy() { done = true; timers.forEach(clearTimeout); off(); } };
+}
+
+// ---------- Level: main game sendiri-sendiri barengan, skornya dijumlah ----------
+const SUM_GAMES = { popco: startPop, catchco: startCatch, stackco: startStack, throwco: startThrow };
+const SUM_UNIT = { popco: 'poin', catchco: 'poin', stackco: 'tingkat', throwco: 'kena' };
+function startSumCoop(stage, api, ctx) {
+  const type = ctx.level.type;
+  const base = ctx.params; // setelan game sendirian (dari main.js)
+  const target = Math.round(base.target * ctx.level.params.mult);
+  let mine = null, peer = null;
+  const unit = SUM_UNIT[type];
+  const off = ctx.on('sum', (d) => {
+    peer = d.score;
+    if (mine == null) api.say(`${ctx.peer.name} udah selesai: ${peer} ${unit}! Gaspol 📣`, 'happy');
+    check();
+  });
+  function check() {
+    if (mine == null || peer == null) return;
+    const total = mine + peer;
+    const stars = starsBy(total / target, 1, 1.25, 1.5);
+    api.finish({
+      win: stars > 0, stars, icon: stars ? '💞' : '🥺',
+      title: stars ? `Berdua dapet ${total} ${unit}!` : `Baru ${total} dari ${target} ${unit}`,
+      detail: `Kamu ${mine} · ${ctx.peer.name} ${peer}${stars ? '' : ' · coba lagi yuk!'}`,
+    });
+  }
+  const game = SUM_GAMES[type](stage, { ...base, target: type === 'stackco' || type === 'throwco' ? 999 : base.target }, {
+    ...api,
+    finish: (r) => {
+      mine = r.score || 0;
+      ctx.send('sum', { score: mine });
+      api.say(peer == null ? `Kamu dapet ${mine} ${unit}. Nunggu ${ctx.peer.name} selesai… 👀` : 'Yuk liat hasilnya!', 'happy');
+      check();
+    },
+  });
+  api.say(`Main barengan! Target berdua ${target} ${unit}, skor kalian dijumlah 💞`, 'happy');
+  return { destroy() { off(); game.destroy(); } };
+}
+
 // Game buat peta level Main Berdua
 export const LEVEL_GAMES = {
   flyco: { start: startFlyCoop, countdown: true },
@@ -547,6 +642,11 @@ export const LEVEL_GAMES = {
   odd: { start: startOddCoop, countdown: true },
   memoryco: { start: startMemoryCoop, countdown: true },
   puzzle: { start: startPuzzleTogether },
+  simonco: { start: startSimonCoop },
+  popco: { start: startSumCoop, countdown: true },
+  catchco: { start: startSumCoop, countdown: true },
+  stackco: { start: startSumCoop, countdown: true },
+  throwco: { start: startSumCoop, countdown: true },
 };
 
 export const ONLINE_GAMES = {

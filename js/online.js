@@ -7,7 +7,8 @@ import { esc } from './util.js';
 import { ONLINE_GAMES } from './online-games.js';
 import { whoAmI, askProfile, forget } from './profile.js';
 import { LEVEL_MAP } from './level-map.js';
-import { DUO_LEVELS, DUO_NAMES, DUO_ICONS, duoStars, duoUnlocked, mergeDuo } from './duo-levels.js';
+import { DUO_LEVELS, DUO_NAMES, DUO_ICONS, DUO_DESC, DUO_TYPES, TRACK_LEN, trackLevel, getDuoLevel, duoLabel, duoStars, duoUnlocked, mergeDuo } from './duo-levels.js';
+import { pickQuestions } from './couple-questions.js';
 
 const $ = (s) => document.querySelector(s);
 const ID_KEY = 'lq-online-id';
@@ -137,38 +138,69 @@ function render() {
       </div>
     </details>`;
 
-  // Peta level berdua
+  // Peta level berdua: tab Petualangan (campur) / Per game / Main bebas
   const stars = duoStars();
-  const total = Object.values(stars).reduce((a, b) => a + b, 0);
-  $('#ol-map').innerHTML = `<p class="ol-section">🗺️ Petualangan berdua <span>⭐ ${total}/${DUO_LEVELS.length * 3}</span></p>` + LEVEL_MAP.map((w, wi) => {
-    const levels = DUO_LEVELS.filter((L) => L.world === wi);
-    const open = duoUnlocked(levels[0], stars);
-    return `
+  const tabs = `<div class="mode-tabs" role="tablist">
+    ${[['adv', '🗺️ Petualangan'], ['per', '🎯 Per game'], ['free', '🎲 Main bebas']].map(([id, t]) => `<button type="button" role="tab" data-ol-tab="${id}" aria-selected="${olTab === id}">${t}</button>`).join('')}
+  </div>`;
+  let body = '';
+  if (olTab === 'adv') {
+    const advStars = DUO_LEVELS.reduce((a, L) => a + (stars[L.id] || 0), 0);
+    body = `<p class="ol-section">Petualangan berdua <span>⭐ ${advStars}/${DUO_LEVELS.length * 3}</span></p>` + LEVEL_MAP.map((w, wi) => {
+      const levels = DUO_LEVELS.filter((L) => L.world === wi);
+      const open = duoUnlocked(levels[0], stars);
+      return `
       <section class="world ${WORLD_THEME[wi]} ${open ? '' : 'locked'}">
         <div class="world-head">
           <span class="world-icon">${w.icon}</span>
           <div><small>Dunia ${wi + 1}</small><h2>${esc(w.name)}</h2></div>
         </div>
-        <div class="levels">
-          ${levels.map((L) => {
-            const s = stars[L.id] || 0;
-            const unlocked = duoUnlocked(L, stars);
-            const current = unlocked && !s;
-            return `<button class="lvl ${unlocked ? '' : 'locked'} ${s ? 'done' : ''} ${current ? 'current' : ''}" data-duo="${L.idx}" ${unlocked ? '' : 'disabled'}>
-              <span class="lvl-type">${unlocked ? DUO_ICONS[L.type] : '🔒'}</span>
-              <span class="lvl-num">${L.num}</span>
-              <span class="lvl-stars">${[0, 1, 2].map((k) => (k < s ? '★' : '<i>★</i>')).join('')}</span>
-            </button>`;
-          }).join('')}
-        </div>
+        <div class="levels">${levels.map((L) => lvlBtn(L, stars)).join('')}</div>
       </section>`;
-  }).join('');
+    }).join('');
+  } else if (olTab === 'per' && olTrack) {
+    const levels = [...Array(TRACK_LEN)].map((_, k) => trackLevel(olTrack, k));
+    const got = levels.reduce((a, L) => a + (stars[L.id] || 0), 0);
+    body = `
+      <button type="button" class="link-btn ol-back" data-ol-track="">← semua game</button>
+      <section class="world w-flower track-card">
+        <div class="world-head">
+          <span class="world-icon">${DUO_ICONS[olTrack]}</span>
+          <div><small>${esc(DUO_DESC[olTrack])}</small><h2>${esc(DUO_NAMES[olTrack])}</h2></div>
+          <span class="world-stars">⭐ ${got}/${TRACK_LEN * 3}</span>
+        </div>
+        <div class="levels">${levels.map((L) => lvlBtn(L, stars)).join('')}</div>
+      </section>`;
+  } else if (olTab === 'per') {
+    body = `<p class="ol-section">Pilih satu game, levelnya makin susah</p><div class="track-list">` + DUO_TYPES.map((t) => {
+      const got = [...Array(TRACK_LEN)].reduce((a, _, k) => a + (stars[`t-${t}-${k}`] || 0), 0);
+      const done = [...Array(TRACK_LEN)].filter((_, k) => stars[`t-${t}-${k}`]).length;
+      return `<button type="button" class="ol-game" data-ol-track="${t}">
+        <span class="ol-game-icon">${DUO_ICONS[t]}</span>
+        <span><b>${esc(DUO_NAMES[t])}</b><small>${esc(DUO_DESC[t])}</small></span>
+        <span class="track-prog">${done}/${TRACK_LEN}<small>⭐ ${got}</small></span>
+      </button>`;
+    }).join('') + '</div>';
+  }
+  $('#ol-map').innerHTML = tabs + body;
 
-  $('#ol-games').innerHTML = `<p class="ol-section">🎲 Main bebas</p>` + Object.entries(ONLINE_GAMES).map(([id, g]) => `
+  $('#ol-games').innerHTML = olTab !== 'free' ? '' : `<p class="ol-section">Main bebas, tanpa level</p>` + Object.entries(ONLINE_GAMES).map(([id, g]) => `
     <button type="button" class="ol-game" data-game="${id}">
       <span class="ol-game-icon">${g.icon}</span>
       <span><b>${esc(g.name)}</b><small>${esc(g.desc)}</small></span>
     </button>`).join('');
+}
+
+let olTab = 'adv', olTrack = '';
+function lvlBtn(L, stars) {
+  const s = stars[L.id] || 0;
+  const unlocked = duoUnlocked(L, stars);
+  const current = unlocked && !s;
+  return `<button class="lvl ${unlocked ? '' : 'locked'} ${s ? 'done' : ''} ${current ? 'current' : ''}" data-duo="${L.id}" ${unlocked ? '' : 'disabled'}>
+    <span class="lvl-type">${unlocked ? DUO_ICONS[L.type] : '🔒'}</span>
+    <span class="lvl-num">${L.num}</span>
+    <span class="lvl-stars">${[0, 1, 2].map((k) => (k < s ? '★' : '<i>★</i>')).join('')}</span>
+  </button>`;
 }
 
 function needPartner() {
@@ -177,15 +209,18 @@ function needPartner() {
   return false;
 }
 
-// Ajak main: game bebas (game) atau level (level = nomor urut)
+// Ajak main: game bebas (game) atau level (level = id level, Petualangan atau Per game)
 export function inviteGame(game, level = null) {
   if (needPartner()) return;
   const seed = Math.floor(Math.random() * 1e9);
-  pendingInvite = { game, seed, level };
-  send('invite', { game, seed, level, name: me().name });
+  const L = getDuoLevel(level);
+  const kind = L ? L.type : game;
+  const extra = kind === 'tebak' || kind === 'samaan' ? { qs: pickQuestions(kind, L?.params.rounds || 8) } : {};
+  pendingInvite = { game, seed, level, extra };
+  send('invite', { game, seed, level, extra, name: me().name });
   ui.sfx('click');
-  const title = level != null ? `Level ${DUO_LEVELS[level].num} · ${DUO_NAMES[DUO_LEVELS[level].type]}` : ONLINE_GAMES[game].name;
-  const icon = level != null ? DUO_ICONS[DUO_LEVELS[level].type] : ONLINE_GAMES[game].icon;
+  const title = L ? `${duoLabel(L)}${L.track ? '' : ' · ' + DUO_NAMES[L.type]}` : ONLINE_GAMES[game].name;
+  const icon = L ? DUO_ICONS[L.type] : ONLINE_GAMES[game].icon;
   ui.modal(`
     <div class="modal-emoji">${icon}</div>
     <h2>Ngajak ${esc(net.peer?.name || '')}…</h2>
@@ -196,9 +231,9 @@ export function inviteGame(game, level = null) {
 function start(inv) {
   pendingInvite = null;
   ui.closeModal();
-  if (inv.level != null) ui.startLevel(inv.level, inv.seed);
+  if (inv.level != null) ui.startLevel(inv.level, inv.seed, inv.extra || {});
   else if (inv.game === 'talk') ui.openTalk();
-  else ui.startGame(inv.game, inv.seed);
+  else ui.startGame(inv.game, inv.seed, inv.extra || {});
 }
 
 export function mountOnline(opts) {
@@ -218,8 +253,12 @@ export function mountOnline(opts) {
     }
     if (act === 'new') { ui.sfx('click'); joinRoom(String(Math.floor(1000 + Math.random() * 9000))); }
     if (act === 'couple') { ui.sfx('click'); joinRoom(coupleRoom()); }
+    const tab = e.target.closest('[data-ol-tab]');
+    if (tab) { ui.sfx('click'); olTab = tab.dataset.olTab; olTrack = ''; render(); return; }
+    const tr = e.target.closest('[data-ol-track]');
+    if (tr) { ui.sfx('click'); olTrack = tr.dataset.olTrack; render(); document.querySelector('#ol-map').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     const lvl = e.target.closest('[data-duo]');
-    if (lvl && !lvl.disabled) inviteGame('level', +lvl.dataset.duo);
+    if (lvl && !lvl.disabled) inviteGame('level', lvl.dataset.duo);
     const g = e.target.closest('[data-game]');
     if (g) inviteGame(g.dataset.game);
   });
@@ -246,19 +285,19 @@ export function mountOnline(opts) {
   });
 
   on('invite', (d) => {
-    const isLevel = d.level != null && DUO_LEVELS[d.level];
+    const L = getDuoLevel(d.level);
+    const isLevel = !!L;
     const g = isLevel ? null : ONLINE_GAMES[d.game];
     if (!isLevel && !g) return;
-    const L = isLevel ? DUO_LEVELS[d.level] : null;
     ui.sfx('pop');
     navigator.vibrate?.(40);
     ui.modal(`
       <div class="modal-emoji bounce">${isLevel ? DUO_ICONS[L.type] : g.icon}</div>
       <h2>${esc(d.name)} ngajak main!</h2>
-      <p class="detail"><b>${esc(isLevel ? `Level ${L.num} · ${DUO_NAMES[L.type]}` : g.name)}</b>${isLevel ? '' : ` · ${esc(g.desc)}`}</p>
+      <p class="detail"><b>${esc(isLevel ? `${duoLabel(L)}${L.track ? '' : ' · ' + DUO_NAMES[L.type]}` : g.name)}</b> · ${esc(isLevel ? DUO_DESC[L.type] : g.desc)}</p>
       <div class="modal-actions">
         <button class="btn ghost" data-ol-act="no">Nanti</button>
-        <button class="btn" data-ol-act="yes" data-inv='${esc(JSON.stringify({ game: d.game, seed: d.seed, level: d.level ?? null }))}'>Ayo! 🎮</button>
+        <button class="btn" data-ol-act="yes" data-inv='${esc(JSON.stringify({ game: d.game, seed: d.seed, level: d.level ?? null, extra: d.extra || {} }))}'>Ayo! 🎮</button>
       </div>`);
   });
   on('accept', (d) => { if (pendingInvite && d.game === pendingInvite.game && d.seed === pendingInvite.seed) start(d); });
@@ -269,6 +308,7 @@ export function mountOnline(opts) {
 }
 
 // Dipanggil tiap buka layar Main Berdua
+export function openTrack(type) { olTab = 'per'; olTrack = type; render(); }
 export async function enterLobby() {
   render();
   if (!myRole()) {

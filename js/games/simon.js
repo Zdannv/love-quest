@@ -23,7 +23,7 @@ export function startSimon(stage, p, api) {
   const later = (fn, ms) => timers.push(setTimeout(fn, ms));
 
   function stats() {
-    api.setStats(`🎵 ${Math.max(0, seq.length - (accepting ? 0 : 1))}/${p.target} · ${'❤️'.repeat(lives)}${'🤍'.repeat(p.lives - lives)}`);
+    api.setStats(p.endless ? `🎵 Skor ${Math.max(0, seq.length - 1)} · 🏆 ${Math.max(p.best || 0, seq.length - 1)} · ${'❤️'.repeat(lives)}${'🤍'.repeat(p.lives - lives)}` : `🎵 ${Math.max(0, seq.length - (accepting ? 0 : 1))}/${p.target} · ${'❤️'.repeat(lives)}${'🤍'.repeat(p.lives - lives)}`);
   }
 
   function flash(i, ms) {
@@ -88,6 +88,7 @@ export function startSimon(stage, p, api) {
     done = true;
     pads.forEach((b) => (b.disabled = true));
     const stars = !win ? 0 : Math.max(1, 3 - mistakes);
+    if (p.endless) { api.finish({ win: true, score: Math.max(0, seq.length - 1), detail: `Hafal ${Math.max(0, seq.length - 1)} urutan` }); return; }
     api.finish({ win, stars, detail: win ? `Hafal ${p.target} urutan!` : `Sampai ${seq.length - 1} urutan` });
   }
 
