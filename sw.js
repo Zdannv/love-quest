@@ -1,6 +1,6 @@
 // Service worker Love Quest: bisa dipasang ke home screen, bisa dimainin offline,
 // dan menampilkan notifikasi streak.
-const CACHE = 'love-quest-v28';
+const CACHE = 'love-quest-v29';
 const FONT_CACHE = 'love-quest-fonts';
 const PHOTO_CACHE = 'love-quest-photos';
 
@@ -61,6 +61,7 @@ self.addEventListener('fetch', (e) => {
   }
   // Selain itu cuma file situs sendiri (API Supabase tetap langsung ke internet)
   if (url.origin !== location.origin) return;
+  if (url.pathname.startsWith('/video/')) return; // video diputar sepotong-sepotong, biar browser yang ngurus
   if (url.pathname === '/admin' || url.pathname.startsWith('/admin.') || url.pathname === '/owner' || url.pathname.startsWith('/owner.')) return;
 
   const fromCache = () => caches.match(req, { ignoreSearch: true })

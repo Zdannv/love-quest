@@ -278,67 +278,6 @@ if (CONFIG.showcase) {
   document.body.classList.add('has-showcase-bar');
 }
 
-// ---------- Coba versi kalian (nama & muka) ----------
-const inPasangan = $('#in-pasangan');
-const inPengirim = $('#in-pengirim');
-inPasangan.value = getNames().raw.pasangan || '';
-inPengirim.value = getNames().raw.pengirim || '';
-[inPasangan, inPengirim].forEach((el) => el.addEventListener('input', () => {
-  setNames(inPasangan.value, inPengirim.value);
-  applyNames();
-  renderStreak();
-}));
-
-// Foto muka (demo): tap kotaknya buat pilih foto, tap lagi yang sudah ada buat ganti
-function syncFaces() {
-  document.querySelectorAll('.face-pick').forEach((el) => {
-    const src = getFace(el.dataset.face);
-    const thumb = el.querySelector('.face-thumb');
-    thumb.style.backgroundImage = src ? `url("${src}")` : '';
-    thumb.textContent = src ? '' : getChars()[el.dataset.face].emoji;
-  });
-}
-document.querySelectorAll('.face-pick input').forEach((input) => input.addEventListener('change', async () => {
-  const file = input.files?.[0];
-  if (!file) return;
-  try {
-    await saveFace(input.closest('.face-pick').dataset.face, file);
-    toast('😊 Mukanya kepasang! Coba main Terbang Tinggi / Lari Lompat');
-  } catch {
-    toast('Yahh fotonya kegedean, coba foto lain yaa 🥺');
-  }
-  input.value = '';
-  syncFaces();
-}));
-if (CONFIG.demo) syncFaces();
-
-// Tema & karakter (demo: disimpan di browser)
-function renderLookPicker() {
-  const look = getLook();
-  $('#theme-chips').innerHTML = Object.entries(THEMES).map(([id, t]) => `
-    <button type="button" class="theme-chip ${look.theme === id ? 'on' : ''}" data-theme-id="${id}" title="${esc(t.name)}" style="--c:${t.swatch}"></button>`).join('');
-  const opts = (sel) => Object.entries(CHARACTERS).map(([id, ch]) => `<option value="${id}" ${sel === id ? 'selected' : ''}>${ch.emoji} ${esc(ch.name)}</option>`).join('');
-  $('#in-char1').innerHTML = opts(look.characters.pasangan);
-  $('#in-char2').innerHTML = opts(look.characters.pengirim);
-}
-function updateLook(patch) {
-  const look = getLook();
-  setLook({ ...look, ...patch, characters: { ...look.characters, ...(patch.characters || {}) } });
-  applyNames();
-  renderLookPicker();
-  renderStreak();
-  syncFaces();
-}
-if (CONFIG.demo) {
-  renderLookPicker();
-  $('#theme-chips').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-theme-id]');
-    if (b) { sfx('click'); updateLook({ theme: b.dataset.themeId }); }
-  });
-  $('#in-char1').addEventListener('change', (e) => updateLook({ characters: { pasangan: e.target.value } }));
-  $('#in-char2').addEventListener('change', (e) => updateLook({ characters: { pengirim: e.target.value } }));
-}
-
 // ---------- Paket ----------
 function showPackages() {
   modal.querySelector('.modal-card').innerHTML = `
@@ -368,10 +307,12 @@ document.addEventListener('click', (e) => {
   stopGame();
   showPackages();
 });
-if (CONFIG.demo) $('#btn-play').textContent = 'Mainin versi kalian ▶';
+// Demo: nyobanya langsung di contoh versi jadi (Kirana & Arga)
+if (CONFIG.demo) $('#btn-play').textContent = '🎮 Coba main gratis';
 // Main yuk → pilih mode: sendiri (peta level) atau berdua (online)
 $('#btn-play').addEventListener('click', () => {
   sfx('click');
+  if (CONFIG.demo) { location.href = '/?lihat=kirana-arga'; return; }
   modal.querySelector('.modal-card').innerHTML = `
     <h2>Mau main gimana?</h2>
     <div class="mode-pick">

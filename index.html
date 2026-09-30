@@ -41,7 +41,8 @@
         <a class="desk-brand" href="/"><img src="/icons/icon-192.png" alt="">Love Quest</a>
         <nav>
           <a href="#contoh">Contoh</a>
-          <a href="#coba">Coba gratis</a>
+          <a href="/?lihat=kirana-arga">Coba main</a>
+          <a href="#tutorial">Tutorial</a>
           <button class="btn small-btn" type="button" data-paket>💌 Pesan sekarang</button>
         </nav>
       </header>
@@ -77,47 +78,13 @@
           <div id="showcase-list"></div>
           <p class="showcase-credit">Foto contoh: Freepik</p>
         </section>
+        <section class="tutorial" id="tutorial" data-demo-only>
+          <h2>📺 Cara pesan &amp; pakai</h2>
+          <p>Dari pesan, ngisi CMS, sampai pasanganmu main. Cuma 2 menit.</p>
+          <video controls playsinline preload="none" poster="/video/tutorial-poster.jpg" src="/video/tutorial.mp4"></video>
+        </section>
         <div class="streak-slot" id="streak-home" hidden></div>
-        <div class="try-card" id="coba" data-demo-only>
-          <p class="try-title">🎮 Coba gratis dulu sebelum beli</p>
-          <p class="try-sub">Isi nama kalian, terus mainin 12 level Dunia 1 gratis di bawah 👇</p>
-          <div class="try-main">
-          <div class="try-row">
-            <label>Nama pasanganmu<input id="in-pasangan" maxlength="16" placeholder="contoh: Nadia" autocomplete="off"></label>
-            <label>Nama kamu<input id="in-pengirim" maxlength="16" placeholder="contoh: Raka" autocomplete="off"></label>
-          </div>
-          <div class="look-pick">
-            <div class="look-label">🎨 Tema & karakter <small>paket Premium</small></div>
-            <div class="theme-chips" id="theme-chips"></div>
-            <div class="try-row">
-              <label>Karakter pasanganmu<select id="in-char1"></select></label>
-              <label>Karakter kamu<select id="in-char2"></select></label>
-            </div>
-          </div>
-          </div>
-          <div class="try-faces">
-          <div class="look-label">😊 Muka kalian jadi karakter <small>paket Premium</small></div>
-          <div class="face-row">
-            <label class="face-pick" data-face="pasangan">
-              <span class="face-thumb"></span>
-              <span>Muka pasanganmu<br><small>jadi yang terbang 🦉</small></span>
-              <input type="file" accept="image/*">
-            </label>
-            <label class="face-pick" data-face="pengirim">
-              <span class="face-thumb"></span>
-              <span>Muka kamu<br><small>jadi yang lari & dilempar hati 😆</small></span>
-              <input type="file" accept="image/*">
-            </label>
-          </div>
-          <small class="try-note">Nama & foto muka cuma disimpan di HP ini, nggak diupload ke mana-mana. Pakai foto close-up muka biar pas.</small>
-          </div>
-          <div class="try-upsell">
-            <p>✍️ Mau ganti <b>isi surat</b>, <b>pesan tiap level</b>, kuis, sampai <b>lagunya</b>? Langsung pesan aja, semuanya bisa kamu atur sendiri lewat CMS 💖</p>
-            <button class="btn small-btn" type="button" data-paket>💌 Pesan sekarang</button>
-          </div>
-        </div>
         <button class="btn big" id="btn-play">Main yuk! ▶</button>
-        <p class="play-hint" data-demo-only>Langsung main Dunia 1 pakai nama, tema, karakter & muka yang kamu isi di atas 👆</p>
         <button class="btn ghost talk-btn" id="btn-talk">💬 Kartu Deep Talk</button>
         <button class="btn ghost install-btn" id="btn-install" hidden>📲 Pasang ke home screen</button>
         <button class="link-btn" id="btn-reset">reset progress</button>

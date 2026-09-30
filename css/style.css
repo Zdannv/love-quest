@@ -705,7 +705,7 @@ html { scroll-behavior: smooth; }
   body.is-demo .home-wrap {
     width: min(100%, 1120px); margin: 28px auto 0; display: grid; grid-template-columns: 1.05fr .95fr;
     column-gap: 64px; row-gap: 26px; align-items: center; text-align: left;
-    grid-template-areas: "title art" "pitch art" "show show" "try try" "play play" "hint hint" "inst inst" "reset reset";
+    grid-template-areas: "title art" "pitch art" "show show" "tut tut" "play play" "talk talk" "inst inst" "reset reset";
   }
   body.is-demo .mascots { display: none; }
   body.is-demo .title { grid-area: title; font-size: 76px; }
@@ -741,6 +741,11 @@ html { scroll-behavior: smooth; }
   body.is-demo .try-title { grid-column: 1 / -1; font-size: 26px; }
   body.is-demo .try-sub { grid-column: 1 / -1; font-size: 15px; }
   body.is-demo .try-upsell { grid-column: 1 / -1; }
+  body.is-demo #showcase-list { grid-template-columns: minmax(0, 420px); justify-content: center; }
+  body.is-demo .showcase { text-align: center; }
+  body.is-demo .tutorial { grid-area: tut; width: min(100%, 560px); justify-self: center; padding: 24px; scroll-margin-top: 90px; }
+  body.is-demo .tutorial h2 { font-size: 28px; }
+  body.is-demo #btn-talk { grid-area: talk; justify-self: center; }
   body.is-demo #btn-play { grid-area: play; justify-self: center; }
   body.is-demo .play-hint { grid-area: hint; justify-self: center; }
   body.is-demo #btn-install { grid-area: inst; justify-self: center; }
@@ -872,3 +877,9 @@ body.is-couple [data-demo-only] { display: none !important; }
 @keyframes turnPop { from { transform: scale(.9); } }
 .ol-cardwrap { width: 100%; display: flex; flex-direction: column; align-items: center; }
 .ol-cardwrap .memory-grid { width: min(100%, 440px, calc((100dvh - 300px) / var(--ratio))); }
+
+/* Video tutorial di halaman depan */
+.tutorial { width: 100%; background: #fff; border-radius: var(--radius); padding: 18px 16px; box-shadow: var(--shadow); text-align: center; }
+.tutorial h2 { margin: 0 0 6px; font-size: 22px; color: var(--pink-deep); }
+.tutorial p { margin: 0 0 12px; color: var(--ink-soft); font-size: 15px; }
+.tutorial video { width: min(100%, 320px); aspect-ratio: 9 / 16; border-radius: 18px; background: #1c1226; box-shadow: 0 10px 24px rgba(106, 44, 82, .2); }
