@@ -255,6 +255,22 @@ function startPuzzleTogether(stage, api, ctx) {
   return { destroy() { done = true; clearInterval(tick); offs.forEach((f) => f()); } };
 }
 
+// Banner giliran buat game kartu gantian: jelas siapa yang lagi jalan
+function turnBanner(stage, grid) {
+  const el = document.createElement('div');
+  el.className = 'ol-turn';
+  const wrap = document.createElement('div');
+  wrap.className = 'ol-cardwrap';
+  stage.insertBefore(wrap, grid);
+  wrap.append(el, grid);
+  return (mine, peerName, extra = '') => {
+    el.classList.toggle('mine', mine);
+    el.innerHTML = mine
+      ? `<b>Giliran kamu!</b><span>Buka 2 kartu 👆${extra}</span>`
+      : `<b>Giliran ${esc(peerName)}</b><span>Tunggu dia buka 2 kartu dulu yaa ⏳${extra}</span>`;
+  };
+}
+
 // ---------- Kartu Kembar Gantian ----------
 function startMemoryTurns(stage, api, ctx) {
   const pairs = 6;
@@ -274,13 +290,15 @@ function startMemoryTurns(stage, api, ctx) {
     grid.appendChild(card);
   });
   stage.appendChild(grid);
+  const banner = turnBanner(stage, grid);
   const cards = [...grid.children];
   const score = { pasangan: 0, pengirim: 0 };
   let turn = 'pasangan', open = [], lock = false, matched = 0, done = false, timer = 0;
   const person = (role) => (role === ctx.me.role ? ctx.me : ctx.peer);
   function stats() {
-    api.setStats(`Kamu ${score[ctx.me.role]} · ${ctx.peer.name} ${score[ctx.peer.role]} · Giliran: ${turn === ctx.me.role ? 'kamu' : ctx.peer.name}`);
+    api.setStats(`Kamu ${score[ctx.me.role]} · ${ctx.peer.name} ${score[ctx.peer.role]}`);
     grid.classList.toggle('not-my-turn', turn !== ctx.me.role);
+    banner(turn === ctx.me.role, ctx.peer.name);
   }
   function flip(i) {
     const c = cards[i];
@@ -316,11 +334,19 @@ function startMemoryTurns(stage, api, ctx) {
   }
   grid.addEventListener('click', (e) => {
     const c = e.target.closest('.card');
-    if (!c || turn !== ctx.me.role) return;
+    if (!c) return;
+    if (turn !== ctx.me.role) { nudge(); return; }
     const i = +c.dataset.i;
     if (flip(i)) ctx.send('mm-flip', { i });
   });
   const off = ctx.on('mm-flip', (d) => flip(d.i));
+  let nudgeT = 0;
+  function nudge() {
+    if (performance.now() - nudgeT < 1200) return;
+    nudgeT = performance.now();
+    api.sfx('bad');
+    api.say(`Sabar, sekarang giliran ${ctx.peer.name} 😆 nanti gantian`, 'happy');
+  }
   function end() {
     done = true;
     const a = score[ctx.me.role], b = score[ctx.peer.role];
@@ -330,7 +356,7 @@ function startMemoryTurns(stage, api, ctx) {
       detail: `Kamu ${a} pasang · ${ctx.peer.name} ${b} pasang`,
     }), 500);
   }
-  api.say(turn === ctx.me.role ? 'Kamu mulai duluan! 👆' : `${person(turn).name} mulai duluan, tunggu giliranmu yaa`, 'happy');
+  api.say(`Main gantian: buka 2 kartu. Kalau kembar, poin buat kamu & jalan lagi. Kalau beda, ganti giliran. ${turn === ctx.me.role ? 'Kamu duluan! 👆' : `${person(turn).name} duluan.`}`, 'happy');
   stats();
   return { destroy() { done = true; off(); clearTimeout(timer); } };
 }
@@ -454,11 +480,13 @@ function startMemoryCoop(stage, api, ctx) {
   grid.style.setProperty('--ratio', (Math.ceil(deck.length / cols) * 1.2) / cols);
   grid.innerHTML = deck.map((em, i) => `<button class="card" data-i="${i}"><span class="card-inner"><span class="face back">💗</span><span class="face front">${em.startsWith('img:') ? `<img class="card-photo" src="${esc(em.slice(4))}" alt="">` : em}</span></span></button>`).join('');
   stage.appendChild(grid);
+  const banner = turnBanner(stage, grid);
   const cards = [...grid.children];
-  let turn = 'pasangan', open = [], lock = false, matched = 0, moves = 0, done = false, timer = 0;
+  let turn = 'pasangan', open = [], lock = false, matched = 0, moves = 0, done = false, timer = 0, nudgeT = 0;
   function stats() {
-    api.setStats(`🃏 ${matched}/${pairs} · 👆 ${moves}/${limit} · Giliran: ${turn === ctx.me.role ? 'kamu' : ctx.peer.name}`);
+    api.setStats(`🃏 ${matched}/${pairs} · 👆 ${moves}/${limit} gerakan`);
     grid.classList.toggle('not-my-turn', turn !== ctx.me.role);
+    banner(turn === ctx.me.role, ctx.peer.name);
   }
   function flip(i) {
     const c = cards[i];
@@ -488,7 +516,11 @@ function startMemoryCoop(stage, api, ctx) {
   }
   grid.addEventListener('click', (e) => {
     const c = e.target.closest('.card');
-    if (!c || turn !== ctx.me.role) return;
+    if (!c) return;
+    if (turn !== ctx.me.role) {
+      if (performance.now() - nudgeT > 1200) { nudgeT = performance.now(); api.sfx('bad'); api.say(`Sabar, sekarang giliran ${ctx.peer.name} 😆 kalian gantian tiap 2 kartu`, 'happy'); }
+      return;
+    }
     const i = +c.dataset.i;
     if (flip(i)) ctx.send('mm-flip', { i });
   });
@@ -502,7 +534,7 @@ function startMemoryCoop(stage, api, ctx) {
       detail: win ? 'Gantian buka kartu, kompak! 💞' : `Baru ${matched} dari ${pairs} pasang. Inget-inget kartunya bareng yaa`,
     }), 400);
   }
-  api.say(`Gantian buka 2 kartu. Kumpulin ${pairs} pasang dalam ${limit} gerakan! ${turn === ctx.me.role ? 'Kamu duluan 👆' : ''}`, 'happy');
+  api.say(`Main gantian: tiap giliran buka 2 kartu, habis itu ganti. Kumpulin ${pairs} pasang berdua dalam ${limit} gerakan! ${turn === ctx.me.role ? 'Kamu duluan 👆' : `${ctx.peer.name} duluan.`}`, 'happy');
   stats();
   return { destroy() { done = true; off(); clearTimeout(timer); } };
 }
