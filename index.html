@@ -117,6 +117,32 @@
       </div>
     </section>
 
+    <!-- GAMBAR UDARA -->
+    <section id="screen-draw" class="screen">
+      <header class="topbar">
+        <button class="icon-btn" data-go="online" aria-label="Kembali">⬅️</button>
+        <div class="star-total" id="draw-who">✍️ Gambar Udara</div>
+        <span class="topbar-gap" aria-hidden="true"></span>
+      </header>
+      <p class="draw-status" id="draw-status"></p>
+      <div class="draw-stage">
+        <video id="draw-video" playsinline muted></video>
+        <canvas id="draw-canvas"></canvas>
+        <div class="draw-cursor" id="draw-cursor" hidden></div>
+        <p class="draw-secret" id="draw-secret" hidden></p>
+      </div>
+      <form class="draw-guess" id="draw-guess" hidden><input placeholder="Tebak gambarnya…" maxlength="30" autocomplete="off"><button class="btn small-btn" type="submit">Tebak</button></form>
+      <div class="draw-tools">
+        <div class="draw-colors" id="draw-colors"></div>
+        <label class="draw-size">✏️<input type="range" id="draw-size" min="3" max="18" value="6"></label>
+        <div class="draw-btns">
+          <button class="btn ghost small-btn" id="draw-clear" type="button">🧽 Hapus</button>
+          <button class="btn ghost small-btn" id="draw-cam" type="button">🙈 Sembunyiin muka</button>
+          <button class="btn small-btn" id="draw-save" type="button">📸 Simpan foto</button>
+        </div>
+      </div>
+    </section>
+
     <!-- MAIN BARENG (ONLINE) -->
     <section id="screen-online" class="screen">
       <header class="topbar">

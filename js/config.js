@@ -48,6 +48,7 @@ export const CONFIG = {
         '13 jenis mini-game (terbang, lari, labirin, susun kue, lempar hati, dll.)',
         'Mode Pilih game: main satu game favorit sampai levelnya makin susah, atau kejar rekor skor',
         'Main Berdua online dari HP masing-masing: 30 level kerja sama + game bebas (balapan, tebak pasangan, puzzle, dll.)',
+        'Tebak Gambar & Gambar Udara: gambar pakai jari di depan kamera, pasangan nebak dari HP-nya',
         'Kartu Deep Talk: 100 pertanyaan buat ngobrol berdua, bisa ditambah pertanyaan sendiri',
         'Streak berdua + notifikasi pengingat jam 7 malam',
         'Bisa dipasang di home screen & tetap bisa dimainin offline',
