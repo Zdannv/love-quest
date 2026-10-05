@@ -919,6 +919,9 @@ body.booting::before {
 .draw-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
 .draw-cursor { --c: #ff4f8b; position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%; border: 3px solid #fff; background: transparent; box-shadow: 0 0 0 3px var(--c); pointer-events: none; transition: background .1s; }
 .draw-cursor.on { background: var(--c); }
+#screen-draw .draw-stage video, #screen-draw .draw-cursor { display: none; }
+.pg-opts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
+.pg-opts .btn { margin-top: 0; }
 .draw-cursor[hidden] { display: none; }
 .draw-secret { position: absolute; left: 12px; right: 12px; top: 12px; margin: 0; background: rgba(43,27,51,.82); color: #fff; border-radius: 16px; padding: 10px 14px; font-size: 15px; text-align: center; }
 .draw-secret b { color: #ffd166; font-size: 22px; display: block; margin: 4px 0 2px; letter-spacing: 1px; }
@@ -935,3 +938,4 @@ body.booting::before {
 .draw-size { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 18px; }
 .draw-size input { width: 60%; }
 .draw-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.draw-btns .btn.on { background: #ff4f8b; color: #fff; border-color: #ff4f8b; }

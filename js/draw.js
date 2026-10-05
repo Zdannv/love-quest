@@ -1,13 +1,10 @@
-// Gambar Udara: gambar pakai jari di depan kamera (deteksi tangan MediaPipe), coretannya live di HP pasangan.
-// Telunjuk diangkat = gambar, jari dikepal / dua jari / dicubit = berhenti. Bisa juga gambar pakai sentuhan layar.
-// Yang dikirim ke pasangan cuma titik-titik coretan (bukan video), lewat room Main Berdua.
+// Tebak Gambar: gantian gambar pakai jari di layar, pasangan nebak katanya.
+// Versi ini TANPA kamera / deteksi tangan — murni coret-coret di layar. Yang dikirim ke pasangan
+// cuma titik-titik coretan (bukan video), lewat room Main Berdua.
 import { on as onNet, send as sendNet, peer as peerNet, me as meNet, inviteGame } from './online.js';
 import { seeded } from './online-games.js';
 
 const $ = (s) => document.querySelector(s);
-const MP_VER = '0.10.14';
-const MP_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}`;
-const MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
 const COLORS = ['#ff4f8b', '#8a5cff', '#22b8a7', '#ffb020', '#2b1b33', '#ffffff'];
 const WORDS = ['kucing', 'rumah', 'matahari', 'bunga', 'hati', 'ikan', 'pohon', 'mobil', 'bintang', 'bulan', 'kue', 'payung',
   'pelangi', 'balon', 'es krim', 'kupu-kupu', 'gunung', 'apel', 'topi', 'kacamata', 'burung', 'kado', 'cincin', 'kopi',
@@ -18,17 +15,15 @@ const WORDS = ['kucing', 'rumah', 'matahari', 'bunga', 'hati', 'ikan', 'pohon', 
 const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
 
 export function initDraw({ sfx, toast, onClose }) {
-  const screen = $('#screen-draw');
-  const video = $('#draw-video');
   const canvas = $('#draw-canvas');
   const ctx = canvas.getContext('2d');
-  const cursor = $('#draw-cursor');
-  let color = COLORS[0], size = 6, sync = false, camOn = true, running = false;
-  let stream = null, landmarker = null, raf = 0, lastDetect = 0;
-  let pen = { down: false, id: 0, x: 0, y: 0, sx: null, sy: null };
-  let outbox = [], flushT = 0;
-  let game = null; // mode Tebak Gambar: { words, r, ok, drawer, left, timer }
-  const iDraw = () => !game || game.drawer === meNet().role; // pas Tebak Gambar, yang nebak nggak boleh nyoret
+  let color = COLORS[0], size = 6, sync = false, running = false;
+  let pen = { down: false, id: 0 };
+  let eraserMode = false, touchDown = false;
+  let outbox = [], flushT = 0, eraseOut = [], eraseT = 0;
+  let game = null; // mode Tebak Gambar: { pool, r, ok, drawer, phase, answer, mask, left, timer }
+  const iDraw = () => !game || game.drawer === meNet().role; // yang nebak nggak boleh nyoret
+  const canDraw = () => iDraw() && (!game || game.phase === 'draw'); // nggak bisa nyoret pas lagi milih kata
   const strokes = []; // semua coretan (punya kita & pasangan), buat digambar ulang pas ukuran berubah
 
   // ---------- Kanvas ----------
@@ -63,10 +58,33 @@ export function initDraw({ sfx, toast, onClose }) {
     if (local && sync) sendNet('draw-clear', {});
   }
 
-  // ---------- Pena (dipakai tangan & sentuhan) ----------
+  // ---------- Penghapus sebagian: hapus coretan di sekitar jari, bukan semua ----------
+  function eraseAt(x, y, broadcast = true) {
+    const r = canvas.getBoundingClientRect();
+    const rad = r.width * 0.09; // seukuran ujung jari
+    let changed = false, n = 0;
+    const next = [];
+    for (const s of strokes) {
+      let run = [];
+      const push = () => { if (run.length > 1) next.push({ key: `${s.key}~${n++}`, c: s.c, w: s.w, pts: run }); };
+      for (const p of s.pts) {
+        const dx = (p[0] - x) * r.width, dy = (p[1] - y) * r.height;
+        if (Math.hypot(dx, dy) <= rad) { changed = true; push(); run = []; }
+        else run.push(p);
+      }
+      if (run.length === s.pts.length) next.push(s); // nggak kesentuh
+      else push();
+    }
+    if (changed) { strokes.length = 0; strokes.push(...next); redraw(); }
+    if (broadcast && sync) { eraseOut.push([+x.toFixed(4), +y.toFixed(4)]); if (!eraseT) eraseT = setTimeout(flushErase, 60); }
+  }
+  function flushErase() { clearTimeout(eraseT); eraseT = 0; if (eraseOut.length && sync) sendNet('draw-erase', { pts: eraseOut }); eraseOut = []; }
+  onNet('draw-erase', (d) => { if (sync) for (const q of d.pts || []) eraseAt(q[0], q[1], false); });
+
+  // ---------- Pena ----------
   const myKey = () => `${meNet().id}-${pen.id}`;
   function penDown(x, y) {
-    if (!iDraw()) return;
+    if (!canDraw()) return;
     pen.down = true; pen.id++;
     addPoint(myKey(), color, size, [x, y]);
     queue([x, y], true);
@@ -97,91 +115,12 @@ export function initDraw({ sfx, toast, onClose }) {
   });
   onNet('draw-clear', () => { if (sync) { strokes.length = 0; redraw(); toast(`${peerNet()?.name || 'Pasangan'} ngehapus kanvas 🧽`); } });
 
-  // ---------- Sentuhan layar (cadangan kalau kamera nggak ada) ----------
+  // ---------- Sentuhan layar ----------
   const rel = (e) => { const r = canvas.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
-  canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); canvas.setPointerCapture(e.pointerId); penDown(...rel(e)); });
-  canvas.addEventListener('pointermove', (e) => { if (pen.down && !handActive) penMove(...rel(e)); });
-  canvas.addEventListener('pointerup', () => { if (!handActive) penUp(); });
-  canvas.addEventListener('pointercancel', () => { if (!handActive) penUp(); });
-
-  // ---------- Kamera + deteksi tangan ----------
-  let handActive = false;
-  async function loadLandmarker() {
-    if (landmarker) return landmarker;
-    const { FilesetResolver, HandLandmarker } = await import(`${MP_URL}/vision_bundle.mjs`);
-    const files = await FilesetResolver.forVisionTasks(`${MP_URL}/wasm`);
-    const opts = (delegate) => ({ baseOptions: { modelAssetPath: MODEL, delegate }, runningMode: 'VIDEO', numHands: 1 });
-    try { landmarker = await HandLandmarker.createFromOptions(files, opts('GPU')); }
-    catch { landmarker = await HandLandmarker.createFromOptions(files, opts('CPU')); }
-    return landmarker;
-  }
-  async function startCamera() {
-    setStatus('Nyalain kamera…');
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
-      video.srcObject = stream;
-      await video.play();
-    } catch {
-      setStatus('Kamera nggak bisa dibuka. Gambar pakai jari di layar aja yaa ✍️');
-      return;
-    }
-    try {
-      setStatus('Nyiapin deteksi tangan…');
-      await loadLandmarker();
-      setStatus('Angkat telunjuk buat gambar ☝️ · kepal / dua jari buat berhenti');
-      loop();
-    } catch {
-      setStatus('Deteksi tangan gagal dimuat. Gambar pakai jari di layar aja yaa ✍️');
-    }
-  }
-  function stopCamera() {
-    cancelAnimationFrame(raf);
-    stream?.getTracks().forEach((t) => t.stop());
-    stream = null;
-    video.srcObject = null;
-  }
-  function setStatus(t) { $('#draw-status').textContent = t; }
-
-  // Telunjuk lurus & jari tengah ditekuk = gambar
-  function gesture(lm) {
-    const up = (tip, pip) => lm[tip].y < lm[pip].y - 0.02;
-    const index = up(8, 6), middle = up(12, 10), ring = up(16, 14);
-    const pinch = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y) < 0.05;
-    return index && !middle && !ring && !pinch;
-  }
-  function loop() {
-    raf = requestAnimationFrame(loop);
-    if (!running || !landmarker || video.readyState < 2) return;
-    const now = performance.now();
-    if (now - lastDetect < 45) return; // ±20 kali per detik, biar HP nggak panas
-    lastDetect = now;
-    let res;
-    try { res = landmarker.detectForVideo(video, now); } catch { return; }
-    const lm = res?.landmarks?.[0];
-    if (!lm) {
-      handActive = false;
-      cursor.hidden = true;
-      if (pen.down) penUp();
-      pen.sx = null;
-      return;
-    }
-    handActive = true;
-    // Kamera depan ditampilin kayak cermin → x dibalik
-    let x = 1 - lm[8].x, y = lm[8].y;
-    // Haluskan gerakan biar garisnya nggak goyang
-    if (pen.sx == null) { pen.sx = x; pen.sy = y; }
-    pen.sx += (x - pen.sx) * 0.55; pen.sy += (y - pen.sy) * 0.55;
-    x = pen.sx; y = pen.sy;
-    const drawing = gesture(lm) && iDraw();
-    const r = canvas.getBoundingClientRect();
-    cursor.hidden = false;
-    cursor.style.transform = `translate(${x * r.width}px, ${y * r.height}px)`;
-    cursor.classList.toggle('on', drawing);
-    cursor.style.setProperty('--c', color);
-    if (drawing && !pen.down) penDown(x, y);
-    else if (drawing) penMove(x, y);
-    else if (pen.down) penUp();
-  }
+  canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); try { canvas.setPointerCapture(e.pointerId); } catch {} touchDown = true; if (eraserMode) { if (canDraw()) eraseAt(...rel(e)); } else penDown(...rel(e)); });
+  canvas.addEventListener('pointermove', (e) => { if (!touchDown) return; if (eraserMode) { if (canDraw()) eraseAt(...rel(e)); } else if (pen.down) penMove(...rel(e)); });
+  canvas.addEventListener('pointerup', () => { touchDown = false; if (!eraserMode) penUp(); flushErase(); });
+  canvas.addEventListener('pointercancel', () => { touchDown = false; if (!eraserMode) penUp(); });
 
   // ---------- Toolbar ----------
   $('#draw-colors').innerHTML = COLORS.map((c, i) => `<button type="button" class="draw-color ${i === 0 ? 'on' : ''}" data-color="${c}" style="--c:${c}" aria-label="Warna"></button>`).join('');
@@ -193,45 +132,13 @@ export function initDraw({ sfx, toast, onClose }) {
     document.querySelectorAll('.draw-color').forEach((x) => x.classList.toggle('on', x === b));
   });
   $('#draw-size').addEventListener('input', (e) => { size = +e.target.value; });
-  $('#draw-clear').addEventListener('click', () => { sfx('pop'); clearAll(); });
-  $('#draw-cam').addEventListener('click', () => {
+  $('#draw-mode').addEventListener('click', () => {
     sfx('click');
-    camOn = !camOn;
-    screen.classList.toggle('cam-off', !camOn);
-    $('#draw-cam').textContent = camOn ? '🙈 Sembunyiin muka' : '📷 Tampilin muka';
+    eraserMode = !eraserMode;
+    $('#draw-mode').textContent = eraserMode ? '✏️ Pena' : '🩹 Hapus';
+    $('#draw-mode').classList.toggle('on', eraserMode);
   });
-  $('#draw-save').addEventListener('click', savePhoto);
-
-  // Simpan foto: muka (kalau kamera nyala) + coretan, jadi satu gambar
-  async function savePhoto() {
-    sfx('click');
-    const r = canvas.getBoundingClientRect();
-    const out = document.createElement('canvas');
-    out.width = Math.round(r.width * 2); out.height = Math.round(r.height * 2);
-    const o = out.getContext('2d');
-    o.fillStyle = '#fff4f8'; o.fillRect(0, 0, out.width, out.height);
-    if (camOn && video.videoWidth) {
-      // sama kayak tampilan: video dipotong pas kotak (cover) & dicerminin
-      const vr = video.videoWidth / video.videoHeight, cr = out.width / out.height;
-      const sw = vr > cr ? video.videoHeight * cr : video.videoWidth, sh = vr > cr ? video.videoHeight : video.videoWidth / cr;
-      o.save(); o.translate(out.width, 0); o.scale(-1, 1);
-      o.drawImage(video, (video.videoWidth - sw) / 2, (video.videoHeight - sh) / 2, sw, sh, 0, 0, out.width, out.height);
-      o.restore();
-    }
-    o.drawImage(canvas, 0, 0, out.width, out.height);
-    o.font = `600 ${Math.round(out.width * 0.035)}px Fredoka, sans-serif`;
-    o.fillStyle = 'rgba(255,255,255,.85)';
-    o.fillText('Gambar Udara 💞', out.width * 0.04, out.height - out.width * 0.04);
-    const blob = await new Promise((res) => out.toBlob(res, 'image/png'));
-    const file = new File([blob], `gambar-udara-${Date.now()}.png`, { type: 'image/png' });
-    if (navigator.canShare?.({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: 'Gambar Udara' }); return; } catch {}
-    }
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast('Fotonya kesimpen 📸');
-  }
+  $('#draw-clear').addEventListener('click', () => { sfx('pop'); clearAll(); });
 
   // ---------- Mode Tebak Gambar: gantian gambar, pasangan nebak ----------
   // Urutan kata sama di dua HP (seed dari ajakan). HP yang lagi gambar jadi patokan waktu & yang nentuin bener/salah.
@@ -240,51 +147,72 @@ export function initDraw({ sfx, toast, onClose }) {
   const banner = $('#draw-secret');
   const roleOf = (r) => (r % 2 === 0 ? 'pasangan' : 'pengirim');
   const blanks = (w) => w.split('').map((ch) => (ch === ' ' ? '&nbsp;&nbsp;' : ch === '-' ? '-' : '_')).join(' ');
+  const PICK = 3; // berapa pilihan kata tiap ronde
+  const optsFor = (r) => game.pool.slice(r * PICK, r * PICK + PICK);
   function startGame(seed) {
     const rng = seeded(seed);
-    const words = [...WORDS];
-    for (let i = words.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [words[i], words[j]] = [words[j], words[i]]; }
-    game = { words: words.slice(0, ROUNDS), r: 0, ok: 0 };
+    const pool = [...WORDS];
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    game = { pool, r: 0, ok: 0 };
     startRound();
   }
   function startRound() {
-    clearInterval(game.timer);
-    strokes.length = 0;
-    redraw();
-    penUp();
+    clearInterval(game.timer); game.timer = 0;
+    strokes.length = 0; redraw(); penUp();
     game.drawer = roleOf(game.r);
-    game.left = ROUND_TIME;
-    const mine = iDraw();
-    guessBox.hidden = mine;
-    guessBox.querySelector('input').value = '';
+    game.phase = 'pick'; // milih kata dulu, baru gambar
+    game.answer = null; game.mask = null; game.left = ROUND_TIME;
+    guessBox.hidden = true;
     banner.hidden = false;
     renderBanner();
     $('#draw-who').textContent = `🎨 Ronde ${game.r + 1}/${ROUNDS} · ✅ ${game.ok}`;
     sfx('go');
-    if (!mine) toast(`${peerNet()?.name || 'Pasangan'} lagi gambar, tebak yaa! 🤔`);
+    if (!iDraw()) toast(`${peerNet()?.name || 'Pasangan'} lagi milih kata 🤔`);
+  }
+  function startTimer() {
+    clearInterval(game.timer);
     game.timer = setInterval(() => {
-      if (!game) return;
+      if (!game || game.phase !== 'draw') return;
       game.left = Math.max(0, game.left - 1);
       renderBanner();
       if (game.left === 0 && iDraw()) finishRound(false);
     }, 1000);
   }
+  function pickWord(i) {
+    if (!game || game.phase !== 'pick' || !iDraw()) return;
+    const w = optsFor(game.r)[i];
+    if (!w) return;
+    sfx('click');
+    game.answer = w;
+    game.mask = w.replace(/[^\s-]/g, '*'); // cuma kerangka kata, hurufnya nggak ikut dikirim
+    game.phase = 'draw';
+    sendNet('pg-pick', { r: game.r, mask: game.mask });
+    renderBanner(); startTimer();
+  }
   function renderBanner() {
-    const w = game.words[game.r];
-    banner.innerHTML = iDraw()
-      ? `Giliran kamu gambar 🤫 <b>${w}</b><small>⏱ ${game.left} detik · jangan tulis hurufnya yaa</small><button class="link-btn" type="button" data-pg-skip>lewati kata ini</button>`
-      : `Tebak gambar ${peerNet()?.name || 'pasangan'}! <b>${blanks(w)}</b><small>${w.replace(/[^a-z]/gi, '').length} huruf · ⏱ ${game.left} detik</small>`;
+    const mine = iDraw();
+    if (game.phase === 'pick') {
+      banner.innerHTML = mine
+        ? `Pilih yang mau kamu gambar 🎨<div class="pg-opts">${optsFor(game.r).map((w, i) => `<button class="btn small-btn" type="button" data-pg-pick="${i}">${w}</button>`).join('')}</div>`
+        : `Tebak gambar ${peerNet()?.name || 'pasangan'}! <small>⏳ lagi milih kata buat digambar…</small>`;
+      return;
+    }
+    const letters = (mine ? game.answer : game.mask || '').replace(/[^a-z*]/gi, '').length;
+    banner.innerHTML = mine
+      ? `Giliran kamu gambar 🤫 <b>${game.answer}</b><small>⏱ ${game.left} detik · gambar pakai jari, jangan tulis hurufnya yaa</small><button class="link-btn" type="button" data-pg-skip>lewati kata ini</button>`
+      : `Tebak gambar ${peerNet()?.name || 'pasangan'}! <b>${blanks(game.mask || '')}</b><small>${letters} huruf · ⏱ ${game.left} detik</small>`;
   }
   function finishRound(ok) { // cuma dipanggil di HP yang lagi gambar
     if (!game) return;
     const r = game.r;
-    sendNet('pg-next', { r, ok });
-    applyNext(r, ok);
+    sendNet('pg-next', { r, ok, w: game.answer });
+    applyNext(r, ok, game.answer);
   }
-  function applyNext(r, ok) {
+  function applyNext(r, ok, w) {
     if (!game || r !== game.r) return;
-    clearInterval(game.timer);
-    const w = game.words[r];
+    clearInterval(game.timer); game.timer = 0;
+    game.phase = 'done';
+    w = w || game.answer || '';
     if (ok) { game.ok++; sfx('win'); toast(`Bener! Jawabannya "${w}" 🎉`); }
     else { sfx('lose'); toast(`Jawabannya "${w}" 😆`); }
     game.r++;
@@ -305,7 +233,9 @@ export function initDraw({ sfx, toast, onClose }) {
     $('#draw-who').textContent = `💞 Bareng ${peerNet()?.name || ''}`;
   }
   banner.addEventListener('click', (e) => {
-    if (e.target.closest('[data-pg-skip]') && game && iDraw()) { sfx('click'); finishRound(false); }
+    const pick = e.target.closest('[data-pg-pick]');
+    if (pick) { pickWord(+pick.dataset.pgPick); return; }
+    if (e.target.closest('[data-pg-skip]') && game && iDraw() && game.phase === 'draw') { sfx('click'); finishRound(false); }
     if (e.target.closest('[data-pg-again]')) { sfx('click'); inviteGame('pictio'); }
   });
   guessBox.addEventListener('submit', (e) => {
@@ -316,28 +246,36 @@ export function initDraw({ sfx, toast, onClose }) {
     guessBox.querySelector('input').value = '';
   });
   onNet('draw-guess', (d) => {
-    if (!sync || !game || !iDraw() || d.r !== game.r) return;
-    if (norm(d.g) === norm(game.words[game.r])) finishRound(true);
+    if (!sync || !game || !iDraw() || game.phase !== 'draw' || d.r !== game.r) return;
+    if (norm(d.g) === norm(game.answer)) finishRound(true);
     else { sendNet('pg-wrong', { g: d.g }); toast(`${peerNet()?.name || 'Pasangan'} nebak "${d.g}"… salah 😆`); }
   });
   onNet('pg-wrong', (d) => { if (sync) { sfx('bad'); toast(`"${d.g}" salah, coba lagi 🤭`); } });
-  onNet('pg-next', (d) => { if (sync) applyNext(d.r, d.ok); });
+  onNet('pg-pick', (d) => {
+    if (!sync || !game || iDraw() || d.r !== game.r) return;
+    game.mask = d.mask; game.phase = 'draw'; game.left = ROUND_TIME;
+    guessBox.hidden = false;
+    renderBanner(); startTimer();
+  });
+  onNet('pg-next', (d) => { if (sync) applyNext(d.r, d.ok, d.w); });
 
   // ---------- Buka / tutup ----------
   window.addEventListener('resize', () => { if (running) fit(); });
   return {
-    async open(withPartner, seed = null) {
+    open(withPartner, seed = null) {
       sync = !!withPartner && !!peerNet();
       running = true;
       if (game) clearInterval(game.timer);
       game = null;
       banner.hidden = true;
       guessBox.hidden = true;
-      $('#draw-who').textContent = sync ? `💞 Bareng ${peerNet().name}` : '✍️ Gambar Udara';
+      eraserMode = false;
+      $('#draw-mode').textContent = '🩹 Hapus';
+      $('#draw-mode').classList.remove('on');
+      $('#draw-who').textContent = sync ? `💞 Bareng ${peerNet().name}` : '🎨 Tebak Gambar';
+      setStatus('Gambar pakai jari di layar ✍️');
       requestAnimationFrame(fit);
       if (seed != null && sync) requestAnimationFrame(() => startGame(seed));
-      if (!stream) await startCamera();
-      else loop();
     },
     close() {
       running = false;
@@ -345,8 +283,9 @@ export function initDraw({ sfx, toast, onClose }) {
       if (game) clearInterval(game.timer);
       game = null;
       penUp();
-      stopCamera();
       onClose?.();
     },
   };
+
+  function setStatus(t) { const el = $('#draw-status'); if (el) el.textContent = t; }
 }

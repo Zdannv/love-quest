@@ -1,5 +1,5 @@
 // Contoh "versi jadi" buat halaman depan: pasangan fiktif yang sudah di-custom lengkap.
-// Dibuka lewat /?lihat=<id>. Semuanya lokal (tanpa database). Foto contoh: gambar AI berlisensi gratis (Freepik).
+// Dibuka lewat /?lihat=<id>. Semuanya lokal (tanpa database). Foto contoh: gambar AI (dibuat sendiri).
 const IMG = '/img/contoh/';
 
 export const SHOWCASES = {
