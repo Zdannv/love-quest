@@ -1074,3 +1074,17 @@ img.fx { display: inline-block; width: 1.18em; height: 1.18em; vertical-align: -
 .pet-grid button b { font-size: 15px; }
 .pet-grid button.on { border-color: #ff6f9f; background: #fff0f6; }
 .pet-grid button:active { transform: translateY(3px); box-shadow: 0 1px 0 #f3c3d8; }
+
+/* Peliharaan 3D */
+.pet-3d-slot { position: absolute; inset: 0; z-index: 2; }
+.pet-3d-slot .pet3d { position: absolute; inset: 0; opacity: 0; transition: opacity .35s; }
+.pet-3d-slot.on .pet3d { opacity: 1; }
+.pet-3d-slot .pet3d canvas { display: block; width: 100%; height: 100%; }
+.pet-3d-slot.on .pet-fallback { display: none; }
+.pet-outfit3d, .pet-zzz { position: absolute; left: 0; top: 0; z-index: 3; font-size: 46px; line-height: 1; pointer-events: none; will-change: transform; }
+.pet-zzz { font-size: 34px; animation: petZzz 2s ease-in-out infinite; }
+@keyframes petZzz { 50% { opacity: .5; } }
+.pet-grid .pet-thumb { width: 74px; height: 74px; object-fit: contain; }
+.pet-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pet-grid button { padding: 8px 4px 8px; }
+.pet-grid button b { font-size: 13px; }

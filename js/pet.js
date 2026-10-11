@@ -6,6 +6,7 @@ import { CONFIG } from './config.js';
 import { whoAmI } from './profile.js';
 import { getNames } from './personal.js';
 import { esc } from './util.js';
+import { createPet3D } from './pet3d.js';
 
 const { url = '', anonKey = '' } = CONFIG.cloud || {};
 const SIM = CONFIG.demo || Boolean(CONFIG.showcase);
@@ -14,13 +15,16 @@ const FOODS = [
   { em: '🍎', name: 'Apel', h: 12 }, { em: '🍙', name: 'Onigiri', h: 20 },
   { em: '🍗', name: 'Ayam', h: 28 }, { em: '🍭', name: 'Permen', h: 8, f: 10 },
 ];
-// Pilihan hewan (ikon 3D). Anak ayam punya wujud bayi (🐣) di level 1.
+// Pilihan hewan: model 3D (img/pets/animal-<m>.glb, Kenney Cube Pets) + gambar kecil buat menu pilih (img/pets/thumb/<m>.webp)
 const ANIMALS = [
-  { k: 'ayam', em: '🐥', baby: '🐣', label: 'Anak Ayam', name: 'Mochi' }, { k: 'kucing', em: '🐱', label: 'Kucing', name: 'Oyen' },
-  { k: 'anjing', em: '🐶', label: 'Anjing', name: 'Choco' }, { k: 'kelinci', em: '🐰', label: 'Kelinci', name: 'Bunny' },
-  { k: 'hamster', em: '🐹', label: 'Hamster', name: 'Kiki' }, { k: 'panda', em: '🐼', label: 'Panda', name: 'Bambu' },
-  { k: 'pinguin', em: '🐧', label: 'Pinguin', name: 'Pingu' }, { k: 'rubah', em: '🦊', label: 'Rubah', name: 'Rubi' },
-  { k: 'koala', em: '🐨', label: 'Koala', name: 'Kolo' }, { k: 'unicorn', em: '🦄', label: 'Unicorn', name: 'Pelangi' },
+  { k: 'ayam', m: 'chick', em: '🐥', label: 'Anak Ayam', name: 'Mochi' }, { k: 'kucing', m: 'cat', em: '🐱', label: 'Kucing', name: 'Oyen' },
+  { k: 'anjing', m: 'dog', em: '🐶', label: 'Anjing', name: 'Choco' }, { k: 'kelinci', m: 'bunny', em: '🐰', label: 'Kelinci', name: 'Bunny' },
+  { k: 'panda', m: 'panda', em: '🐼', label: 'Panda', name: 'Bambu' }, { k: 'pinguin', m: 'penguin', em: '🐧', label: 'Pinguin', name: 'Pingu' },
+  { k: 'rubah', m: 'fox', em: '🦊', label: 'Rubah', name: 'Rubi' }, { k: 'koala', m: 'koala', em: '🐨', label: 'Koala', name: 'Kolo' },
+  { k: 'babi', m: 'pig', em: '🐷', label: 'Babi', name: 'Pinky' }, { k: 'harimau', m: 'tiger', em: '🐯', label: 'Harimau', name: 'Belang' },
+  { k: 'singa', m: 'lion', em: '🦁', label: 'Singa', name: 'Leo' }, { k: 'beruang', m: 'polar', em: '🐻', label: 'Beruang Kutub', name: 'Salju' },
+  { k: 'monyet', m: 'monkey', em: '🐵', label: 'Monyet', name: 'Momo' }, { k: 'gajah', m: 'elephant', em: '🐘', label: 'Gajah', name: 'Dumbo' },
+  { k: 'rusa', m: 'deer', em: '🦌', label: 'Rusa', name: 'Rudi' }, { k: 'landak', m: 'hog', em: '🦔', label: 'Landak', name: 'Duri' },
 ];
 const animalOf = (s) => ANIMALS.find((a) => a.k === s.kind);
 const OUTFITS = [{ lvl: 2, em: '🎀' }, { lvl: 3, em: '🧢' }, { lvl: 4, em: '🕶️' }, { lvl: 5, em: '🎩' }, { lvl: 7, em: '👑' }];
@@ -93,7 +97,7 @@ export function initPet({ sfx, toast }) {
     if (s.hunger < 30) return { em: '🍙', t: 'Laper… 🥺' };
     if (s.clean < 30) return { em: '🫧', t: 'Pengen mandi' };
     if (s.energy < 25) return { em: '💤', t: 'Ngantuk banget' };
-    if (s.fun < 30) return { em: '🎾', t: 'Bosen, ajak main dong' };
+    if (s.fun < 30) return { em: '⚽', t: 'Bosen, ajak main dong' };
     return { em: '💖', t: 'Seneng banget!' };
   }
 
@@ -105,13 +109,13 @@ export function initPet({ sfx, toast }) {
       <div class="pet-choose">
         <h2>${cur ? 'Ganti hewan peliharaan' : 'Pilih hewan peliharaan kalian'} 🐾</h2>
         <p>${cur ? 'Level & XP-nya tetap kebawa kok' : 'Nanti dirawat berdua, dikasih makan, dimandiin, diajak main 💞'}</p>
-        <div class="pet-grid">${ANIMALS.map((a) => `<button data-pick="${a.k}" class="${cur === a.k ? 'on' : ''}"><span>${a.em}</span><b>${a.label}</b></button>`).join('')}</div>
+        <div class="pet-grid">${ANIMALS.map((a) => `<button data-pick="${a.k}" class="${cur === a.k ? 'on' : ''}"><img class="pet-thumb" src="/img/pets/thumb/${a.m}.webp" alt=""><b>${a.label}</b></button>`).join('')}</div>
         ${cur ? '<button class="link-btn" data-pick="batal">batal</button>' : ''}
       </div>`;
   }
   function render() {
     if (!st) { root.innerHTML = '<p class="pet-load">Nyiapin peliharaan… 🐾</p>'; return; }
-    if (!st.kind || choosing) { renderChooser(); return; }
+    if (!st.kind || !animalOf(st) || choosing) { renderChooser(); return; }
     const s = st, lvl = levelOf(s.xp), m = mood(s), A = animalOf(s) || ANIMALS[0];
     const outfit = s.outfit && OUTFITS.find((o) => o.em === s.outfit && o.lvl <= lvl) ? s.outfit : null;
     const bar = (em, label, v) => `<div class="pet-stat"><span>${em}</span><div><small>${label}</small><i><b style="width:${Math.round(v)}%;--c:${v < 30 ? '#ff4d6d' : v < 60 ? '#ffb020' : '#2fbf71'}"></b></i></div></div>`;
@@ -125,18 +129,19 @@ export function initPet({ sfx, toast }) {
       </div>
       <div class="pet-room ${s.sleep ? 'night' : ''}" id="pet-room">
         <div class="pet-bubble">${m.em} ${m.t}</div>
-        <div class="pet-body ${s.sleep ? 'sleep' : ''}" style="--sz:${Math.min(1.35, 0.85 + lvl * 0.06)}">
-          <span class="pet-em">${lvl < 2 && A.baby ? A.baby : A.em}</span>
-          ${outfit ? `<span class="pet-outfit">${outfit}</span>` : ''}
+        <div class="pet-3d-slot" id="pet-3d-slot">
+          <div class="pet-body pet-fallback ${s.sleep ? 'sleep' : ''}" style="--sz:${Math.min(1.35, 0.85 + lvl * 0.06)}"><span class="pet-em">${A.em}</span></div>
         </div>
+        ${outfit ? `<span class="pet-outfit3d" id="pet-outfit">${outfit}</span>` : ''}
+        ${s.sleep ? '<span class="pet-zzz" id="pet-zzz">💤</span>' : ''}
         <div class="pet-floor"></div>
         <div class="pet-layer" id="pet-layer"></div>
       </div>
-      <div class="pet-stats">${bar('🍙', 'Kenyang', s.hunger)}${bar('🫧', 'Bersih', s.clean)}${bar('🎾', 'Senang', s.fun)}${bar('⚡', 'Energi', s.energy)}</div>
+      <div class="pet-stats">${bar('🍙', 'Kenyang', s.hunger)}${bar('🫧', 'Bersih', s.clean)}${bar('⚽', 'Senang', s.fun)}${bar('⚡', 'Energi', s.energy)}</div>
       <div class="pet-actions">
         <button data-pet="makan" ${s.sleep ? 'disabled' : ''}><span>🍙</span>Makan</button>
         <button data-pet="mandi" ${s.sleep ? 'disabled' : ''}><span>🛁</span>Mandi</button>
-        <button data-pet="main" ${s.sleep || s.energy < 10 ? 'disabled' : ''}><span>🎾</span>Main</button>
+        <button data-pet="main" ${s.sleep || s.energy < 10 ? 'disabled' : ''}><span>⚽</span>Main</button>
         <button data-pet="tidur"><span>${s.sleep ? '☀️' : '💤'}</span>${s.sleep ? 'Bangun' : 'Tidur'}</button>
       </div>
       <div class="pet-outfits">${OUTFITS.map((o) => `<button data-pet="outfit" data-v="${o.em}" class="${s.outfit === o.em ? 'on' : ''}" ${o.lvl > lvl ? `disabled title="Buka di level ${o.lvl}"` : ''}>${o.lvl > lvl ? '🔒' : o.em}<small>Lv${o.lvl}</small></button>`).join('')}</div>
@@ -145,6 +150,36 @@ export function initPet({ sfx, toast }) {
         ${last ? `<small>${esc(getNames()[last.w] || '')} ${ACT[last.a] || last.a} ${esc(s.name)} · ${ago(last.t)}</small>` : ''}
         ${local && !SIM ? '<small class="pet-local">📱 Sementara disimpen di HP ini</small>' : ''}
       </div>`;
+    mount3d(A, lvl, s.sleep);
+  }
+
+  // ---- Peliharaan 3D (kalau HP-nya nggak bisa 3D, tetap pakai ikon) ----
+  let p3 = null, p3fail = false, p3wait = null, follow = 0, sadT = 0;
+  async function ensure3d() {
+    if (p3 || p3fail) return p3;
+    p3wait ||= createPet3D().then((x) => { p3 = x; }).catch(() => { p3fail = true; });
+    await p3wait;
+    return p3;
+  }
+  async function mount3d(A, lvl, sleep) {
+    const slot = root.querySelector('#pet-3d-slot');
+    const P = await ensure3d();
+    if (!P || !slot || !root.contains(slot)) return;
+    slot.appendChild(P.el);
+    P.setSize(Math.min(1.35, 0.85 + lvl * 0.06));
+    P.setSleep(!!sleep);
+    P.load(A.m).then(() => slot.classList.add('on')).catch(() => slot.classList.remove('on'));
+    P.start();
+  }
+  // aksesoris & 💤 ngikutin kepala; sesekali sedih kalau lagi laper/kotor/bosen
+  function followLoop() {
+    follow = requestAnimationFrame(followLoop);
+    if (!p3) return;
+    const h = p3.headPos(); if (!h) return;
+    const o = root.querySelector('#pet-outfit'), z = root.querySelector('#pet-zzz');
+    if (o) o.style.transform = `translate(${h.x}px, ${h.y}px) translate(-50%, -78%)`;
+    if (z) z.style.transform = `translate(${h.x + 30}px, ${h.y - 30}px)`;
+    if (st && !st.sleep && !mode && (st.hunger < 30 || st.clean < 30 || st.fun < 30) && performance.now() - sadT > 9000) { sadT = performance.now(); p3.act('sad'); }
   }
 
   // ---- Mini: kasih makan (pilih makanan) ----
@@ -169,7 +204,7 @@ export function initPet({ sfx, toast }) {
       }
       lastPt = [x, y];
       prog.style.width = `${Math.min(100, rubbed / 14)}%`;
-      if (rubbed > 1400 && mode === 'bath') { mode = null; cleanup(); sfx('win'); act('mandi', (s) => { s.clean = 100; s.fun = clamp(s.fun + 5); s.xp += 10; return `${s.name} wangi & bersih! ✨ +10 XP`; }); }
+      if (rubbed > 1400 && mode === 'bath') { mode = null; cleanup(); sfx('win'); p3?.act('dance'); act('mandi', (s) => { s.clean = 100; s.fun = clamp(s.fun + 5); s.xp += 10; return `${s.name} wangi & bersih! ✨ +10 XP`; }); }
     };
     const down = (e) => { lastPt = null; room.setPointerCapture?.(e.pointerId); mv(e); };
     const up = () => { lastPt = null; };
@@ -179,8 +214,9 @@ export function initPet({ sfx, toast }) {
   // ---- Mini: main bola (tap bolanya, 12 detik) ----
   function play() {
     const room = root.querySelector('#pet-room'), layer = root.querySelector('#pet-layer');
-    layer.innerHTML = '<div class="pet-hint">Tap bolanya sebanyak-banyaknya! <b id="pet-score">0</b> · <span id="pet-time">12</span></div><button class="pet-ball" id="pet-ball">🎾</button>';
+    layer.innerHTML = '<div class="pet-hint">Tap bolanya sebanyak-banyaknya! <b id="pet-score">0</b> · <span id="pet-time">12</span></div><button class="pet-ball" id="pet-ball">⚽</button>';
     mode = 'play';
+    p3?.act('run');
     const ball = layer.querySelector('#pet-ball'), r = room.getBoundingClientRect();
     let x = r.width / 2, y = r.height / 3, vx = 160, vy = -120, score = 0, t0 = performance.now(), last = t0;
     ball.addEventListener('pointerdown', (e) => { e.preventDefault(); score++; sfx('pop'); vy = -260 - Math.random() * 120; vx = (Math.random() - 0.5) * 420; layer.querySelector('#pet-score').textContent = score; });
@@ -194,13 +230,20 @@ export function initPet({ sfx, toast }) {
       ball.style.transform = `translate(${x - 26}px, ${y - 26}px)`;
       const left = 12 - (now - t0) / 1000;
       layer.querySelector('#pet-time').textContent = Math.max(0, Math.ceil(left));
-      if (left <= 0) { mode = null; act('main', (s) => { s.fun = clamp(s.fun + 10 + score * 3); s.energy = clamp(s.energy - 8); s.xp += 4 + score; return `${s.name} seneng banget! Tap ${score}× 🎾 +${4 + score} XP`; }); return; }
+      if (left <= 0) { mode = null; p3?.act('dance'); act('main', (s) => { s.fun = clamp(s.fun + 10 + score * 3); s.energy = clamp(s.energy - 8); s.xp += 4 + score; return `${s.name} seneng banget! Tap ${score}× ⚽ +${4 + score} XP`; }); return; }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
   }
   let cleanup = () => {};
 
+  root.addEventListener('pointerdown', (e) => {
+    if (mode || !p3 || !st || st.sleep || !e.target.closest('#pet-room') || e.target.closest('button')) return;
+    if (!p3.hit(e.clientX, e.clientY)) return;
+    p3.act('happy'); sfx('pop');
+    const room = root.querySelector('#pet-room'), r = room.getBoundingClientRect();
+    for (let i = 0; i < 3; i++) { const b = document.createElement('span'); b.className = 'pet-bub'; b.textContent = '💖'; b.style.left = `${e.clientX - r.left + (Math.random() - 0.5) * 50}px`; b.style.top = `${e.clientY - r.top - 20 - Math.random() * 30}px`; room.append(b); setTimeout(() => b.remove(), 1200); }
+  });
   root.addEventListener('click', (e) => {
     const pick = e.target.closest('[data-pick]');
     if (pick) {
@@ -217,6 +260,7 @@ export function initPet({ sfx, toast }) {
       if (f.dataset.food === 'x') { render(); return; }
       const food = FOODS[+f.dataset.food];
       sfx('good');
+      if (st && st.hunger < 96) p3?.act('eat');
       act('makan', (s) => { if (s.hunger >= 96) { toast(`${s.name} udah kenyang 😋`); return false; } s.hunger = clamp(s.hunger + food.h); if (food.f) s.fun = clamp(s.fun + food.f); s.xp += 6; return `${s.name} makan ${food.em} nyam nyam! +6 XP`; });
       return;
     }
@@ -239,11 +283,13 @@ export function initPet({ sfx, toast }) {
 
   return {
     async open() {
+      ensure3d();
+      cancelAnimationFrame(follow); followLoop();
       st = null; render();
       st = await load(); render();
       clearInterval(poll);
       poll = setInterval(async () => { if (mode || busy || choosing || document.hidden) return; st = await load(); render(); }, 20000);
     },
-    close() { clearInterval(poll); mode = null; cleanup(); cancelAnimationFrame(raf); },
+    close() { clearInterval(poll); mode = null; cleanup(); cancelAnimationFrame(raf); cancelAnimationFrame(follow); p3?.stop(); },
   };
 }

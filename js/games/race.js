@@ -251,6 +251,7 @@ export function startRace(stage, p, api) {
     race?.tick({ z: player.z, x: player.x, done, tm: elapsed });
     draw();
   }
+  if (window.__lqTest) window.__race = { get cars() { return cars; }, player };
   raf = requestAnimationFrame(loop);
 
   function end(win) {
