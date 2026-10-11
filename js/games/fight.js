@@ -1,5 +1,7 @@
 // Gelut Sayang: duel ala Shadow Fight versi lucu. Badan siluet, kepalanya foto muka kalian.
-// Kontrol: ◀ ▶ jalan · 👊 pukul · 🦶 tendang · 🛡️ tahan buat tangkis · 💖 jurus (kalau bar jurus penuh).
+// Kontrol: ◀ ▶ jalan · ⬆️ lompat · 👊 pukul · 🦶 tendang · 🛡️ tahan buat tangkis · 💖 jurus (kalau bar jurus penuh).
+// Lompat bisa ngehindarin pukulan & jurus, bisa lompatin lawan, dan nendang dari udara.
+// Badan nggak bisa saling tembus: yang jalan nabrak lawan cuma berhenti (nggak dorong-dorongan).
 // Sendiri (p.endless): lawan bot yang makin jago tiap ronde, skor = jumlah menang beruntun.
 // Berdua (p.duel): tiap HP ngatur petarungnya sendiri; serangan yang kena dikirim ke HP lawan,
 // HP lawan yang ngitung darahnya sendiri (biar tangkisan tetap kehitung).
@@ -8,14 +10,15 @@ import { drawToon, toonLoad } from '../toon.js';
 
 const ARENA = 1000, FLOOR = 0.8;
 const MOVES = {
-  punch: { start: 0.07, end: 0.17, total: 0.3, range: 265, dmg: 6, kb: 70, meter: 9 },
-  kick: { start: 0.15, end: 0.27, total: 0.46, range: 305, dmg: 10, kb: 120, meter: 12 },
+  punch: { start: 0.07, end: 0.17, total: 0.3, range: 340, dmg: 6, kb: 70, meter: 9 },
+  kick: { start: 0.15, end: 0.27, total: 0.46, range: 380, dmg: 10, kb: 120, meter: 12 },
   special: { start: 0.18, end: 0.2, total: 0.5 },
 };
-const WALK = 300, ROUND_TIME = 60, MIN_GAP = 205;
+const WALK = 300, ROUND_TIME = 60, MIN_GAP = 270;
+const JUMP_V = 980, GRAV = 2900, JUMP_X = 430, AIR_SAFE = 95; // lompat: tinggi ±165, di udara ±0,68 dtk
 
 function fighter(x, dir, img, emoji, name, toon) {
-  return { x, dir, hp: 100, meter: 0, act: 'idle', t: 0, hitDone: false, kbV: 0, img, emoji, name, toon, walk: 0 };
+  return { x, y: 0, vy: 0, jx: 0, dir, hp: 100, meter: 0, act: 'idle', t: 0, hitDone: false, kbV: 0, img, emoji, name, toon, walk: 0 };
 }
 
 export function startFight(stage, p, api) {
@@ -31,9 +34,19 @@ export function startFight(stage, p, api) {
   const ctx = canvas.getContext('2d');
   const pad = document.createElement('div');
   pad.className = 'fight-pad';
-  pad.innerHTML = `<div class="fp-move"><button data-k="left" aria-label="Kiri">◀</button><button data-k="right" aria-label="Kanan">▶</button></div>
-    <div class="fp-act"><button data-k="block" data-label="Tangkis" aria-label="Tangkis">🛡️</button><button data-k="kick" data-label="Tendang" aria-label="Tendang">🦶</button><button data-k="punch" data-label="Pukul" aria-label="Pukul">👊</button><button data-k="special" data-label="Jurus" class="sp" aria-label="Jurus">💖</button></div>`;
+  pad.className = 'fight-pad fp2';
+  const chev = (d) => `<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  pad.innerHTML = `<div class="fp-move"><button data-k="left" class="b-dir" aria-label="Kiri">${chev('M15 5l-7 7 7 7')}</button><button data-k="right" class="b-dir" aria-label="Kanan">${chev('M9 5l7 7-7 7')}</button></div>
+    <div class="fp-act">
+      <button data-k="special" data-label="Jurus" class="b-sp sp" aria-label="Jurus"><span class="b-ring"></span><span class="b-ic">💖</span></button>
+      <button data-k="jump" data-label="Lompat" class="b-jump" aria-label="Lompat"><span class="b-ic">🦘</span></button>
+      <button data-k="block" data-label="Tangkis" class="b-block" aria-label="Tangkis"><span class="b-ic">🛡️</span></button>
+      <button data-k="kick" data-label="Tendang" class="b-kick" aria-label="Tendang"><span class="b-ic">🦶</span></button>
+      <button data-k="punch" data-label="Pukul" class="b-punch" aria-label="Pukul"><span class="b-ic">👊</span></button>
+    </div>`;
   wrap.appendChild(pad);
+  const spBtn = pad.querySelector('.sp');
+  let lastMeter = -1;
 
   let W = 0, H = 0, k = 1;
   function resize() {
@@ -61,6 +74,7 @@ export function startFight(stage, p, api) {
   // ---- Input ----
   function press(key, down) {
     if (key === 'left' || key === 'right' || key === 'block') { hold[key] = down; return; }
+    if (down && key === 'jump') { jump(me, (hold.right ? 1 : 0) - (hold.left ? 1 : 0)); return; }
     if (down) attack(me, key);
   }
   const btnOf = (e) => e.target.closest('[data-k]');
@@ -69,20 +83,28 @@ export function startFight(stage, p, api) {
   pad.addEventListener('pointerup', up);
   pad.addEventListener('pointercancel', up);
   pad.addEventListener('contextmenu', (e) => e.preventDefault());
-  const KEYMAP = { ArrowLeft: 'left', a: 'left', ArrowRight: 'right', d: 'right', j: 'punch', k: 'kick', l: 'block', ArrowDown: 'block', ' ': 'special' };
+  const KEYMAP = { ArrowLeft: 'left', a: 'left', ArrowRight: 'right', d: 'right', ArrowUp: 'jump', w: 'jump', j: 'punch', k: 'kick', l: 'block', ArrowDown: 'block', ' ': 'special' };
   const onKey = (e) => { const key = KEYMAP[e.key]; if (!key) return; e.preventDefault(); if (e.type === 'keydown' && e.repeat && !['left', 'right', 'block'].includes(key)) return; press(key, e.type === 'keydown'); };
   window.addEventListener('keydown', onKey);
   window.addEventListener('keyup', onKey);
   window.addEventListener('resize', resize);
 
   const busy = (f) => ['punch', 'kick', 'special', 'hurt', 'ko', 'win'].includes(f.act);
+  const air = (f) => f.y > 0 || f.vy > 0;
+  function jump(f, dirX) {
+    if (state !== 'fight' || air(f) || busy(f)) return;
+    if (f.act === 'block') setAct(f, 'idle');
+    f.vy = JUMP_V; f.jx = dirX * JUMP_X;
+    if (f === me) { api.sfx('flip'); sendState(true); }
+  }
   function setAct(f, act) { f.act = act; f.t = 0; f.hitDone = false; }
   function attack(f, move) {
     if (state !== 'fight' || busy(f)) return;
     if (move === 'special') {
-      if (f.meter < 100) { if (f === me) api.sfx('bad'); return; }
+      if (f.meter < 100 || air(f)) { if (f === me) api.sfx('bad'); return; }
       f.meter = 0;
     }
+    if (air(f) && move === 'punch') move = 'kick'; // di udara: semua jadi tendangan terbang
     setAct(f, move);
     if (f === me) { api.sfx(move === 'special' ? 'gold' : 'flip'); sendState(true); }
   }
@@ -93,6 +115,7 @@ export function startFight(stage, p, api) {
     const real = blocking ? Math.max(1, Math.round(dmg * 0.2)) : dmg;
     f.hp = Math.max(0, f.hp - real);
     f.kbV = fromDir * (blocking ? kb * 0.5 : kb) * 3;
+    if (f.y > 0) { f.jx = 0; f.vy = Math.min(f.vy, 0); } // ditendang di udara: langsung jatuh
     f.meter = Math.min(100, f.meter + real * 0.8);
     if (!blocking) setAct(f, f.hp <= 0 ? 'ko' : 'hurt');
     sparks.push({ x: f.x - fromDir * 20, y: 0.55, em: blocking ? '🛡️' : real >= 15 ? '💥' : '💢', life: 0.5 });
@@ -104,6 +127,8 @@ export function startFight(stage, p, api) {
     const m = MOVES[move];
     const dist = (def.x - att.x) * att.dir;
     if (dist < -20 || dist > m.range) return;
+    // tinggi: serangan dari tanah nggak kena lawan yang lagi lompat; tendangan terbang kena yang di bawahnya
+    if (air(att) ? def.y > att.y + 60 : def.y > AIR_SAFE) return;
     att.hitDone = true;
     att.meter = Math.min(100, att.meter + m.meter);
     if (duel && att === me) { duel.send('fhit', { dmg: m.dmg, kb: m.kb, dir: att.dir }); sparks.push({ x: def.x - att.dir * 20, y: 0.55, em: '💢', life: 0.4 }); return; }
@@ -117,13 +142,18 @@ export function startFight(stage, p, api) {
     const lvl = Math.min(level, 8);
     opp.dir = me.x > opp.x ? 1 : -1;
     // nangkis kalau kita lagi ancang-ancang mukul
-    if ((me.act === 'punch' || me.act === 'kick') && me.t < 0.12 && dist < 330 && !busy(opp) && Math.random() < (0.12 + lvl * 0.07) * dt * 20) { setAct(opp, 'block'); ai.t = 0.35; }
+    if ((me.act === 'punch' || me.act === 'kick') && me.t < 0.12 && dist < 410 && !busy(opp) && Math.random() < (0.12 + lvl * 0.07) * dt * 20) { setAct(opp, 'block'); ai.t = 0.35; }
     if (opp.act === 'block' && ai.t <= 0) setAct(opp, 'idle');
-    if (ai.t > 0 || busy(opp)) return;
+    // lompatin jurus 💖 yang dateng
+    const inc = projs.find((pr) => pr.owner === 'me' && (opp.x - pr.x) * pr.dir > 0 && Math.abs(opp.x - pr.x) < 260);
+    if (inc && !air(opp) && !busy(opp) && Math.random() < (0.25 + lvl * 0.09) * dt * 15) jump(opp, 0);
+    if (ai.t > 0 || busy(opp) || air(opp)) { if (air(opp) && !busy(opp) && opp.vy < 0 && Math.abs(me.x - opp.x) < 280 && Math.random() < 0.08 + lvl * 0.02) attack(opp, 'kick'); return; }
     ai.t = Math.max(0.16, 0.55 - lvl * 0.05) * (0.7 + Math.random() * 0.6);
-    if (opp.meter >= 100 && dist > 340) { attack(opp, 'special'); return; }
-    if (dist > 285) { ai.want = opp.dir; return; }
-    if (dist < 225 && Math.random() < 0.3) { ai.want = -opp.dir; return; }
+    if (opp.meter >= 100 && dist > 410) { attack(opp, 'special'); return; }
+    const cornered = opp.x < 160 || opp.x > ARENA - 160;
+    if (lvl >= 1 && ((cornered && dist < 320) || (dist > 380 && dist < 500)) && Math.random() < 0.18 + lvl * 0.03) { jump(opp, opp.dir); return; }
+    if (dist > 360) { ai.want = opp.dir; return; }
+    if (dist < 295 && Math.random() < 0.3) { ai.want = -opp.dir; return; }
     ai.want = 0;
     attack(opp, Math.random() < 0.55 ? 'punch' : 'kick');
   }
@@ -134,12 +164,12 @@ export function startFight(stage, p, api) {
     const now = performance.now();
     if (!force && now - lastSent < 66) return;
     lastSent = now;
-    duel.send('fstate', { x: Math.round(me.x), dir: me.dir, act: me.act, at: +me.t.toFixed(2), hp: me.hp, m: Math.round(me.meter) });
+    duel.send('fstate', { x: Math.round(me.x), y: Math.round(me.y), dir: me.dir, act: me.act, at: +me.t.toFixed(2), hp: me.hp, m: Math.round(me.meter) });
   }
   const offs = [];
   if (duel) {
     offs.push(duel.on('fstate', (d) => {
-      opp.tx = d.x; opp.dir = d.dir; opp.hp = d.hp; opp.meter = d.m;
+      opp.tx = d.x; opp.ty = d.y || 0; opp.dir = d.dir; opp.hp = d.hp; opp.meter = d.m;
       if (d.act !== opp.act) { opp.act = d.act; opp.t = d.at; }
     }));
     offs.push(duel.on('fhit', (d) => { if (state === 'fight' && me.act !== 'ko') { applyHit(me, d.dmg, d.kb, d.dir); sendState(true); } }));
@@ -160,14 +190,17 @@ export function startFight(stage, p, api) {
       }
       if (f.t >= mv.total) setAct(f, 'idle');
     }
-    if (!busy(f) && f.act !== 'block') {
+    if (air(f)) { // lagi lompat: arah lompatan udah fix, gravitasi narik turun
+      f.vy -= GRAV * dt; f.y += f.vy * dt; f.x += f.jx * dt;
+      if (f.y <= 0) { f.y = 0; f.vy = 0; f.jx = 0; if (f.act === 'kick') setAct(f, 'idle'); }
+    } else if (!busy(f) && f.act !== 'block') {
       f.x += moveDir * WALK * dt;
       f.walk = moveDir ? f.walk + dt * 9 : 0;
       setActIf(f, moveDir ? 'walk' : 'idle');
     }
     f.x += f.kbV * dt;
     f.kbV *= Math.pow(0.002, dt);
-    f.x = Math.max(90, Math.min(ARENA - 90, f.x));
+    f.x = Math.max(115, Math.min(ARENA - 115, f.x));
   }
   const setActIf = (f, a) => { if (f.act !== a) { f.act = a; f.t = 0; } };
 
@@ -183,24 +216,23 @@ export function startFight(stage, p, api) {
       // kita
       if (me.act !== 'ko') {
         if (!busy(me)) {
-          if (hold.block) setActIf(me, 'block'); else if (me.act === 'block') setAct(me, 'idle');
+          if (hold.block && !air(me)) setActIf(me, 'block'); else if (me.act === 'block') setAct(me, 'idle');
           me.dir = opp.x > me.x ? 1 : -1;
         }
         step(me, dt, hold.block ? 0 : (hold.right ? 1 : 0) - (hold.left ? 1 : 0));
       } else me.t += dt;
       // lawan
       if (duel) {
-        if (opp.tx != null) opp.x += (opp.tx - opp.x) * Math.min(1, dt * 12);
+        if (opp.tx != null) { opp.x += (opp.tx - opp.x) * Math.min(1, dt * 12); opp.y += ((opp.ty || 0) - opp.y) * Math.min(1, dt * 16); opp.vy = 0; }
         opp.t += dt;
       } else if (opp.act !== 'ko') { botThink(dt); step(opp, dt, ai.want); } else opp.t += dt;
       // jangan nembus
-      const gap = opp.x - me.x;
-      if (Math.abs(gap) < MIN_GAP) { const push = (MIN_GAP - Math.abs(gap)) * (gap >= 0 ? -1 : 1); me.x += push; me.x = Math.max(90, Math.min(ARENA - 90, me.x)); }
+      separate();
       // proyektil 💖
       for (const pr of projs) {
         pr.x += pr.dir * 560 * dt; pr.life -= dt;
         const target = pr.owner === 'me' ? opp : me;
-        if (pr.life > 0 && Math.abs(pr.x - target.x) < 60) {
+        if (pr.life > 0 && Math.abs(pr.x - target.x) < 60 && target.y < 70) {
           pr.life = 0;
           if (duel) { if (pr.owner === 'me') duel.send('fhit', { dmg: 18, kb: 160, dir: pr.dir }); }
           else applyHit(target, 18, 160, pr.dir);
@@ -226,14 +258,28 @@ export function startFight(stage, p, api) {
       if (stateT > 1.4) { state = 'fight'; stateT = 0; }
     }
   }
+  // Badan nggak bisa tembus. Kalau dua-duanya di tanah & nempel, dipisah sama rata (yang jalan cuma ketahan,
+  // nggak ngedorong lawan). Yang lagi lompat boleh lewat di atas lawan; pas mendarat baru dipisah lagi.
+  function separate() {
+    if (air(me) || air(opp) || me.y > 0 || opp.y > 1) return;
+    const gap = opp.x - me.x, over = MIN_GAP - Math.abs(gap);
+    if (over <= 0) return;
+    const side = gap === 0 ? (me.dir || 1) : Math.sign(gap); // lawan ada di sebelah mana
+    const clamp = (v) => Math.max(115, Math.min(ARENA - 115, v));
+    if (duel) { me.x = clamp(me.x - side * over); return; } // HP lawan ngurus posisinya sendiri
+    let mx = clamp(me.x - side * over / 2), ox = clamp(opp.x + side * over / 2);
+    const left = MIN_GAP - Math.abs(ox - mx); // mentok tembok → sisanya ke yang satunya
+    if (left > 0) { if (mx === me.x - side * over / 2) mx = clamp(mx - side * left); else ox = clamp(ox + side * left); }
+    me.x = mx; opp.x = ox;
+  }
   let roundResult = null;
   function nextRound() {
     const { won, draw } = roundResult;
     if (p.endless && (won || draw)) {
       if (won) wins++;
       level++;
-      Object.assign(me, { hp: 100, x: 250, dir: 1, kbV: 0 }); setAct(me, 'idle');
-      Object.assign(opp, { hp: 100, x: 750, dir: -1, kbV: 0, meter: 0 }); setAct(opp, 'idle');
+      Object.assign(me, { hp: 100, x: 250, y: 0, vy: 0, jx: 0, dir: 1, kbV: 0 }); setAct(me, 'idle');
+      Object.assign(opp, { hp: 100, x: 750, y: 0, vy: 0, jx: 0, dir: -1, kbV: 0, meter: 0 }); setAct(opp, 'idle');
       projs = []; time = ROUND_TIME; state = 'intro'; stateT = 0;
       api.sfx('go');
       api.say(won ? `Menang! 💪 Lawan ke-${wins + 1} lebih jago, hati-hati {pasangan}!` : 'Seri! Lanjut ronde berikutnya 😤', 'happy');
@@ -245,6 +291,8 @@ export function startFight(stage, p, api) {
   // ---- Gambar ----
   function poseOf(f) {
     const mv = MOVES[f.act], ph = mv ? f.t / mv.start : 0;
+    if (f.y > 4 && f.act === 'kick') return 'kick';
+    if (f.y > 4 && !['hurt', 'ko', 'punch'].includes(f.act)) return 'jump';
     switch (f.act) {
       case 'walk': return `walk${Math.floor(f.walk) % 8}`;
       case 'punch': return ph < 1 ? 'attack1' : 'attack0';
@@ -258,8 +306,9 @@ export function startFight(stage, p, api) {
     }
   }
   function drawFighter(f) {
-    const fx = SX(f.x), fy = H * FLOOR, h = 205 * k;
-    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(fx, fy - 4 * k, 44 * k, 9 * k, 0, 0, Math.PI * 2); ctx.fill();
+    const fx = SX(f.x), ground = H * FLOOR, fy = ground - f.y * k, h = 205 * k;
+    const sh = Math.max(0.45, 1 - f.y / 260); // bayangan mengecil pas lompat
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(fx, ground - 4 * k, 44 * k * sh, 9 * k * sh, 0, 0, Math.PI * 2); ctx.fill();
     const bob = f.act === 'idle' ? Math.sin(performance.now() / 260) * 2 * k : 0;
     if (f.act === 'hurt' && Math.floor(f.t * 20) % 2) ctx.globalAlpha = 0.6;
     drawToon(ctx, f.toon, poseOf(f), fx, fy + bob + 8 * k, h, f.dir, f.img, f.emoji, f === me ? '#ff8fb7' : '#9fb4ff');
@@ -319,7 +368,8 @@ export function startFight(stage, p, api) {
     drawHud();
     if (state === 'intro') banner(p.endless ? `Ronde ${wins + 1}` : 'Siap…', p.endless && level ? `lawan makin jago 😤` : 'Gelut! 👊');
     if (state === 'over' && roundResult) banner(roundResult.draw ? 'Seri!' : me.hp <= 0 || !roundResult.won ? 'K.O. 😵' : 'Menang! 🏆');
-    pad.querySelector('.sp').classList.toggle('ready', me.meter >= 100);
+    spBtn.classList.toggle('ready', me.meter >= 100);
+    const mv = Math.round(me.meter); if (mv !== lastMeter) { spBtn.style.setProperty('--m', `${mv}%`); lastMeter = mv; }
     const s = p.endless ? `👊 Menang ${wins} · 🏆 ${Math.max(p.best || 0, wins)}` : `❤️ ${me.hp} · ${opp.name} ${opp.hp}`;
     if (s !== lastStats) { api.setStats(s); lastStats = s; }
   }
@@ -332,8 +382,9 @@ export function startFight(stage, p, api) {
     draw();
   }
   if (p.endless || !duel) { state = 'intro'; stateT = 0; }
+  if (window.__lqTest) window.__fight = { me, opp, press, get state() { return state; } };
   raf = requestAnimationFrame(loop);
-  api.say('◀ ▶ jalan · 👊 pukul · 🦶 tendang · 🛡️ tahan buat nangkis · 💖 jurus kalau bar kuning penuh', 'happy');
+  api.say('◀ ▶ jalan · 🦘 lompat (bisa ngehindar & lompatin lawan) · 👊 pukul · 🦶 tendang · 🛡️ tahan buat nangkis · 💖 jurus kalau lingkarannya penuh', 'happy');
 
   function end() {
     if (done) return;

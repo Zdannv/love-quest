@@ -4,12 +4,13 @@
 // Berdua (p.duel): tiap HP ngatur dirinya sendiri; HP yang kena lemparan yang mutusin "kena" (biar ngehindar terasa adil).
 import { drawEmoji, drawFace, loadImage } from '../util.js';
 
-const AW = 1000, AH = 1100, R = 62, PR = 30, SPEED = 430, PSPEED = 950, ROUND = 60, LIVES = 5;
+const AW = 1000, AH = 1100, R = 56, PR = 30, SPEED = 430, PSPEED = 950, ROUND = 60, LIVES = 5;
 // Rintangan simetris (diputar 180° tetap sama), biar dua HP bisa lihat dirinya di bawah
+// Perabot 3D dari atas (Kenney Furniture Kit, CC0: img/room/LICENSE.txt). Celah antar perabot dicek otomatis biar pasti bisa dilewatin.
 const BLOCKS = [
-  { x: 390, y: 470, w: 220, h: 160, em: '🛏️' },
-  { x: 110, y: 270, w: 200, h: 100, em: '🛋️' }, { x: 690, y: 730, w: 200, h: 100, em: '🛋️' },
-  { x: 690, y: 270, w: 200, h: 100, em: '🪴' }, { x: 110, y: 730, w: 200, h: 100, em: '🪴' },
+  { x: 410, y: 465, w: 180, h: 170, img: 'bed', em: '🛏️', rot: 0 },
+  { x: 120, y: 240, w: 150, h: 140, img: 'sofa', em: '🛋️', rot: 0 }, { x: 730, y: 720, w: 150, h: 140, img: 'sofa', em: '🛋️', rot: Math.PI },
+  { x: 760, y: 255, w: 120, h: 90, img: 'plant', em: '🪴', rot: 0 }, { x: 120, y: 755, w: 120, h: 90, img: 'plant', em: '🪴', rot: Math.PI },
 ];
 
 function player(x, y, img, emoji, name, ring) {
@@ -27,6 +28,7 @@ export function startPillow(stage, p, api) {
   canvas.className = 'catch-canvas';
   view.appendChild(canvas);
   const ctx = canvas.getContext('2d');
+  const ROOM = Object.fromEntries(['bed', 'sofa', 'plant', 'rug'].map((n) => [n, loadImage(`/img/room/${n}.webp`)]));
   const pad = document.createElement('div');
   pad.className = 'fight-pad pw-pad';
   pad.innerHTML = `<div class="pw-stick"><span></span></div><div class="fp-act"><button data-k="dash" data-label="Hindar" aria-label="Hindar">💨</button><button data-k="throw" data-label="Lempar" class="pw-throw" aria-label="Lempar">🛏️</button></div>`;
@@ -134,9 +136,19 @@ export function startPillow(stage, p, api) {
     const m = Math.hypot(mx, my); if (m > 1) { mx /= m; my /= m; }
     const vx = mx * sp + a.vx, vy = my * sp + a.vy;
     a.vx *= Math.pow(0.02, dt); a.vy *= Math.pow(0.02, dt);
-    const nx = Math.max(R, Math.min(AW - R, a.x + vx * dt)), ny = Math.max(R, Math.min(AH - R, a.y + vy * dt));
-    if (!blocked(nx, a.y, R)) a.x = nx;
-    if (!blocked(a.x, ny, R)) a.y = ny;
+    // badan bulat vs perabot: didorong keluar, jadi nyentuh pojok tetap meluncur (nggak nyangkut)
+    a.x = Math.max(R, Math.min(AW - R, a.x + vx * dt)); a.y = Math.max(R, Math.min(AH - R, a.y + vy * dt));
+    for (let k = 0; k < 2; k++) for (const b of BLOCKS) {
+      const qx = Math.max(b.x, Math.min(b.x + b.w, a.x)), qy = Math.max(b.y, Math.min(b.y + b.h, a.y));
+      let dx = a.x - qx, dy = a.y - qy, d = Math.hypot(dx, dy);
+      if (d >= R) continue;
+      if (d < 0.01) { // pusat masuk kotak: keluarin lewat sisi terdekat
+        const opts = [[a.x - b.x, -1, 0], [b.x + b.w - a.x, 1, 0], [a.y - b.y, 0, -1], [b.y + b.h - a.y, 0, 1]].sort((u, v) => u[0] - v[0])[0];
+        dx = opts[1]; dy = opts[2]; d = 1; a.x += dx * (opts[0] + R); a.y += dy * (opts[0] + R); continue;
+      }
+      a.x = qx + (dx / d) * R; a.y = qy + (dy / d) * R;
+    }
+    a.x = Math.max(R, Math.min(AW - R, a.x)); a.y = Math.max(R, Math.min(AH - R, a.y));
     a.mvx = mx * sp; a.mvy = my * sp;
   }
 
@@ -146,7 +158,7 @@ export function startPillow(stage, p, api) {
     bot.t -= dt; bot.fire -= dt;
     if (bot.t <= 0) { // pindah posisi tiap sebentar, jaga jarak sedang dari kita
       bot.t = 0.7 + Math.random() * 0.8;
-      for (let i = 0; i < 8; i++) { const gx = 120 + Math.random() * 760, gy = 110 + Math.random() * 330; if (!blocked(gx, gy, R + 10)) { bot.gx = gx; bot.gy = gy; break; } }
+      for (let i = 0; i < 8; i++) { const gx = 90 + Math.random() * 820, gy = 90 + Math.random() * 360; if (!blocked(gx, gy, R + 10)) { bot.gx = gx; bot.gy = gy; break; } }
     }
     // ngehindar bantal yang dateng
     const danger = pillows.find((pl) => pl.owner === 'me' && Math.hypot(pl.x - opp.x, pl.y - opp.y) < 260);
@@ -234,16 +246,32 @@ export function startPillow(stage, p, api) {
   }
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    // lantai kamar
+    // lantai kayu kamar
     ctx.fillStyle = '#fbe3ee'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#ffd3e4'; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(X(0), Y(0), AW * sc, AH * sc, 22); else ctx.rect(X(0), Y(0), AW * sc, AH * sc); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2;
-    for (let y = 110; y < AH; y += 110) { ctx.beginPath(); ctx.moveTo(X(0), Y(y)); ctx.lineTo(X(AW), Y(y)); ctx.stroke(); }
-    ctx.setLineDash([8, 8]); ctx.strokeStyle = 'rgba(194,48,111,.3)'; ctx.beginPath(); ctx.moveTo(X(0), Y(AH / 2)); ctx.lineTo(X(AW), Y(AH / 2)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.save();
+    ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(X(0), Y(0), AW * sc, AH * sc, 22); else ctx.rect(X(0), Y(0), AW * sc, AH * sc); ctx.clip();
+    const PL = 92;
+    for (let i = 0, y = 0; y < AH; i++, y += PL) {
+      ctx.fillStyle = i % 2 ? '#e8bf93' : '#efc9a0'; ctx.fillRect(X(0), Y(y), AW * sc, PL * sc + 1);
+      ctx.fillStyle = 'rgba(120,70,30,.18)'; ctx.fillRect(X(0), Y(y), AW * sc, Math.max(1, 2 * sc));
+      for (let x = (i % 3) * 170 + 90; x < AW; x += 510) ctx.fillRect(X(x), Y(y), Math.max(1, 2 * sc), PL * sc);
+    }
+    const g = ctx.createRadialGradient(X(AW / 2), Y(AH / 2), AW * sc * 0.2, X(AW / 2), Y(AH / 2), AW * sc * 0.85);
+    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(120,60,90,.22)');
+    ctx.fillStyle = g; ctx.fillRect(X(0), Y(0), AW * sc, AH * sc);
+    // karpet bulat di tengah (cuma hiasan)
+    const rug = ROOM.rug, rs = 560 * sc;
+    if (rug.complete && rug.naturalWidth) { ctx.globalAlpha = 0.9; ctx.drawImage(rug, X(AW / 2) - rs / 2, Y(AH / 2) - rs / 2, rs, rs); ctx.globalAlpha = 1; }
+    ctx.restore();
+    ctx.setLineDash([8, 8]); ctx.strokeStyle = 'rgba(194,48,111,.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X(0), Y(AH / 2)); ctx.lineTo(X(AW), Y(AH / 2)); ctx.stroke(); ctx.setLineDash([]);
     for (const b0 of BLOCKS) {
       const [bx, by] = flip ? [AW - b0.x - b0.w, AH - b0.y - b0.h] : [b0.x, b0.y];
-      ctx.fillStyle = '#e9b6d0'; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(X(bx), Y(by), b0.w * sc, b0.h * sc, 14); else ctx.rect(X(bx), Y(by), b0.w * sc, b0.h * sc); ctx.fill();
-      drawEmoji(ctx, b0.em, X(bx + b0.w / 2), Y(by + b0.h / 2), Math.min(b0.w, b0.h) * sc * 0.95);
+      const im = ROOM[b0.img], cx = X(bx + b0.w / 2), cy = Y(by + b0.h / 2);
+      ctx.fillStyle = 'rgba(80,40,30,.18)'; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(X(bx) + 4, Y(by) + 7, b0.w * sc, b0.h * sc, 12); else ctx.rect(X(bx) + 4, Y(by) + 7, b0.w * sc, b0.h * sc); ctx.fill();
+      if (im && im.complete && im.naturalWidth) {
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate((b0.rot || 0) + (flip ? Math.PI : 0));
+        const w = b0.w * sc * 1.06, h = b0.h * sc * 1.06; ctx.drawImage(im, -w / 2, -h / 2, w, h); ctx.restore();
+      } else drawEmoji(ctx, b0.em, cx, cy, Math.min(b0.w, b0.h) * sc * 0.95);
     }
     for (const pl of pillows) drawPillowAt(X(pl.x), Y(pl.y), pl.rot);
     for (const a of [opp, me].sort((u, v) => u.y - v.y)) drawPlayer(a);
@@ -272,6 +300,7 @@ export function startPillow(stage, p, api) {
     if (!done) update(dt);
     draw();
   }
+  if (window.__lqTest) window.__pillow = { me, opp };
   raf = requestAnimationFrame(loop);
   api.say('Joystick buat jalan · 🛏️ lempar bantal (otomatis ngarah) · 💨 ngehindar. Sembunyi di balik kasur & sofa!', 'happy');
 

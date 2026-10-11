@@ -56,7 +56,7 @@ export function startCook(stage, p, api) {
   const ctx = canvas.getContext('2d');
   const pad = document.createElement('div');
   pad.className = 'fight-pad pw-pad';
-  pad.innerHTML = `<div class="pw-stick"><span></span></div><div class="fp-act"><button data-k="chop" data-label="Potong" class="ck-chop" aria-label="Potong">🔪</button><button data-k="use" data-label="Ambil/Taruh" class="ck-use" aria-label="Ambil / taruh">✋</button></div>`;
+  pad.innerHTML = `<div class="pw-stick"><span></span></div><button data-k="book" data-label="Resep" class="ck-book" aria-label="Buku resep">📖</button><div class="fp-act"><button data-k="chop" data-label="Potong" class="ck-chop" aria-label="Potong">🔪</button><button data-k="use" data-label="Ambil/Taruh" class="ck-use" aria-label="Ambil / taruh">✋</button></div>`;
   wrap.appendChild(pad);
   const knob = pad.querySelector('.pw-stick span');
 
@@ -205,6 +205,7 @@ export function startCook(stage, p, api) {
   pad.addEventListener('pointerdown', (e) => {
     const b = e.target.closest('[data-k]'); if (!b) return;
     e.preventDefault(); b.classList.add('on');
+    if (b.dataset.k === 'book') { openBook(); return; }
     if (b.dataset.k === 'use') act('use'); else { chopping = true; chopT = 0; act('chop'); }
   });
   const upBtn = (e) => { const b = e.target.closest('[data-k]'); if (!b) return; b.classList.remove('on'); if (b.dataset.k === 'chop') chopping = false; };
@@ -221,6 +222,78 @@ export function startCook(stage, p, api) {
   window.addEventListener('keydown', onKey);
   window.addEventListener('keyup', onKey);
   window.addEventListener('resize', resize);
+
+  // ---- Buku resep (muncul di awal & bisa dibuka lagi lewat 📖) ----
+  const STEP = { potong: '🔪 potong', masak: '🔥 masak', raw: 'langsung' };
+  let bookOpen = false;
+  const book = document.createElement('div');
+  book.className = 'ck-bookview';
+  book.innerHTML = `<div class="ck-bookcard"><h3>📖 Cara Masak</h3>
+    <ol class="ck-how">
+      <li><b>Ambil bahan</b> dari peti (kotak kayu) pakai ✋</li>
+      <li><b>Olah bahannya:</b> sayur ditaruh di <b>talenan</b> lalu tahan 🔪 <b>Potong</b>. Daging, nasi &amp; telur ditaruh di <b>kompor</b>, tunggu sampai <b>matang</b> (jangan kelamaan, nanti gosong!)</li>
+      <li><b>Ambil piring</b> 🍽️, taruh di meja, terus masukin bahan yang udah jadi satu-satu</li>
+      <li><b>Antar piringnya</b> ke 🛎️ <b>SAJI</b></li>
+    </ol>
+    <div class="ck-recipes">${Object.values(RECIPES).map((R) => `<div class="ck-rec"><span class="ck-dish">${R.em}</span><div><b>${R.name}</b><div class="ck-ing">${R.need.map((n) => { const [k, st] = n.split(':'); return `<span>${E[k]} ${k} <i class="st-${st}">${STEP[st]}</i></span>`; }).join('')}</div></div></div>`).join('')}</div>
+    <p class="ck-tipline">Bingung? Ikutin <b>panah 👇</b> & petunjuk di bawah dapur, nanti dikasih tau langkah berikutnya.</p>
+    <button class="btn btn-primary ck-go">Siap masak! 👩‍🍳</button></div>`;
+  view.appendChild(book);
+  function openBook() { bookOpen = true; book.classList.add('show'); }
+  book.querySelector('.ck-go').addEventListener('click', () => { bookOpen = false; book.classList.remove('show'); api.sfx('go'); });
+  openBook();
+
+  // Petunjuk langkah berikutnya buat koki kita: { text, tile }
+  function nearest(pred) {
+    let best = null, bd = 1e9;
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+      if (!pred(MAP[y][x], tiles[y][x], x, y)) continue;
+      // meja harus bisa dicapai (ada lantai di sebelahnya)
+      if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => walkable(x + dx, y + dy))) continue;
+      const d = Math.hypot(x + 0.5 - me.x, y + 0.5 - me.y);
+      if (d < bd) { bd = d; best = [x, y]; }
+    }
+    return best;
+  }
+  const emptyCounter = () => nearest((k, t) => k === '#' && !t.obj);
+  const plateTile = () => nearest((k, t) => t.obj?.k === 'plate');
+  function guide() {
+    const h = me.hold;
+    if (h?.k === 'plate') {
+      if (h.items.length && orders.some((o) => sameDish(h.items, RECIPES[o.r].need))) return { text: 'Piringnya udah lengkap! Antar ke 🛎️ SAJI', tile: nearest((k) => k === 'W') };
+      return { text: 'Taruh piringnya di meja kosong, terus isi bahan yang udah jadi', tile: emptyCounter() };
+    }
+    if (h) {
+      if (h.s === 'gosong') return { text: 'Yahh gosong 🔥 buang ke tempat sampah 🗑️', tile: nearest((k) => k === 'X') };
+      if (h.s === 'raw' && CHOP.includes(h.k)) return { text: `Taruh ${E[h.k]} di talenan, lalu tahan 🔪 Potong`, tile: nearest((k, t) => k === 'B' && !t.obj) };
+      if (h.s === 'raw' && COOK.includes(h.k)) return { text: `Taruh ${E[h.k]} di kompor 🔥, tunggu sampai matang`, tile: nearest((k, t) => k === 'S' && !t.obj) };
+      const pl = plateTile();
+      if (pl) return { text: `${E[h.k]} udah siap! Masukin ke piring 🍽️`, tile: pl };
+      return { text: `Taruh ${E[h.k]} di meja dulu, terus ambil piring 🍽️`, tile: emptyCounter() };
+    }
+    // tangan kosong
+    const chopIt = nearest((k, t) => k === 'B' && t.obj && t.obj.s === 'raw');
+    if (chopIt) return { text: 'Tahan 🔪 Potong di talenan sampai kepotong', tile: chopIt, chop: true };
+    const burnt = nearest((k, t) => t.obj && t.obj.s === 'gosong');
+    if (burnt) return { text: 'Ada yang gosong 🔥 ambil & buang ke 🗑️', tile: burnt };
+    const cooked = nearest((k, t) => k === 'S' && t.obj && t.obj.s === 'masak');
+    if (cooked) return { text: 'Udah matang! Ambil dari kompor sebelum gosong ⚠️', tile: cooked };
+    if (!orders.length) return { text: 'Tunggu pesanan dateng ya 👀', tile: null };
+    const full = nearest((k, t) => t.obj?.k === 'plate' && t.obj.items.length && orders.some((o) => sameDish(t.obj.items, RECIPES[o.r].need)));
+    if (full) return { text: 'Piringnya lengkap! Ambil lalu antar ke 🛎️', tile: full };
+    // bahan apa yang masih kurang buat pesanan paling mepet?
+    const o = [...orders].sort((a, b) => a.left - b.left)[0], R = RECIPES[o.r];
+    const have = [];
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) { const ob = tiles[y][x].obj; if (!ob) continue; if (ob.k === 'plate') have.push(...ob.items.map((i) => i.k)); else if (ob.s !== 'gosong') have.push(ob.k); }
+    if (duel && other.hold) { if (other.hold.k === 'plate') have.push(...other.hold.items.map((i) => i.k)); else have.push(other.hold.k); }
+    const missing = R.need.map((n) => n.split(':')[0]).filter((k) => { const i = have.indexOf(k); if (i < 0) return true; have.splice(i, 1); return false; });
+    if (missing.length) { const k = missing[0], crate = Object.keys(CRATE).find((c) => CRATE[c] === k); return { text: `Buat ${R.em} ${R.name}: ambil ${E[k]} dari peti`, tile: nearest((kk) => kk === crate) }; }
+    if (!plateTile()) return { text: 'Ambil piring 🍽️ terus taruh di meja', tile: nearest((k) => k === 'P') };
+    const ready = nearest((k, t) => t.obj && t.obj.k !== 'plate' && final(t.obj) && k !== 'S');
+    if (ready) return { text: `Ambil ${E[ready && tiles[ready[1]][ready[0]].obj.k]} terus masukin ke piring 🍽️`, tile: ready };
+    return { text: 'Tunggu masakannya matang 🔥 sambil siapin yang lain', tile: null };
+  }
+  let tip = { text: '', tile: null }, tipT = 0;
 
   // Meja yang lagi dihadap koki (selangkah di depannya)
   function target(c) {
@@ -338,7 +411,8 @@ export function startCook(stage, p, api) {
       drawEmoji(ctx, R.em, x + 18, y + 18, 26);
       ctx.fillStyle = '#5a2a52'; ctx.font = `700 ${cw < 100 ? 11 : 12}px Fredoka, sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
       ctx.fillText(R.name, x + 34, y + 18, cw - 38);
-      R.need.forEach((n, j) => { const [k, s] = n.split(':'); const ix = x + 12 + j * Math.min(28, (cw - 16) / 3); drawEmoji(ctx, E[k], ix + 6, y + 40, 18); if (s !== 'raw') { ctx.fillStyle = s === 'masak' ? '#ff8a3d' : '#2fbf71'; ctx.beginPath(); ctx.arc(ix + 14, y + 47, 4, 0, Math.PI * 2); ctx.fill(); } });
+      // tiap bahan + cara olahnya (🔪 dipotong, 🔥 dimasak)
+      R.need.forEach((n, j) => { const [k, s] = n.split(':'); const ix = x + 12 + j * Math.min(30, (cw - 16) / 3); drawEmoji(ctx, E[k], ix + 6, y + 39, 19); if (s !== 'raw') { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ix + 15, y + 47, 7, 0, Math.PI * 2); ctx.fill(); drawEmoji(ctx, s === 'masak' ? '🔥' : '🔪', ix + 15, y + 47, 11); } });
       bar(x + 6, y + h - 10, cw - 12, o.left / (o.max || 60), '#ff6f9f', '#ffb020');
     });
   }
@@ -349,6 +423,11 @@ export function startCook(stage, p, api) {
     for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) drawTile(x, y);
     const tg = target(me);
     if (tg && !over) { ctx.strokeStyle = `rgba(255,111,159,${0.6 + Math.sin(clock * 8) * 0.3})`; ctx.lineWidth = 3; rr(X(tg[0]) + 1, Y(tg[1]) + 1, T - 2, T - 4, 7); ctx.stroke(); }
+    if (!over && tip.tile) { // kotak hijau + panah mantul di meja tujuan
+      const [gx, gy] = tip.tile, bob = Math.sin(clock * 6) * 4;
+      ctx.strokeStyle = 'rgba(47,191,113,.95)'; ctx.lineWidth = 3; ctx.setLineDash([6, 4]); rr(X(gx) + 2, Y(gy) + 2, T - 4, T - 6, 8); ctx.stroke(); ctx.setLineDash([]);
+      drawEmoji(ctx, '👇', X(gx) + T / 2, Y(gy) - T * 0.28 + bob, T * 0.5);
+    }
     const list = duel ? [other, me] : [me];
     list.sort((a, b) => a.y - b.y).forEach((c) => drawChef(c, c === me));
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -358,6 +437,13 @@ export function startCook(stage, p, api) {
       ctx.strokeText(f.t, X(f.x), Y(f.y)); ctx.fillStyle = f.color; ctx.fillText(f.t, X(f.x), Y(f.y));
     }
     ctx.globalAlpha = 1;
+    if (!over && tip.text) { // pita petunjuk di bawah dapur
+      ctx.font = `600 ${Math.max(12, Math.round(T * 0.3))}px Fredoka, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const tw = Math.min(W - 12, ctx.measureText(tip.text).width + 44), ty = Math.min(H - 20, Y(ROWS) - T * 0.45);
+      ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.strokeStyle = '#2fbf71'; ctx.lineWidth = 2; rr(W / 2 - tw / 2, ty - 16, tw, 32, 16); ctx.fill(); ctx.stroke();
+      drawEmoji(ctx, '💡', W / 2 - tw / 2 + 17, ty, 18);
+      ctx.fillStyle = '#25734a'; ctx.fillText(tip.text, W / 2 + 10, ty + 1, tw - 40);
+    }
     pad.querySelector('.ck-chop').style.opacity = tg && MAP[tg[1]][tg[0]] === 'B' ? 1 : 0.5;
     const s = `🍳 Kesaji ${served}${p.goal && !duel ? `/${p.goal}` : ''} · ${'❤️'.repeat(Math.max(0, MAX_MISS - miss))}${'🤍'.repeat(Math.min(MAX_MISS, miss))}${!duel && !p.goal ? ` · 🏆 ${Math.max(p.best || 0, served)}` : ''}`;
     if (s !== lastStats) { api.setStats(s); lastStats = s; }
@@ -366,10 +452,12 @@ export function startCook(stage, p, api) {
   function loop(now) {
     raf = requestAnimationFrame(loop);
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
-    if (!over) moveMe(dt);
+    const paused = bookOpen && !duel;
+    if (!over && !bookOpen) moveMe(dt);
+    tipT -= dt; if (tipT <= 0) { tipT = 0.25; tip = guide(); }
     if (duel && other.tx != null) { other.x += (other.tx - other.x) * Math.min(1, dt * 12); other.y += (other.ty - other.y) * Math.min(1, dt * 12); }
     if (chopping) { chopT += dt; if (chopT > 0.14) { chopT = 0; act('chop'); } }
-    if (host && !over) tickWorld(dt); else clock += dt;
+    if (paused) clock += 0; else if (host && !over) tickWorld(dt); else clock += dt;
     if (!host) for (const o of orders) o.left -= dt;
     for (const f of floats) { f.y -= dt * 0.6; f.life -= dt; }
     floats = floats.filter((f) => f.life > 0);
@@ -377,11 +465,11 @@ export function startCook(stage, p, api) {
     snap(false);
     draw();
   }
-  if (window.__lqTest) window.__cook = { chefs, tiles, me, act, get orders() { return orders; }, get served() { return served; } };
+  if (window.__lqTest) window.__cook = { chefs, tiles, me, act, guide, closeBook: () => book.querySelector('.ck-go').click(), get orders() { return orders; }, get served() { return served; } };
   raf = requestAnimationFrame(loop);
   api.say(duel
-    ? `Masak bareng ${p.oppName}! Joystick buat jalan, ✋ ambil/taruh, 🔪 tahan buat motong. Oper bahan lewat meja tengah ya!`
-    : 'Joystick buat jalan · ✋ ambil/taruh · 🔪 tahan buat motong. Ambil bahan → potong/masak → taruh di piring → antar ke 🛎️ SAJI', 'happy');
+    ? `Masak bareng ${p.oppName}! Ikutin panah 👇 & petunjuk hijau di bawah dapur. 📖 buat lihat resep.`
+    : 'Ikutin panah 👇 & petunjuk hijau di bawah dapur ya! 📖 buat lihat resep lagi.', 'happy');
 
   function end() {
     if (done) return;

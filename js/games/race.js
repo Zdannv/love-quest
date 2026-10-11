@@ -4,11 +4,14 @@
 // nggak ada nyawa (nabrak cuma melambat), yang duluan nyampe finish menang. Motor pasangan ikut kelihatan.
 import { drawEmoji, drawFace, loadImage } from '../util.js';
 
-const CARS = ['🚗', '🚙', '🚕', '🛻', '🚐', '🚌', '🚓'];
+// Mobil 3D tampak belakang & gokart pemain (Kenney Car Kit, CC0: img/race/LICENSE.txt)
+const CAR_NAMES = ['sedan', 'suv', 'taxi', 'police', 'van', 'delivery', 'hatchback-sports', 'truck'];
+const CAR_W = 2.0, KART_W = 1.5; // lebar (meter) mobil & gokart di jalan, dipakai buat gambar DAN tabrakan
 const SIGNS = ['Semangat {n}! 💗', 'Hati-hati ya {n} 🥺', '{n} jago banget 😎', 'Pelan-pelan sayang 🐢', 'Kangen {n} 💌'];
 
 export function startRace(stage, p, api) {
   const face = loadImage(p.face);
+  const carImgs = CAR_NAMES.map((n) => loadImage(`/img/race/car-${n}.webp`)), kartImg = loadImage('/img/race/kart.webp');
   const signFace = loadImage(p.signFace || p.face);
   const rng = p.rng || Math.random;
   const rnd = (a, b) => a + rng() * (b - a);
@@ -48,7 +51,7 @@ export function startRace(stage, p, api) {
   function spawn() {
     while (nextCar < player.z + DRAW + 40) {
       const lane = [-0.66, 0, 0.66][Math.floor(rng() * 3)];
-      cars.push({ z: nextCar, x: lane, em: CARS[Math.floor(rng() * CARS.length)], v: rnd(6, 13), passed: false, hit: false });
+      cars.push({ z: nextCar, x: lane, ci: Math.floor(rng() * CAR_NAMES.length), v: rnd(6, 13), passed: false, hit: false });
       const gap = Math.max(14, 34 - (nextCar / 1000) * 4); // makin jauh makin rame
       nextCar += rnd(gap * 0.6, gap * 1.4);
     }
@@ -122,10 +125,11 @@ export function startRace(stage, p, api) {
     for (const c of cars) {
       c.z += c.v * dt;
       const dz = c.z - player.z;
-      if (!c.hit && dz > -1.2 && dz < 2.2 && Math.abs(c.x - player.x) < 0.42) crash(c);
+      // kena kalau badan mobil & gokart beneran nempel (lebar yang digambar = lebar yang dicek)
+      if (!c.hit && dz > -1.4 && dz < 1.9 && Math.abs(c.x - player.x) * RW < ((CAR_W + KART_W) / 2) * 0.86) crash(c);
       if (!c.passed && dz < -1.2) {
         c.passed = true;
-        if (!c.hit && Math.abs(c.x - player.x) < 0.75) { nearMiss++; bonus += 25; api.sfx('pop'); api.streak(true); addFloat('Mepet! +25 😎', '#ff9f1c'); }
+        if (!c.hit && Math.abs(c.x - player.x) * RW < 3.0) { nearMiss++; bonus += 25; api.sfx('pop'); api.streak(true); addFloat('Mepet! +25 😎', '#ff9f1c'); }
       }
     }
     for (const h of hearts) {
@@ -176,7 +180,11 @@ export function startRace(stage, p, api) {
   }
   function drawObjects() {
     const objs = [];
-    for (const c of cars) objs.push({ z: c.z, f: () => sprite(c.z, c.x, 3.4, (x, y, s) => { ctx.save(); ctx.translate(x, y - s * 0.45); ctx.scale(-1, 1); drawEmoji(ctx, c.em, 0, 0, s); ctx.restore(); }) });
+    for (const c of cars) objs.push({ z: c.z, f: () => sprite(c.z, c.x, CAR_W, (x, y, s) => {
+      const im = carImgs[c.ci];
+      ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(x, y - s * 0.02, s * 0.55, s * 0.09, 0, 0, Math.PI * 2); ctx.fill();
+      if (im.complete && im.naturalWidth) { const h = s * im.naturalHeight / im.naturalWidth; ctx.drawImage(im, x - s / 2, y - h, s, h); } else drawEmoji(ctx, '🚗', x, y - s * 0.4, s);
+    }) });
     for (const h of hearts) objs.push({ z: h.z, f: () => sprite(h.z, h.x, 1.5, (x, y, s) => drawEmoji(ctx, '💖', x, y - s * 0.7 + Math.sin(performance.now() / 200 + h.z) * s * 0.08, s)) });
     for (const sg of signs) objs.push({ z: sg.z, f: () => sprite(sg.z, sg.side * 1.5, 3.2, (x, y, s) => {
       ctx.fillStyle = '#8a6b5a'; ctx.fillRect(x - s * 0.03, y - s * 0.7, s * 0.06, s * 0.7);
@@ -191,19 +199,23 @@ export function startRace(stage, p, api) {
     }) });
     if (race) {
       const g = race.ghost();
-      if (g && g.z - player.z > -2) objs.push({ z: g.z, f: () => sprite(g.z, g.x, 1.6, (x, y, s) => { ctx.save(); ctx.globalAlpha = 0.85; drawBike(x, y, s, ghostFace, race.emoji, 0); ctx.globalAlpha = 1; ctx.fillStyle = '#6a2c52'; ctx.font = `600 ${Math.max(8, s * 0.22)}px Fredoka, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(race.name, x, y - s * 1.45); ctx.restore(); }) });
+      if (g && g.z - player.z > -2) objs.push({ z: g.z, f: () => sprite(g.z, g.x, KART_W, (x, y, s) => { ctx.save(); ctx.globalAlpha = 0.85; const h = drawKart(x, y, s, ghostFace, race.emoji, 0); ctx.globalAlpha = 1; ctx.fillStyle = '#6a2c52'; ctx.font = `600 ${Math.max(8, s * 0.2)}px Fredoka, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(race.name, x, y - h - s * 0.12); ctx.restore(); }) });
     }
     if (finish) objs.push({ z: finish, f: () => sprite(finish, 0, 4, (x, y, s) => { const pr = project(finish, 0); if (!pr) return; const w = pr.half * 2.3; ctx.fillStyle = '#ff6f9f'; ctx.fillRect(x - w / 2, y - s * 0.9, w, s * 0.16); ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(8, s * 0.12)}px Fredoka, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🏁 FINISH 🏁', x, y - s * 0.82); }) });
     objs.sort((a, b) => b.z - a.z).forEach((o) => o.f());
   }
-  function drawBike(x, y, s, img, emoji, lean) {
+  // Gokart dari belakang, muka pengemudinya ditempel di helm. s = lebar gokart (px). Balikin tinggi gambarnya.
+  function drawKart(x, y, s, img, emoji, lean) {
     ctx.save();
     ctx.translate(x, y);
-    ctx.rotate(Math.max(-0.35, Math.min(0.35, lean)));
-    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(0, 0, s * 0.42, s * 0.1, 0, 0, Math.PI * 2); ctx.fill();
-    drawEmoji(ctx, '🛵', 0, -s * 0.42, s);
-    drawFace(ctx, img, -s * 0.02, -s * 1.02, s * 0.27, emoji || '😊');
+    ctx.rotate(Math.max(-0.2, Math.min(0.2, lean * 0.6)));
+    ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(0, 0, s * 0.52, s * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+    let h = s;
+    if (kartImg.complete && kartImg.naturalWidth) { h = s * kartImg.naturalHeight / kartImg.naturalWidth; ctx.drawImage(kartImg, -s / 2, -h, s, h); }
+    else drawEmoji(ctx, '🏎️', 0, -s * 0.45, s);
+    drawFace(ctx, img, 0, -h * 0.79, s * 0.27, emoji || '😊');
     ctx.restore();
+    return h;
   }
   function draw() {
     ctx.clearRect(0, 0, W, H);
@@ -213,7 +225,7 @@ export function startRace(stage, p, api) {
     drawObjects();
     // motor kita
     const me = project(player.z, player.x);
-    if (me && !(hurtT > 0 && Math.floor(hurtT * 12) % 2)) drawBike(me.sx, me.sy, 1.7 * me.s, face, p.rider, player.lean);
+    if (me && !(hurtT > 0 && Math.floor(hurtT * 12) % 2)) drawKart(me.sx, me.sy, KART_W * me.s, face, p.rider, player.lean);
     // speedometer
     const kmh = Math.round(player.speed * 3.6);
     ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(10, H - 54 * k, 96 * k, 42 * k, 14); else ctx.rect(10, H - 54 * k, 96 * k, 42 * k); ctx.fill();
