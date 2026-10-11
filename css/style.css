@@ -939,3 +939,138 @@ body.booting::before {
 .draw-size input { width: 60%; }
 .draw-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .draw-btns .btn.on { background: #ff4f8b; color: #fff; border-color: #ff4f8b; }
+
+/* Gelut Sayang */
+.fight-wrap { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.fight-view { position: relative; flex: 1; min-height: 0; }
+.fight-pad { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px max(10px, env(safe-area-inset-bottom)); user-select: none; -webkit-user-select: none; touch-action: none; }
+.fight-pad > div { display: flex; gap: 8px; }
+.fight-pad button { width: 60px; height: 60px; border-radius: 50%; border: 3px solid #fff; background: rgba(255,255,255,.9); font-size: 26px; box-shadow: 0 4px 0 rgba(160,60,120,.25); touch-action: none; -webkit-tap-highlight-color: transparent; padding: 0; }
+.fight-pad .fp-act button { width: 54px; height: 54px; font-size: 24px; }
+.fight-pad button.on { transform: translateY(3px) scale(.94); box-shadow: 0 1px 0 rgba(160,60,120,.25); background: #ffe1ee; }
+.fight-pad .sp { opacity: .45; }
+.fight-pad .sp.ready { opacity: 1; background: #ffe58a; animation: spReady .8s ease-in-out infinite alternate; }
+@keyframes spReady { to { box-shadow: 0 0 0 6px rgba(255,176,32,.35), 0 4px 0 rgba(160,60,120,.25); } }
+@media (max-width: 360px) { .fight-pad button { width: 52px; height: 52px; font-size: 22px; } .fight-pad .fp-act button { width: 46px; height: 46px; font-size: 20px; } .fight-pad > div { gap: 5px; } }
+
+/* Perang Bantal */
+.pw-pad { padding-left: 14px; }
+.pw-stick { position: relative; width: 104px; height: 104px; border-radius: 50%; background: rgba(255,255,255,.65); border: 3px solid #fff; box-shadow: inset 0 0 0 2px rgba(232,85,143,.15); touch-action: none; }
+.pw-stick span { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: #ff8fb7; box-shadow: 0 3px 0 rgba(160,60,120,.3); pointer-events: none; }
+.pw-pad .fp-act button { width: 64px; height: 64px; font-size: 28px; }
+
+
+/* Ikon 3D pengganti emoji (js/fx.js) */
+img.fx { display: inline-block; width: 1.18em; height: 1.18em; vertical-align: -0.22em; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
+
+/* Kartu game di menu (js/game-look.js) */
+.gt-head { display: flex; flex-direction: column; align-items: flex-start; margin: 14px 4px 10px; text-align: left; }
+.gt-head b { font-size: 19px; color: var(--ink); }
+.gt-head small { font-size: 13px; color: var(--ink-soft); }
+.gt-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; }
+.gt { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-height: 138px; padding: 14px 13px 13px; border: 0; border-radius: 22px; text-align: left; font: inherit; color: #3d1f3a;
+  background: #fff; background: radial-gradient(110% 80% at 100% 0%, color-mix(in srgb, var(--g) 30%, transparent), transparent 62%), linear-gradient(165deg, color-mix(in srgb, var(--g) 13%, #fff), #fff 75%);
+  box-shadow: 0 5px 0 color-mix(in srgb, var(--g) 38%, #f3c3d8), 0 12px 22px -14px color-mix(in srgb, var(--g) 80%, transparent);
+  transition: transform .12s ease; -webkit-tap-highlight-color: transparent; }
+.gt::after { content: ''; position: absolute; right: -22px; bottom: -22px; width: 78px; height: 78px; border-radius: 50%; background: color-mix(in srgb, var(--g) 14%, transparent); pointer-events: none; }
+.gt:not(:disabled):active { transform: translateY(3px) scale(.98); box-shadow: 0 2px 0 color-mix(in srgb, var(--g) 38%, #f3c3d8); }
+.gt:disabled { opacity: .5; }
+.gt-icon { width: 60px; height: 60px; display: grid; place-items: center; margin-bottom: 8px; border-radius: 19px; font-size: 38px; background: color-mix(in srgb, var(--g) 20%, #fff); box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--g) 25%, transparent); }
+.gt-name { font-size: 16px; line-height: 1.15; font-weight: 700; }
+.gt-sub { font-size: 12px; line-height: 1.25; color: #8a6b80; }
+.gt-tag { position: absolute; top: 11px; right: 11px; padding: 4px 9px; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 700; white-space: nowrap; color: color-mix(in srgb, var(--g) 75%, #3d1f3a); box-shadow: 0 2px 0 color-mix(in srgb, var(--g) 28%, #fff); }
+@media (max-width: 350px) { .gt { min-height: 124px; padding: 12px 10px; } .gt-icon { width: 50px; height: 50px; font-size: 32px; } .gt-name { font-size: 15px; } }
+
+/* Peliharaan Kita */
+.pet-root { width: 100%; max-width: 460px; margin: 0 auto; padding: 4px 14px 24px; display: flex; flex-direction: column; gap: 12px; }
+.pet-load { text-align: center; color: var(--ink-soft); margin-top: 40px; }
+.pet-head { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 10px; }
+.pet-name { border: 0; background: none; font: inherit; font-size: 24px; font-weight: 700; color: var(--ink); text-align: left; padding: 0; }
+.pet-lvl { background: linear-gradient(135deg, #ffb020, #ff6f9f); color: #fff; font-weight: 700; border-radius: 999px; padding: 4px 12px; font-size: 14px; }
+.pet-xp { grid-column: span 2; height: 9px; border-radius: 6px; background: #ffe1ee; overflow: hidden; }
+.pet-xp b { display: block; height: 100%; background: linear-gradient(90deg, #ff6f9f, #ffb020); border-radius: 6px; transition: width .4s; }
+.pet-room { position: relative; height: 300px; border-radius: 26px; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+  background: radial-gradient(120% 70% at 50% 0%, #fff6d8, transparent 60%), linear-gradient(180deg, #ffe6f2 0%, #ffd9ea 62%, #f6c9de 62%, #efb8d1 100%); box-shadow: inset 0 -6px 0 rgba(160,60,120,.12), 0 6px 0 #f3c3d8; transition: filter .4s; }
+.pet-room.night { filter: brightness(.55) saturate(.8); }
+.pet-floor { position: absolute; left: 0; right: 0; bottom: 0; height: 38%; background: repeating-linear-gradient(90deg, rgba(255,255,255,.18) 0 34px, transparent 34px 68px); }
+.pet-body { position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%) scale(var(--sz, 1)); transform-origin: 50% 100%; font-size: 120px; line-height: 1; animation: petBob 1.8s ease-in-out infinite; z-index: 2; }
+.pet-body.sleep { animation: petSleep 3s ease-in-out infinite; }
+.pet-body img.fx { width: 1em; height: 1em; vertical-align: 0; }
+.pet-outfit { position: absolute; left: 50%; top: -18%; transform: translateX(-50%); font-size: 50px; }
+@keyframes petBob { 0%, 100% { transform: translateX(-50%) scale(var(--sz, 1)) translateY(0); } 50% { transform: translateX(-50%) scale(calc(var(--sz, 1) * 1.04), calc(var(--sz, 1) * .96)) translateY(-6px); } }
+@keyframes petSleep { 0%, 100% { transform: translateX(-50%) scale(var(--sz, 1)) rotate(-4deg); } 50% { transform: translateX(-50%) scale(var(--sz, 1)) rotate(4deg); } }
+.pet-bubble { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: #fff; border-radius: 18px; padding: 7px 14px; font-weight: 600; color: #5a2a52; box-shadow: 0 3px 0 rgba(160,60,120,.15); white-space: nowrap; z-index: 3; }
+.pet-layer { position: absolute; inset: 0; z-index: 4; }
+.pet-picker { position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; gap: 8px; justify-content: center; background: rgba(255,255,255,.92); border-radius: 18px; padding: 8px; }
+.pet-picker button { flex: 1; border: 0; background: #fff3f8; border-radius: 14px; font-size: 30px; padding: 6px 0 4px; display: flex; flex-direction: column; align-items: center; }
+.pet-picker button small { font-size: 11px; color: #8a6b80; }
+.pet-picker .x { flex: 0 0 44px; font-size: 18px; }
+.pet-hint { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,.92); border-radius: 14px; padding: 5px 12px; font-size: 14px; font-weight: 600; color: #c2306f; white-space: nowrap; }
+.pet-soap { position: absolute; left: 0; top: 0; font-size: 40px; pointer-events: none; transform: translate(-100px, -100px); }
+.pet-bub { position: absolute; font-size: 24px; pointer-events: none; animation: petBub 1.2s ease-out forwards; }
+@keyframes petBub { to { transform: translateY(-50px) scale(1.4); opacity: 0; } }
+.pet-prog { position: absolute; left: 30px; right: 30px; bottom: 14px; height: 10px; border-radius: 6px; background: rgba(255,255,255,.8); overflow: hidden; }
+.pet-prog b { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #8fd3ff, #3b9cff); }
+.pet-ball { position: absolute; left: 0; top: 0; width: 52px; height: 52px; border: 0; background: none; font-size: 44px; padding: 0; touch-action: none; }
+.pet-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; background: #fff; border-radius: 20px; padding: 12px 14px; box-shadow: 0 4px 0 #f3c3d8; }
+.pet-stat { display: flex; align-items: center; gap: 8px; }
+.pet-stat > span { font-size: 24px; }
+.pet-stat div { flex: 1; }
+.pet-stat small { display: block; font-size: 12px; color: #8a6b80; font-weight: 600; }
+.pet-stat i { display: block; height: 8px; border-radius: 5px; background: #f6e3ec; overflow: hidden; }
+.pet-stat i b { display: block; height: 100%; background: var(--c); border-radius: 5px; transition: width .4s; }
+.pet-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.pet-actions button { border: 0; background: #fff; border-radius: 18px; padding: 10px 0 8px; font: inherit; font-size: 13px; font-weight: 700; color: #5a2a52; display: flex; flex-direction: column; align-items: center; gap: 2px; box-shadow: 0 4px 0 #f3c3d8; }
+.pet-actions button span { font-size: 30px; }
+.pet-actions button:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 #f3c3d8; }
+.pet-actions button:disabled { opacity: .45; }
+.pet-outfits { display: flex; gap: 8px; justify-content: center; }
+.pet-outfits button { width: 54px; border: 2px solid #ffe1ee; background: #fff; border-radius: 14px; font-size: 24px; padding: 4px 0 2px; display: flex; flex-direction: column; align-items: center; }
+.pet-outfits button small { font-size: 10px; color: #8a6b80; }
+.pet-outfits button.on { border-color: #ff6f9f; background: #fff0f6; }
+.pet-outfits button:disabled { opacity: .5; }
+.pet-couple { background: rgba(255,255,255,.75); border-radius: 18px; padding: 10px 14px; text-align: center; }
+.pet-couple p { margin: 0 0 4px; font-size: 14px; color: #5a2a52; }
+.pet-couple p span { color: #c2306f; font-weight: 700; }
+.pet-couple small { display: block; font-size: 12px; color: #8a6b80; }
+.pet-local { margin-top: 4px; opacity: .8; }
+.pet-btn { margin-top: 2px; }
+
+/* Tombol jeda & menu jeda */
+.pause-btn { position: relative; width: 46px; height: 46px; flex-shrink: 0; border: 0; border-radius: 16px; background: #fff; box-shadow: 0 4px 0 #f3c3d8; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0; -webkit-tap-highlight-color: transparent; }
+.pause-btn i, .pause-ico i { display: block; width: 6px; height: 18px; border-radius: 3px; background: var(--pink-deep, #e8558f); }
+.pause-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #f3c3d8; }
+.pause-ov { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; padding: 24px; background: rgba(70, 25, 60, .35); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: pauseIn .18s ease-out; }
+.pause-ov[hidden] { display: none; }
+@keyframes pauseIn { from { opacity: 0; } }
+.pause-card { width: min(320px, 100%); background: #fff; border-radius: 28px; padding: 24px 22px 20px; text-align: center; box-shadow: 0 8px 0 #f3c3d8, 0 20px 40px -12px rgba(90, 20, 80, .45); display: flex; flex-direction: column; gap: 10px; animation: pauseCard .25s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes pauseCard { from { transform: scale(.85); opacity: 0; } }
+.pause-ico { margin: 0 auto 2px; width: 64px; height: 64px; border-radius: 22px; background: #ffe6f0; display: flex; align-items: center; justify-content: center; gap: 9px; }
+.pause-ico i { width: 9px; height: 26px; border-radius: 4px; }
+.pause-card h2 { margin: 0; font-size: 24px; color: var(--ink); }
+.pause-card p { margin: 0 0 6px; font-size: 14px; color: var(--ink-soft); }
+.pause-card .btn { width: 100%; }
+#screen-game { position: relative; }
+
+/* Label kecil di bawah tombol aksi game */
+.fight-pad button[data-label] { position: relative; }
+.fight-pad button[data-label]::after { content: attr(data-label); position: absolute; left: 50%; bottom: -17px; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: #8a3f6e; white-space: nowrap; pointer-events: none; }
+.fight-pad:has(button[data-label]) { padding-bottom: max(22px, calc(env(safe-area-inset-bottom) + 14px)); }
+/* Ganti karakter (Jalan Pulang) */
+.fight-pad .fp-act .cp-swap { width: auto; min-width: 64px; height: 54px; border-radius: 18px; display: flex; align-items: center; gap: 6px; padding: 0 12px 0 6px; font-size: 13px; line-height: 1.1; font-weight: 700; color: #5a2a52; white-space: nowrap; }
+.fight-pad .fp-act .cp-swap img:not(.fx) { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 3px solid var(--sw, #ff7a2f); flex-shrink: 0; }
+.fight-pad .fp-act .cp-swap img.fx { width: 1.2em; height: 1.2em; }
+
+/* Pilih hewan peliharaan */
+.pet-head { grid-template-columns: 1fr auto auto; }
+.pet-head .pet-xp { grid-column: span 3; }
+.pet-swap { border: 0; background: #fff; border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 12px; font-weight: 700; color: #8a3f6e; box-shadow: 0 2px 0 #f3c3d8; white-space: nowrap; }
+.pet-choose { text-align: center; padding-top: 6px; }
+.pet-choose h2 { margin: 0 0 4px; font-size: 22px; color: var(--ink); }
+.pet-choose p { margin: 0 0 14px; font-size: 14px; color: var(--ink-soft); }
+.pet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+.pet-grid button { border: 2px solid #ffe1ee; background: #fff; border-radius: 20px; padding: 12px 8px 10px; font: inherit; color: #5a2a52; display: flex; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 4px 0 #f3c3d8; }
+.pet-grid button span { font-size: 54px; line-height: 1; }
+.pet-grid button b { font-size: 15px; }
+.pet-grid button.on { border-color: #ff6f9f; background: #fff0f6; }
+.pet-grid button:active { transform: translateY(3px); box-shadow: 0 1px 0 #f3c3d8; }

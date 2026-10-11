@@ -86,14 +86,25 @@
         <section class="tutorial" id="tutorial" data-demo-only>
           <h2>📺 Cara pesan &amp; pakai</h2>
           <p>Dari pesan, ngisi CMS, sampai pasanganmu main. Cuma 2 menit.</p>
-          <video controls playsinline preload="none" poster="/video/tutorial-poster.jpg" src="/video/tutorial.mp4"></video>
+          <video controls playsinline preload="none" poster="/video/tutorial-poster.jpg?v=2" src="/video/tutorial.mp4?v=2"></video>
         </section>
         <div class="streak-slot" id="streak-home" hidden></div>
         <button class="btn big" id="btn-play">Main yuk! ▶</button>
         <button class="btn ghost talk-btn" id="btn-talk">💬 Kartu Deep Talk</button>
+        <button class="btn ghost pet-btn" id="btn-pet">🐾 Peliharaan Kita</button>
         <button class="btn ghost install-btn" id="btn-install" hidden>📲 Pasang ke home screen</button>
         <button class="link-btn" id="btn-reset">reset progress</button>
       </div>
+    </section>
+
+    <!-- PELIHARAAN KITA -->
+    <section id="screen-pet" class="screen">
+      <header class="topbar">
+        <button class="icon-btn" data-go="home" aria-label="Kembali">⬅️</button>
+        <div class="star-total">🐾 Peliharaan Kita</div>
+        <span class="topbar-gap" aria-hidden="true"></span>
+      </header>
+      <div class="pet-root" id="pet-root"></div>
     </section>
 
     <!-- KARTU DEEP TALK -->
@@ -174,17 +185,27 @@
     <!-- GAME -->
     <section id="screen-game" class="screen">
       <header class="hud">
-        <button class="icon-btn small" id="btn-quit" aria-label="Keluar">✖</button>
         <div class="hud-main">
           <div class="hud-title" id="hud-title"></div>
           <div class="hud-stats" id="hud-stats"></div>
         </div>
+        <button class="pause-btn" id="btn-pause" aria-label="Jeda"><i></i><i></i></button>
       </header>
       <div class="guide">
         <span class="guide-owl" id="guide-owl" aria-hidden="true">🦉</span>
         <p class="bubble" id="hud-hint" aria-live="polite"></p>
       </div>
       <div id="stage"></div>
+      <div class="pause-ov" id="pause" hidden>
+        <div class="pause-card">
+          <div class="pause-ico" aria-hidden="true"><i></i><i></i></div>
+          <h2>Jeda dulu</h2>
+          <p id="pause-sub">Santai, game-nya berhenti sampai kamu lanjut</p>
+          <button class="btn" id="btn-resume">▶ Lanjut main</button>
+          <button class="btn ghost" id="btn-restart">🔁 Ulangi dari awal</button>
+          <button class="btn ghost" id="btn-quit">🚪 Keluar</button>
+        </div>
+      </div>
     </section>
 
     <!-- SURAT -->

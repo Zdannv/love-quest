@@ -1,0 +1,277 @@
+// Adu Penalti: gantian nendang & jaga gawang. Penendang geser jari dari bola ke arah gawang
+// (makin cepat geser, makin tinggi bolanya). Kiper tap salah satu dari 6 kotak gawang buat lompat ke situ.
+// Sendiri (p.endless): lawan bot, 3 nyawa (gagal gol / kebobolan = -1), skor = gol + tepisan.
+// Berdua (p.duel): pilihan penendang & kiper dikunci barengan lalu diputar di dua HP, jadi aman walau sinyal lemot.
+import { drawEmoji, drawFace, loadImage } from '../util.js';
+import { drawToon, toonLoad } from '../toon.js';
+
+const AIM_TIME = 6, ROUNDS = 5;
+// angka acak 0..1 yang sama di dua HP buat giliran tertentu
+const hash01 = (n) => { n = Math.imul(n ^ (n >>> 15), 0x2c1b3c6d); n = Math.imul(n ^ (n >>> 12), 0x297a2d39); return ((n ^ (n >>> 15)) >>> 0) / 4294967296; };
+
+export function startPenalty(stage, p, api) {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'catch-canvas';
+  stage.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0, k = 1;
+  const G = {}; // kotak gawang di layar
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = r.width; H = r.height;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    k = Math.min(1.3, Math.max(0.75, Math.min(W / 380, H / 600)));
+    G.l = W * 0.1; G.r = W * 0.9; G.t = H * 0.17; G.b = H * 0.42; G.w = G.r - G.l; G.h = G.b - G.t; G.cx = W / 2;
+  }
+  resize();
+
+  const duel = p.duel || null;
+  const myRole = duel ? duel.role : 'pasangan';
+  const look = {
+    me: { img: loadImage(p.face), emoji: p.emoji || '😊', name: p.name || 'Kamu', toon: p.toon || 'f' },
+    opp: { img: loadImage(p.oppFace), emoji: p.oppEmoji || '😈', name: p.oppName || 'Lawan', toon: p.oppToon || 'm' },
+  };
+  toonLoad(look.me.toon, look.opp.toon);
+  const shooterRole = (i) => (i % 2 === 0 ? 'pasangan' : 'pengirim');
+  const iShoot = (i) => (duel ? shooterRole(i) === myRole : i % 2 === 0);
+
+  let turn = 0, phase = 'aim', phaseT = 0, done = false, raf = 0, last = performance.now(), lastStats = '';
+  let lives = 3, level = p.botLevel || 0, score = 0;
+  const goalMode = !duel && !p.endless && p.goal;
+  const goals = { me: [], opp: [] }; // hasil tiap tendangan: true gol / false gagal
+  let mine = null, theirs = null; // pilihan kita & lawan buat giliran ini
+  let anim = null; // { shot, dive, saved, goal, t }
+  let swipe = null, msg = null;
+  const offs = [];
+
+  // ---- Koordinat gawang: gx -1..1 (kiri-kanan tiang), gy 0..1 (tanah-mistar) ----
+  const toScreen = (gx, gy) => ({ x: G.cx + gx * G.w / 2, y: G.b - gy * G.h });
+  const zoneOf = (gx, gy) => ({ col: gx < -0.33 ? 0 : gx > 0.33 ? 2 : 1, row: gy > 0.5 ? 1 : 0 });
+  const inGoal = (s) => Math.abs(s.gx) <= 1 && s.gy <= 1 && s.gy >= 0;
+
+  function resolve(shot, dive, i) {
+    if (!inGoal(shot)) return { saved: false, goal: false, wide: true };
+    const z = zoneOf(shot.gx, shot.gy);
+    let saved = dive.col === z.col && (dive.row === z.row || z.col === 1);
+    // pojok atas susah banget ditepis walau kiper udah nebak arah yang bener
+    if (saved && Math.abs(shot.gx) > 0.82 && shot.gy > 0.8) saved = hash01(((p.seed || 7) * 31 + i * 97) >>> 0) < 0.35;
+    return { saved, goal: !saved, wide: false };
+  }
+
+  // ---- Bot ----
+  function botShot() {
+    const miss = Math.random() < Math.max(0.04, 0.14 - level * 0.015);
+    return { gx: (Math.random() * 2 - 1) * (miss ? 1.25 : 0.95), gy: miss ? 1.12 : 0.05 + Math.random() * 0.9 };
+  }
+  function botDive(shot) {
+    const z = zoneOf(shot.gx, shot.gy);
+    const smart = Math.random() < Math.min(0.55, 0.22 + level * 0.04);
+    return smart ? { col: z.col, row: z.row } : { col: Math.floor(Math.random() * 3), row: Math.random() < 0.5 ? 0 : 1 };
+  }
+
+  // ---- Pilihan kita ----
+  function choose(c) {
+    if (phase !== 'aim' || mine) return;
+    mine = c;
+    api.sfx(iShoot(turn) ? 'flip' : 'click');
+    if (duel) duel.send('pk', { i: turn, c });
+    else theirs = iShoot(turn) ? botDive(c) : null;
+    if (!duel && !iShoot(turn)) theirs = pendingBotShot;
+    tryStart();
+  }
+  let pendingBotShot = null;
+  function tryStart() {
+    if (!mine || !theirs) return;
+    const shot = iShoot(turn) ? mine : theirs;
+    const dive = iShoot(turn) ? theirs : mine;
+    anim = { shot, dive, ...resolve(shot, dive, turn), t: 0 };
+    phase = 'fly'; phaseT = 0;
+    api.sfx('pop');
+  }
+  if (duel) offs.push(duel.on('pk', (d) => { if (d.i === turn && !theirs) { theirs = d.c; tryStart(); } else if (d.i === turn + 1) early = d.c; }));
+  let early = null;
+
+  function startTurn() {
+    mine = null; theirs = null; anim = null; phase = 'aim'; phaseT = 0; msg = null;
+    if (early) { theirs = early; early = null; }
+    if (!duel && !iShoot(turn)) pendingBotShot = botShot();
+    api.say(iShoot(turn) ? 'Giliran kamu nendang! Geser bola ke arah gawang ⚽' : 'Giliran kamu jaga gawang! Tap kotak buat lompat 🧤', 'happy');
+  }
+
+  // ---- Input ----
+  const pt = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, t: performance.now() }; };
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (phase !== 'aim' || mine) return;
+    const q = pt(e);
+    if (iShoot(turn)) { if (q.y > H * 0.55) { swipe = { a: q, b: q }; try { canvas.setPointerCapture(e.pointerId); } catch {} } return; }
+    // kiper: tap kotak gawang (agak dilebihin biar gampang)
+    if (q.x < G.l - 20 || q.x > G.r + 20 || q.y < G.t - 30 || q.y > G.b + 30) return;
+    choose({ col: Math.max(0, Math.min(2, Math.floor(((q.x - G.l) / G.w) * 3))), row: q.y < G.t + G.h / 2 ? 1 : 0 });
+  });
+  canvas.addEventListener('pointermove', (e) => { if (swipe) swipe.b = pt(e); });
+  canvas.addEventListener('pointerup', (e) => {
+    if (!swipe) return;
+    const a = swipe.a, b = pt(e); swipe = null;
+    const dx = b.x - a.x, dy = a.y - b.y, dt = Math.max(30, b.t - a.t);
+    if (dy < 30 * k) return; // harus ke atas
+    const speed = Math.hypot(dx, dy) / dt; // px/ms
+    choose({ gx: +((dx / dy) * 1.9).toFixed(3), gy: +Math.max(0, Math.min(1.5, (speed - 0.55 * k) / (1.5 * k))).toFixed(3) });
+  });
+  window.addEventListener('resize', resize);
+
+  // ---- Jalannya ----
+  function update(dt) {
+    phaseT += dt;
+    if (phase === 'aim') {
+      if (!mine && phaseT > AIM_TIME) choose(iShoot(turn) ? { gx: (Math.random() - 0.5) * 0.6, gy: 0.2 } : { col: 1, row: 0 });
+      if (duel && mine && !theirs && phaseT > AIM_TIME + 8) { theirs = iShoot(turn) ? { col: 1, row: 0 } : { gx: 0, gy: 0.2 }; tryStart(); }
+    } else if (phase === 'fly') {
+      anim.t += dt;
+      if (anim.t > 1.0) {
+        phase = 'result'; phaseT = 0;
+        const myKick = iShoot(turn);
+        (myKick ? goals.me : goals.opp).push(anim.goal);
+        msg = anim.wide ? 'Meleset! 😬' : anim.saved ? 'Ditepis! 🧤' : 'GOOOL! ⚽';
+        api.sfx(anim.goal === myKick ? 'win' : 'bad');
+        if (!duel) {
+          const good = myKick ? anim.goal : !anim.goal;
+          if (good) { score++; api.streak(true); } else { if (!goalMode) lives--; api.streak(false); }
+          if (turn % 2 === 1) level++;
+        }
+      }
+    } else if (phase === 'result' && phaseT > 1.5) {
+      if (!duel && lives <= 0) return end();
+      if (goalMode && turn >= 9) return end();
+      if (duel && decided()) return end();
+      turn++;
+      startTurn();
+    }
+  }
+  const tally = (a) => a.filter(Boolean).length;
+  function decided() {
+    const a = tally(goals.me), b = tally(goals.opp), na = goals.me.length, nb = goals.opp.length;
+    if (na <= ROUNDS && nb <= ROUNDS) {
+      if (a + (ROUNDS - na) < b || b + (ROUNDS - nb) < a) return true; // udah nggak kekejar
+      return na === ROUNDS && nb === ROUNDS && a !== b;
+    }
+    return na === nb && (a !== b || na >= ROUNDS + 5); // adu tendangan tambahan
+  }
+
+  // ---- Gambar ----
+  function keeperPose() {
+    if (!anim) return { x: G.cx + Math.sin(performance.now() / 380) * 10 * k, y: G.b, rot: 0 };
+    const d = anim.dive, f = Math.min(1, Math.max(0, (anim.t - 0.12) / 0.32));
+    const tx = G.cx + (d.col - 1) * G.w * 0.33, lift = d.row ? G.h * 0.45 : G.h * 0.05;
+    return { x: G.cx + (tx - G.cx) * f, y: G.b - lift * Math.sin(f * Math.PI * 0.5), rot: (d.col - 1) * 1.15 * f };
+  }
+  function drawKeeper(who) {
+    const ps = keeperPose(), h = G.h * 1.18;
+    const diving = anim && anim.t > 0.12;
+    const dir = anim && anim.dive.col === 0 ? -1 : 1;
+    drawToon(ctx, who.toon, diving ? 'jump' : 'cheer1', ps.x, ps.y + h * 0.06, h, dir, who.img, who.emoji, '#fff', ps.rot);
+    if (!diving) { drawEmoji(ctx, '🧤', ps.x - h * 0.27, ps.y - h * 0.83, h * 0.16); drawEmoji(ctx, '🧤', ps.x + h * 0.27, ps.y - h * 0.83, h * 0.16); }
+  }
+  function drawGoal() {
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(G.l, G.t, G.w, G.h);
+    ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1;
+    for (let x = G.l; x <= G.r; x += 14 * k) { ctx.beginPath(); ctx.moveTo(x, G.t); ctx.lineTo(x, G.b); ctx.stroke(); }
+    for (let y = G.t; y <= G.b; y += 14 * k) { ctx.beginPath(); ctx.moveTo(G.l, y); ctx.lineTo(G.r, y); ctx.stroke(); }
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 7 * k; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(G.l, G.b); ctx.lineTo(G.l, G.t); ctx.lineTo(G.r, G.t); ctx.lineTo(G.r, G.b); ctx.stroke();
+  }
+  function drawBall() {
+    const start = { x: W / 2, y: H * 0.84 };
+    let x = start.x, y = start.y, s = 1;
+    if (anim) {
+      const sh = anim.shot, f = Math.min(1, anim.t / 0.55), e = 1 - (1 - f) ** 2;
+      const end = toScreen(sh.gx, sh.gy);
+      x = start.x + (end.x - start.x) * e; y = start.y + (end.y - start.y) * e - Math.sin(f * Math.PI) * 40 * k; s = 1 - 0.55 * e;
+      if (anim.saved && anim.t > 0.55) { const g = anim.t - 0.55; x += (sh.gx < 0 ? -1 : 1) * g * 260 * k; y += g * 300 * k; }
+      if (anim.wide && anim.t > 0.55) { const g = anim.t - 0.55; x += sh.gx * g * 200 * k; y -= g * 160 * k; s *= Math.max(0.3, 1 - g); }
+    }
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x, (anim ? Math.max(y, G.b) : y) + 18 * k * s, 20 * k * s, 6 * k * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.translate(x, y); ctx.rotate((anim?.t || 0) * 14); drawEmoji(ctx, '⚽', 0, 0, 44 * k * s); ctx.restore();
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#bfe6ff'); g.addColorStop(0.12, '#dff3ff'); g.addColorStop(0.12, '#6fcf7a'); g.addColorStop(1, '#4fb562');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(255,255,255,.08)';
+    for (let i = 0; i < 6; i++) if (i % 2) ctx.fillRect(0, H * 0.12 + (H * 0.88 / 6) * i, W, H * 0.88 / 6);
+    // kotak penalti
+    ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(W * 0.02, G.b + 6); ctx.lineTo(W * 0.98, G.b + 6); ctx.stroke();
+    ctx.strokeRect(W * 0.2, G.b + 6, W * 0.6, H * 0.12);
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(W / 2, H * 0.84 + 22 * k, 4, 0, Math.PI * 2); ctx.fill();
+    drawGoal();
+    const keeper = iShoot(turn) ? look.opp : look.me, shooter = iShoot(turn) ? look.me : look.opp;
+    drawKeeper(keeper);
+    // pilihan kiper (kita) sebelum ditendang
+    if (phase === 'aim' && !iShoot(turn)) {
+      for (let c = 0; c < 3; c++) for (let r = 0; r < 2; r++) {
+        const on = mine && mine.col === c && mine.row === r;
+        ctx.fillStyle = on ? 'rgba(255,111,159,.55)' : 'rgba(255,255,255,.32)';
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+        const x = G.l + (G.w / 3) * c, y = G.t + (r ? 0 : G.h / 2);
+        ctx.fillRect(x + 3, y + 3, G.w / 3 - 6, G.h / 2 - 6); ctx.strokeRect(x + 3, y + 3, G.w / 3 - 6, G.h / 2 - 6);
+      }
+    }
+    drawBall();
+    // penendang (dari belakang), di samping bola
+    const kicking = anim && anim.t < 0.35;
+    drawToon(ctx, shooter.toon, kicking ? 'kick' : 'idle', W / 2 - (kicking ? 40 : 70) * k, H * 0.9, 150 * k, 1, shooter.img, shooter.emoji, '#fff');
+    // arah geseran
+    if (swipe) { ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 6; ctx.setLineDash([10, 8]); ctx.beginPath(); ctx.moveTo(swipe.a.x, swipe.a.y); ctx.lineTo(swipe.b.x, swipe.b.y); ctx.stroke(); ctx.setLineDash([]); }
+    // papan skor
+    const row = (arr, y, who) => {
+      ctx.save(); ctx.translate(18, y); drawFace(ctx, who.img, 0, 0, 11 * k, who.emoji); ctx.restore();
+      const n = Math.max(ROUNDS, arr.length);
+      for (let i = 0; i < n; i++) { ctx.fillStyle = i < arr.length ? (arr[i] ? '#2fbf71' : '#ff4d6d') : 'rgba(255,255,255,.75)'; ctx.beginPath(); ctx.arc(40 + i * 16, y, 6, 0, Math.PI * 2); ctx.fill(); }
+    };
+    if (duel) { row(goals.me, 16, look.me); row(goals.opp, 36, look.opp); }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    // teks tengah
+    const big = (t, y, size, color) => { ctx.font = `700 ${Math.round(size * k)}px Fredoka, sans-serif`; ctx.lineWidth = 6; ctx.strokeStyle = '#fff'; ctx.strokeText(t, W / 2, y); ctx.fillStyle = color; ctx.fillText(t, W / 2, y); };
+    if (phase === 'aim') {
+      const left = Math.ceil(AIM_TIME - phaseT);
+      if (!mine) big(iShoot(turn) ? `Geser ⚽ ke gawang · ${left}` : `Tap kotak buat lompat · ${left}`, H * 0.62, 19, '#c2306f');
+      else if (!theirs) big(`Nunggu ${look.opp.name}… 👀`, H * 0.62, 19, '#8a3f6e');
+      if (iShoot(turn) && !mine) big('cepat = tinggi · pelan = rendah', H * 0.67, 14, '#8a3f6e');
+    }
+    if (msg) big(msg, H * 0.58, 38, msg.startsWith('GOO') ? '#ff6f9f' : '#5b3fa8');
+    const s = duel ? `⚽ ${look.me.name} ${tally(goals.me)} - ${tally(goals.opp)} ${look.opp.name}` : goalMode ? `⚽ Berhasil ${score} · target ${p.goal} · giliran ${Math.min(10, turn + 1)}/10` : `⚽ Skor ${score} · 🏆 ${Math.max(p.best || 0, score)} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(3 - Math.max(0, lives))}`;
+    if (s !== lastStats) { api.setStats(s); lastStats = s; }
+  }
+
+  function loop(now) {
+    raf = requestAnimationFrame(loop);
+    const dt = Math.min(0.04, (now - last) / 1000);
+    last = now;
+    if (!done) update(dt);
+    draw();
+  }
+  startTurn();
+  raf = requestAnimationFrame(loop);
+
+  function end() {
+    if (done) return;
+    done = true;
+    if (goalMode) { const win = score >= p.goal; api.finish({ win, stars: win ? (score >= p.goal + 2 ? 3 : score >= p.goal + 1 ? 2 : 1) : 0, detail: `${score}/10 berhasil (gol + tepisan) · target ${p.goal}` }); return; }
+    if (!duel) { api.finish({ win: true, score, detail: `${score} kali berhasil (gol + tepisan)` }); return; }
+    const a = tally(goals.me), b = tally(goals.opp);
+    api.finish({ win: a > b, draw: a === b, myGoals: a, oppGoals: b });
+  }
+
+  return {
+    destroy() {
+      done = true;
+      cancelAnimationFrame(raf);
+      offs.forEach((f) => f());
+      window.removeEventListener('resize', resize);
+    },
+  };
+}

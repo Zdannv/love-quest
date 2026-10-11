@@ -34,6 +34,8 @@ export function shake(el) {
   el.classList.add('shake');
 }
 
+import { fxSrc } from './fx.js';
+
 export const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 
 const imageCache = new Map();
@@ -73,8 +75,14 @@ function emojiSprite(emoji, size) {
   return c;
 }
 
-// Tempel emoji dengan titik tengah di (x, y)
+// Tempel emoji dengan titik tengah di (x, y). Kalau ada versi 3D-nya (img/fx), pakai gambar itu;
+// selama gambarnya belum kebuka, sementara pakai emoji bawaan HP.
 export function drawEmoji(ctx, emoji, x, y, size) {
+  const src = fxSrc(emoji);
+  if (src) {
+    const img = loadImage(src);
+    if (img.complete && img.naturalWidth) { const b = size * 1.08; ctx.drawImage(img, x - b / 2, y - b / 2, b, b); return; }
+  }
   const s = emojiSprite(emoji, size);
   ctx.drawImage(s, x - s.box / 2, y - s.box / 2, s.box, s.box);
 }

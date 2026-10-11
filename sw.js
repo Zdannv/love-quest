@@ -1,14 +1,15 @@
 // Service worker Love Quest: bisa dipasang ke home screen, bisa dimainin offline,
 // dan menampilkan notifikasi streak.
-const CACHE = 'love-quest-v34';
+const CACHE = 'love-quest-v36';
 const FONT_CACHE = 'love-quest-fonts';
+const FX_CACHE = 'lq-fx-v1'; // ikon 3D (img/fx): nggak ikut kehapus tiap update
 const PHOTO_CACHE = 'love-quest-photos';
 
 // Semua file game disimpan dari awal (kalau nambah file, tambahin juga di sini).
 // Halaman admin/owner sengaja nggak disimpan: harus online.
 const PRECACHE = [
   '/', '/index.html', '/manifest.webmanifest', '/css/style.css',
-  '/js/boot.js', '/js/main.js', '/js/config.js', '/js/audio.js', '/js/music.js', '/js/confetti.js', '/js/util.js',
+  '/js/boot.js', '/js/main.js', '/js/config.js', '/js/audio.js', '/js/music.js', '/js/confetti.js', '/js/util.js', '/js/pause.js', '/js/fx.js', '/js/game-look.js', '/js/toon.js', '/js/pet.js', '/js/games/race.js', '/js/games/fight.js', '/js/games/penalty.js', '/js/games/pillow.js', '/js/games/cook.js', '/js/games/bomb.js', '/js/games/coop.js', 
   '/js/streak.js', '/js/personal.js', '/js/themes.js', '/js/level-map.js', '/js/showcase.js', '/js/talk.js', '/js/talk-cards.js', '/js/online.js', '/js/online-games.js', '/js/profile.js', '/js/duo-levels.js', '/js/couple-questions.js', '/js/draw.js',
   '/js/games/memory.js', '/js/games/catch.js', '/js/games/pop.js', '/js/games/quiz.js', '/js/games/puzzle.js',
   '/js/games/odd.js', '/js/games/simon.js', '/js/games/fly.js', '/js/games/stack.js', '/js/games/runner.js',
@@ -28,7 +29,7 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('activate', (e) => {
-  const keep = [CACHE, FONT_CACHE, PHOTO_CACHE];
+  const keep = [CACHE, FONT_CACHE, PHOTO_CACHE, FX_CACHE];
   e.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys.filter((k) => !keep.includes(k)).map((k) => caches.delete(k))))
@@ -62,6 +63,7 @@ self.addEventListener('fetch', (e) => {
   // Selain itu cuma file situs sendiri (API Supabase tetap langsung ke internet)
   if (url.origin !== location.origin) return;
   if (url.pathname.startsWith('/video/')) return; // video diputar sepotong-sepotong, biar browser yang ngurus
+  if (url.pathname.startsWith('/img/fx/')) { e.respondWith(cacheFirst(FX_CACHE, req)); return; } // ikon 3D: simpan permanen
   if (url.pathname === '/admin' || url.pathname.startsWith('/admin.') || url.pathname === '/owner' || url.pathname.startsWith('/owner.')) return;
 
   const fromCache = () => caches.match(req, { ignoreSearch: true })

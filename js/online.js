@@ -4,6 +4,7 @@
 import { CONFIG } from './config.js';
 import { getNames, getFace, getChars } from './personal.js';
 import { esc } from './util.js';
+import { gameTile, gameHead } from './game-look.js';
 import { ONLINE_GAMES } from './online-games.js';
 import { whoAmI, askProfile, forget } from './profile.js';
 import { LEVEL_MAP } from './level-map.js';
@@ -172,23 +173,15 @@ function render() {
         <div class="levels">${levels.map((L) => lvlBtn(L, stars)).join('')}</div>
       </section>`;
   } else if (olTab === 'per') {
-    body = `<p class="ol-section">Pilih satu game, levelnya makin susah</p><div class="track-list">` + DUO_TYPES.map((t) => {
-      const got = [...Array(TRACK_LEN)].reduce((a, _, k) => a + (stars[`t-${t}-${k}`] || 0), 0);
+    body = gameHead('🎯 Per game', 'Pilih satu game, levelnya makin susah') + '<div class="gt-grid">' + DUO_TYPES.map((t) => {
       const done = [...Array(TRACK_LEN)].filter((_, k) => stars[`t-${t}-${k}`]).length;
-      return `<button type="button" class="ol-game" data-ol-track="${t}">
-        <span class="ol-game-icon">${DUO_ICONS[t]}</span>
-        <span><b>${esc(DUO_NAMES[t])}</b><small>${esc(DUO_DESC[t])}</small></span>
-        <span class="track-prog">${done}/${TRACK_LEN}<small>⭐ ${got}</small></span>
-      </button>`;
+      return gameTile({ id: t, attr: `data-ol-track="${t}"`, icon: DUO_ICONS[t], name: esc(DUO_NAMES[t]), tag: `⭐ ${done}/${TRACK_LEN}` });
     }).join('') + '</div>';
   }
   $('#ol-map').innerHTML = tabs + body;
 
-  $('#ol-games').innerHTML = olTab !== 'free' ? '' : `<p class="ol-section">Main bebas, tanpa level</p>` + Object.entries(ONLINE_GAMES).map(([id, g]) => `
-    <button type="button" class="ol-game" data-game="${id}">
-      <span class="ol-game-icon">${g.icon}</span>
-      <span><b>${esc(g.name)}</b><small>${esc(g.desc)}</small></span>
-    </button>`).join('');
+  const MODE = { bomb: '⚔️ Duel', coop: '🤝 Bareng', race: '⚔️ Duel', fight: '⚔️ Duel', penalty: '⚔️ Duel', pillow: '⚔️ Duel', fly: '⚔️ Duel', cook: '🤝 Bareng', puzzle: '🤝 Bareng', memory: '🎲 Gantian', tebak: '💞 Kenalan', pictio: '🎨 Tebak', talk: '💬 Ngobrol' };
+  $('#ol-games').innerHTML = olTab !== 'free' ? '' : gameHead('🎲 Main bebas', 'Tanpa level, langsung main') + '<div class="gt-grid">' + Object.entries(ONLINE_GAMES).map(([id, g]) => gameTile({ id, attr: `data-game="${id}"`, icon: g.icon, name: esc(g.name), tag: MODE[id] || '' })).join('') + '</div>';
 }
 
 let olTab = 'adv', olTrack = '';

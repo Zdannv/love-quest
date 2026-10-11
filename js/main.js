@@ -1,4 +1,8 @@
+import { setPaused } from './pause.js';
 import { CONFIG } from './config.js';
+import { fxWatch } from './fx.js';
+import { gameTile, gameHead } from './game-look.js';
+import { initPet } from './pet.js';
 import { getNames, setNames, fill, getLook, setLook, getChars, getFace, saveFace, clearFace } from './personal.js';
 import { THEMES, CHARACTERS, applyTheme } from './themes.js';
 import { SHOWCASES } from './showcase.js';
@@ -25,6 +29,13 @@ import { startRunner } from './games/runner.js';
 import { startThrow } from './games/throw.js';
 import { startMaze } from './games/maze.js';
 import { startTiming } from './games/timing.js';
+import { startRace } from './games/race.js';
+import { startFight } from './games/fight.js';
+import { startPenalty } from './games/penalty.js';
+import { startPillow } from './games/pillow.js';
+import { startCook } from './games/cook.js';
+import { startBomb } from './games/bomb.js';
+import { startCoop, COOP_LEVELS } from './games/coop.js';
 import { streakEnabled, getPlayer, setPlayer, clearPlayer, recordPlay, flushPlays, pendingPlays, loadStreak, notifyPlayed, pushState, enablePush, setBadge } from './streak.js';
 
 // ---------- Dunia & level ----------
@@ -43,6 +54,17 @@ const G = {
   simon: (target, speed) => ({ type: 'simon', target, speed, lives: 3 }),
   fly: (target, gap, speed, spacing) => ({ type: 'fly', target, gap, speed, spacing, lives: 3 }),
   odd: (rounds, maxSize, time) => ({ type: 'odd', rounds, maxSize, time }),
+  // Game seru yang baru: makin ke dunia belakang makin susah
+  race: (wi) => ({ type: 'race', goal: [500, 700, 900, 1100, 1300][wi], lives: 3 }),
+  fight: (wi) => ({ type: 'fight', botLevel: wi }),
+  penalty: (wi) => ({ type: 'penalty', goal: [5, 5, 6, 6, 7][wi], botLevel: wi }),
+  pillow: (wi) => ({ type: 'pillow', botLevel: wi }),
+  cook: (wi) => ({ type: 'cook', goal: [3, 4, 4, 5, 6][wi] }),
+  bomb: (wi) => ({ type: 'bomb', bots: [1, 2, 2, 3, 3][wi], botLevel: wi }),
+  coop: (n) => ({ type: 'coop', level: n }),
+  memory: (pairs, time) => ({ type: 'memory', pairs, time }),
+  catch: (d) => ({ type: 'catch', d }),
+  pop: (d) => ({ type: 'pop', d }),
 };
 
 // Tiap dunia 12 level, semuanya jenis game beda (susunannya di js/level-map.js).
@@ -50,38 +72,37 @@ const WORLDS = [
   { name: 'Taman Bunga', icon: '🌸', theme: 'w-flower', player: '🧺',
     memory: ['🌸', '🌷', '🌻', '🌼', '🍓', '🌺', '🦋', '🐞', '🌈', '🍀', '🐰', '🍄'],
     catchGood: ['🌸', '🌷', '💖'],
-    slots: { 3: G.simon(5, 660), 4: G.runner(0, ['🌷', '🍄', '🪨']) },
-    a: G.odd(6, 5, 40), b: G.maze(0), c: G.fly(6, 225, 140, 240), d: G.timing(0), e: G.stack(0), f: G.throw(0),
+    slots: { 0: G.memory(3, 33), 1: G.race(0), 2: G.catch(0), 3: G.fight(0), 4: G.penalty(0) },
+    a: G.coop(0), b: G.pop(0.5), c: G.cook(0), d: G.fly(6, 225, 140, 240), e: G.bomb(0), f: G.pillow(0),
     bonus: PUZZLE(3, 90) },
   { name: 'Kota Permen', icon: '🍭', theme: 'w-candy', player: '🧺',
     memory: ['🍭', '🍬', '🧁', '🍩', '🍰', '🍪', '🍫', '🍦', '🍡', '🍮', '🎂', '🍒'],
     catchGood: ['🍬', '🍭', '🧁'],
-    slots: { 3: G.stack(1), 4: G.runner(1, ['🍬', '🧁', '🍩']) },
-    a: G.fly(8, 210, 150, 230), b: G.odd(8, 6, 50), c: G.simon(5, 620), d: G.throw(1), e: G.timing(1), f: G.maze(1),
+    slots: { 0: G.race(1), 1: G.stack(1), 2: G.fight(1), 3: G.penalty(1), 4: G.cook(1) },
+    a: G.coop(1), b: G.odd(8, 6, 50), c: G.throw(1), d: G.bomb(1), e: G.timing(1), f: G.pillow(1),
     bonus: PUZZLE(3, 90) },
   { name: 'Pantai Cinta', icon: '🏖️', theme: 'w-beach', player: '🪣',
     memory: ['🐚', '🦀', '🐠', '🐬', '🌴', '🍉', '🍍', '🥥', '🐳', '⛱️', '🦩', '🐙'],
     catchGood: ['🐚', '🍉', '🐠'],
-    slots: { 3: G.runner(2, ['🦀', '🐚', '🪨']), 4: G.stack(2) },
-    a: G.simon(6, 560), b: G.fly(10, 195, 165, 220), c: G.odd(8, 6, 50), d: G.maze(2), e: G.throw(2), f: G.timing(2),
+    slots: { 0: G.penalty(2), 1: G.memory(6, 40), 2: G.bomb(2), 3: G.coop(2), 4: G.pillow(2) },
+    a: G.race(2), b: G.simon(6, 560), c: G.fight(2), d: G.cook(2), e: G.runner(2, ['🦀', '🐚', '🪨']), f: G.maze(2),
     bonus: PUZZLE(4, 150) },
   { name: 'Langit Bintang', icon: '🌙', theme: 'w-night', player: '🧺',
     memory: ['🌙', '⭐', '🪐', '☁️', '🦄', '🌠', '🔭', '🚀', '🌈', '💫', '🛸', '🎈'],
     catchGood: ['⭐', '🌙', '💫'],
-    slots: { 3: G.stack(3), 4: G.runner(3, ['🪐', '☄️', '🌵']) },
-    a: { type: 'puzzle', ...PUZZLE(3, 150) }, b: G.simon(7, 500), c: G.fly(10, 195, 165, 220),
-    d: G.odd(9, 6, 55), e: G.throw(3), f: G.timing(3),
+    slots: { 0: G.cook(3), 1: G.fight(3), 2: G.race(3), 3: G.bomb(3), 4: G.pillow(3) },
+    a: { type: 'puzzle', ...PUZZLE(3, 150) }, b: G.coop(3), c: G.penalty(3), d: G.catch(3), e: G.fly(10, 195, 165, 220), f: G.stack(3),
     bonus: PUZZLE(4, 180) },
   { name: 'Rumah Kita', icon: '🏡', theme: 'w-home', player: '🧺',
     memory: ['🦉', '🐱', '🏡', '☕', '🧸', '🎀', '🍪', '🐾', '🕯️', '🌙', '💌', '🧶'],
     catchGood: ['🐾', '🧶', '💌'],
-    slots: { 3: G.runner(4, ['🧸', '🪴', '📦']), 4: G.simon(7, 520) },
-    a: G.stack(4), b: G.maze(4), c: G.throw(4), d: G.fly(10, 195, 165, 220), e: G.odd(9, 6, 55), f: G.timing(4),
+    slots: { 0: G.fight(4), 1: G.cook(4), 2: G.memory(8, 55), 3: G.bomb(4), 4: G.pillow(4) },
+    a: G.race(4), b: G.penalty(4), c: G.pop(3.5), d: G.throw(4), e: G.odd(9, 6, 55), f: G.timing(4),
     bonus: PUZZLE(4, 150) },
 ];
 // Pastikan jenis game di sini sama dengan js/level-map.js (dipakai CMS buat label)
 WORLDS.forEach((w, wi) => {
-  for (const slot of [3, 4, ...EXTRA_SLOTS]) {
+  for (const slot of [0, 1, 2, 3, 4, ...EXTRA_SLOTS]) {
     const here = typeof slot === 'number' ? w.slots[slot]?.type : w[slot].type;
     if (here !== typeOf(wi, slot)) console.warn(`level-map.js beda dengan main.js: dunia ${wi + 1} slot ${slot}`);
   }
@@ -89,11 +110,13 @@ WORLDS.forEach((w, wi) => {
 const TYPE_ICON = {
   memory: '🃏', catch: '🧺', pop: '👆', quiz: '💌', puzzle: '🧩', odd: '🔍', simon: '🎵', fly: '🦉',
   stack: '🎂', runner: '🏃', throw: '🎯', maze: '🧭', timing: '💘',
+  race: '🏍️', fight: '🥊', penalty: '⚽', pillow: '🛏️', cook: '🧑‍🍳', bomb: '💣', coop: '🏠',
 };
 const STARTERS = {
   memory: startMemory, catch: startCatch, pop: startPop, quiz: startQuiz,
   puzzle: startPuzzle, odd: startOdd, simon: startSimon, fly: startFly,
   stack: startStack, runner: startRunner, throw: startThrow, maze: startMaze, timing: startTiming,
+  race: startRace, fight: startFight, penalty: startPenalty, pillow: startPillow, cook: startCook, bomb: startBomb, coop: startCoop,
 };
 const NO_COUNTDOWN = ['quiz', 'puzzle'];
 // Surat kebuka setelah game tamat sekali (kuis terakhir), habis itu bisa dibuka kapan aja.
@@ -152,6 +175,8 @@ const MAX_STARS = LEVELS.length * 3;
 const MAIN = LEVELS.filter((L) => !L.bonus);
 
 function hintFor(L) {
+  const EH = { race: 'Tahan & geser jari buat nyetir, salip mobil mepet buat bonus! 3 nyawa.', fight: 'Kalahin lawan sebanyak-banyaknya, tiap ronde lawannya makin jago!', penalty: 'Gantian nendang & jaga gawang! Gol / tepisan = +1, gagal = -1 nyawa.', pillow: 'Lempar bantal ke lawan, hindarin bantalnya, sembunyi di balik kasur!', cook: 'Masak sesuai pesanan sebelum pelanggannya kabur! 3 kabur = selesai.', bomb: 'Taruh bom, kabur, ledakin lawan! Tiap ronde lawannya makin pinter.' };
+  if (L.endless && EH[L.type]) return `${EH[L.type]} Rekor kamu: ${L.params.best || 0} ${SCORE_UNIT[L.type]} 🏆`;
   if (L.endless) return `Main terus sampai nyawa habis, makin lama makin susah! Rekor kamu: ${L.params.best || 0} ${SCORE_UNIT[L.type]} 🏆`;
   const p = levelParams(L); // sudah berisi karakter & nama pilihan
   const c = getChars();
@@ -171,14 +196,21 @@ function hintFor(L) {
     case 'throw': return `Lempar 💖 ke ${n.pengirim} yang gerak-gerak! Kena ${p.target} kali, lemparan cuma ${p.throws}.`;
     case 'maze': return `Tarik garis dari ${n.pasangan} lewat jalan labirin sampai ketemu ${n.pengirim}! Waktunya ${p.time} detik.`;
     case 'timing': return `Tap pas jarumnya di zona 💖! Kena ${p.target} kali, zonanya makin kecil.`;
+    case 'race': return `Tahan & geser jari buat nyetir, nyampe finish ${p.goal} m sebelum nyawa habis! Salip mepet = bonus 😎`;
+    case 'fight': return `Kalahin ${n.pengirim}! ◀ ▶ jalan, 👊 pukul, 🦶 tendang, 🛡️ tahan buat nangkis, 💖 jurus kalau bar kuning penuh.`;
+    case 'penalty': return `5x nendang + 5x jaga gawang lawan ${n.pengirim}. Kumpulin minimal ${p.goal} gol/tepisan! Geser bola, makin cepat makin tinggi.`;
+    case 'pillow': return `Lempar bantal ke ${n.pengirim} & hindarin bantalnya! Sembunyi di balik kasur & sofa.`;
+    case 'cook': return `Sajiin ${p.goal} pesanan sebelum 3 pelanggan kabur! Ambil bahan → potong / masak → piring → antar ke SAJI.`;
+    case 'bomb': return `Taruh bom 💣 terus kabur! Kalahin ${p.bots} lawan, ledakin peti buat power-up.`;
+    case 'coop': return `${n.pengirim} 🔥 aman di lava, ${n.pasangan} 💧 aman di air. Pencet Ganti buat gantian gerakin, bawa dua-duanya ke pintu!`;
     default: return 'Jawab pertanyaan dari hatiku 💌 (minimal benar 2)';
   }
 }
 const levelLabel = (L) => (L.bonus ? 'Bonus ⭐' : `Level ${L.num}`);
 
 // ---------- Main Sendiri: Pilih game (tiap jenis game punya level sendiri, makin susah) ----------
-const SOLO_TYPES = ['fly', 'runner', 'stack', 'catch', 'timing', 'simon', 'memory', 'pop', 'puzzle', 'odd', 'throw', 'maze', 'quiz'];
-const trackLen = (t) => (t === 'quiz' ? Math.min(5, CONFIG.quiz.length) : 10);
+const SOLO_TYPES = ['race', 'fight', 'penalty', 'pillow', 'cook', 'bomb', 'coop', 'fly', 'runner', 'stack', 'catch', 'timing', 'simon', 'memory', 'pop', 'puzzle', 'odd', 'throw', 'maze', 'quiz'];
+const trackLen = (t) => (t === 'quiz' ? Math.min(5, CONFIG.quiz.length) : t === 'coop' ? COOP_LEVELS.length : 10);
 const worldParams = (wi, type) => [wi, wi - 1, wi + 1, wi - 2, 0].map((x) => LEVELS.find((L) => L.world === x && L.type === type && !L.bonus)?.params).find(Boolean);
 // k = level 0..9 → setelan game (dipakai juga buat Main Berdua yang skornya dijumlah). Karakter & muka diisi levelParams().
 function trackParams(type, k) {
@@ -200,6 +232,8 @@ function trackParams(type, k) {
     case 'throw': { const b = G.throw(wi); return { ...b, speed: b.speed + odd * 12 }; }
     case 'maze': { const b = G.maze(wi); return { ...b, time: b.time - odd * 5 }; }
     case 'timing': { const b = G.timing(wi); return { ...b, speed: +(b.speed + odd * 0.08).toFixed(2) }; }
+    case 'coop': return G.coop(k);
+    case 'race': case 'fight': case 'penalty': case 'pillow': case 'cook': case 'bomb': return { type };
     default: return {};
   }
 }
@@ -210,7 +244,7 @@ function soloTrack(type, k) {
   return { id: `s-${type}-${k}`, track: type, k, num: k + 1, type, world, params: trackParams(type, k) };
 }
 // Mode skor: game yang bisa dimainin terus → nggak ada level, main sampai nyawa habis, simpan rekor
-const ENDLESS = ['fly', 'runner', 'stack', 'catch', 'timing', 'simon'];
+const ENDLESS = ['race', 'fight', 'penalty', 'pillow', 'cook', 'bomb', 'fly', 'runner', 'stack', 'catch', 'timing', 'simon'];
 const BEST_KEY = () => `lq-best-${CONFIG.slug || CONFIG.showcase || 'demo'}`;
 const bestScores = () => { try { return JSON.parse(localStorage.getItem(BEST_KEY()) || '{}'); } catch { return {}; } };
 function saveBest(type, score) {
@@ -220,7 +254,7 @@ function saveBest(type, score) {
   try { localStorage.setItem(BEST_KEY(), JSON.stringify(all)); } catch {}
   return true;
 }
-const SCORE_UNIT = { fly: 'tiang', runner: 'detik', stack: 'tingkat', catch: 'poin', timing: 'kena', simon: 'urutan' };
+const SCORE_UNIT = { race: 'poin', fight: 'menang', penalty: 'poin', pillow: 'menang', cook: 'pesanan', bomb: 'menang', fly: 'tiang', runner: 'detik', stack: 'tingkat', catch: 'poin', timing: 'kena', simon: 'urutan' };
 function endlessLevel(type) {
   const inf = Number.POSITIVE_INFINITY;
   const params = { ...trackParams(type, 1), endless: true, best: bestScores()[type] || 0, ...(type === 'runner' || type === 'catch' ? { time: inf } : { target: inf }) };
@@ -259,12 +293,14 @@ const letterOpen = () => TEST_MODE || CONFIG.demo || CONFIG.showcase || cleared(
 
 // ---------- Layar ----------
 const $ = (s) => document.querySelector(s);
-const screens = { home: $('#screen-home'), map: $('#screen-map'), game: $('#screen-game'), letter: $('#screen-letter'), talk: $('#screen-talk'), online: $('#screen-online'), draw: $('#screen-draw') };
+const screens = { home: $('#screen-home'), map: $('#screen-map'), game: $('#screen-game'), letter: $('#screen-letter'), talk: $('#screen-talk'), online: $('#screen-online'), draw: $('#screen-draw'), pet: $('#screen-pet') };
+fxWatch(); // emoji di halaman → ikon 3D
 const talk = initTalk({ sfx }); // Kartu Deep Talk
 let drawOpen = false;
 const draw = initDraw({ sfx, toast: (t) => toast(t), onClose: () => { drawOpen = false; } }); // Gambar Udara & Tebak Gambar
 const stageEl = $('#stage');
 const modal = $('#modal');
+const pet = initPet({ sfx, toast: (t) => toast(t) }); // Peliharaan Kita
 
 function show(name) {
   Object.entries(screens).forEach(([k, el]) => el.classList.toggle('active', k === name));
@@ -276,11 +312,13 @@ function show(name) {
   else talk.setSync(false);
   if (name === 'online') enterLobby();
   if (name !== 'draw' && drawOpen) draw.close();
+  if (name === 'pet') pet.open(); else pet.close();
   window.scrollTo(0, 0);
 }
 
 // ---------- Kartu Deep Talk ----------
 $('#btn-talk').addEventListener('click', () => { sfx('click'); show('talk'); });
+$('#btn-pet').addEventListener('click', () => { sfx('click'); show('pet'); });
 
 document.addEventListener('click', (e) => {
   const go = e.target.closest('[data-go]');
@@ -498,25 +536,14 @@ function renderTracks() {
   }
   let all = 0;
   const card = (t) => {
-    if (ENDLESS.includes(t)) {
-      return `<button type="button" class="ol-game" data-endless="${t}">
-        <span class="ol-game-icon">${TYPE_ICON[t]}</span>
-        <span><b>${TYPE_NAME[t]}</b><small>Main terus sampai nyawa habis</small></span>
-        <span class="track-prog">🏆 ${bestScores()[t] || 0}<small>rekor</small></span>
-      </button>`;
-    }
+    if (ENDLESS.includes(t)) return gameTile({ id: t, attr: `data-endless="${t}"`, icon: TYPE_ICON[t], name: TYPE_NAME[t], tag: `🏆 ${bestScores()[t] || 0}` });
     const n = trackLen(t);
     const got = [...Array(n)].reduce((a, _, k) => a + st(`s-${t}-${k}`), 0);
-    const done = [...Array(n)].filter((_, k) => st(`s-${t}-${k}`)).length;
     all += got;
-    return `<button type="button" class="ol-game" data-solo-track="${t}">
-      <span class="ol-game-icon">${TYPE_ICON[t]}</span>
-      <span><b>${TYPE_NAME[t]}</b><small>${n} level</small></span>
-      <span class="track-prog">${done}/${n}<small>⭐ ${got}</small></span>
-    </button>`;
+    return gameTile({ id: t, attr: `data-solo-track="${t}"`, icon: TYPE_ICON[t], name: TYPE_NAME[t], tag: `⭐ ${got}/${n * 3}` });
   };
-  worldsEl.innerHTML = `<p class="ol-section">🏆 Mode skor: main terus, kejar rekor</p><div class="track-list">${SOLO_TYPES.filter((t) => ENDLESS.includes(t)).map(card).join('')}</div>`
-    + `<p class="ol-section" style="margin-top:18px">⭐ Pakai level: makin tinggi makin susah</p><div class="track-list">${SOLO_TYPES.filter((t) => !ENDLESS.includes(t)).map(card).join('')}</div>`;
+  worldsEl.innerHTML = gameHead('🏆 Mode skor', 'Main terus, kejar rekor tertinggi') + `<div class="gt-grid">${SOLO_TYPES.filter((t) => ENDLESS.includes(t)).map(card).join('')}</div>`
+    + gameHead('⭐ Pakai level', 'Tiap game punya level sendiri, makin tinggi makin susah') + `<div class="gt-grid">${SOLO_TYPES.filter((t) => !ENDLESS.includes(t)).map(card).join('')}</div>`;
   $('#star-count').textContent = `${all}`;
 }
 $('#solo-tabs').addEventListener('click', (e) => {
@@ -669,6 +696,11 @@ function levelParams(L) {
   if (L.type === 'simon') return { ...L.params, pads: [c.pasangan.emoji, c.pengirim.emoji, '💖', '⭐'] };
   if (L.type === 'runner') return { ...L.params, face: faceB, emoji: c.pengirim.emoji };
   if (L.type === 'throw') return { ...L.params, face: faceB, emoji: c.pengirim.emoji };
+  // Game seru yang baru: yang main = pasangan, lawan / partnernya = pengirim
+  const duo = { face: faceA, emoji: c.pasangan.emoji, name: n.pasangan, oppFace: faceB, oppEmoji: c.pengirim.emoji, oppName: n.pengirim, toon: 'f', oppToon: 'm' };
+  if (L.type === 'race') return { ...L.params, face: faceA, rider: c.pasangan.emoji, signFace: faceB, signName: n.pengirim };
+  if (['fight', 'penalty', 'pillow', 'cook', 'bomb'].includes(L.type)) return { ...L.params, ...duo };
+  if (L.type === 'coop') return { ...L.params, waterFace: faceA, waterEmoji: c.pasangan.emoji, waterName: n.pasangan, waterToon: 'f', fireFace: faceB, fireEmoji: c.pengirim.emoji, fireName: n.pengirim, fireToon: 'm', start: 'water' };
   if (L.type === 'maze') {
     return { ...L.params, startFace: faceA, startEmoji: c.pasangan.emoji, startName: n.pasangan,
       endFace: faceB, endEmoji: c.pengirim.emoji, endName: n.pengirim };
@@ -699,7 +731,31 @@ function countdown(token, cb) {
   step();
 }
 
+// ---------- Jeda ----------
+const pauseEl = $('#pause');
+function openPause() {
+  if (!current || !pauseEl.hidden) return;
+  const online = !!current.online;
+  if (!online) setPaused(true);
+  $('#pause-sub').textContent = online ? 'Main bareng nggak bisa dijeda, pasanganmu tetap jalan ya 😆' : 'Santai, game-nya berhenti sampai kamu lanjut';
+  $('#btn-restart').hidden = online;
+  pauseEl.hidden = false;
+  sfx('click');
+}
+function closePause() { pauseEl.hidden = true; setPaused(false); }
+$('#btn-pause').addEventListener('click', openPause);
+$('#btn-resume').addEventListener('click', () => { sfx('click'); closePause(); });
+$('#btn-restart').addEventListener('click', () => {
+  sfx('click');
+  const L = current?.L, i = current?.i;
+  closePause();
+  if (!L) return;
+  startLevel(L.endless ? endlessLevel(L.type) : i);
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden && current && !current.online && screens.game.classList.contains('active')) openPause(); });
+
 function stopGame() {
+  closePause();
   if (!current) return;
   current.game?.destroy();
   current = null;
@@ -708,6 +764,7 @@ function stopGame() {
 
 $('#btn-quit').addEventListener('click', () => {
   sfx('click');
+  closePause();
   const wasOnline = current?.online;
   stopGame();
   closeModal();
