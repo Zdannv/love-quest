@@ -1,6 +1,7 @@
 import { setPaused } from './pause.js';
 import { CONFIG } from './config.js';
 import { fxWatch } from './fx.js';
+import { setupNav } from './nav.js';
 import { gameTile, gameHead } from './game-look.js';
 import { initPet } from './pet.js';
 import { getNames, setNames, fill, getLook, setLook, getChars, getFace, saveFace, clearFace } from './personal.js';
@@ -303,11 +304,23 @@ const stageEl = $('#stage');
 const modal = $('#modal');
 const pet = initPet({ sfx, toast: (t) => toast(t) }); // Peliharaan Kita
 
+// Kartu besar di beranda: nunjukin level berikutnya & progres bintang
+function updateHero() {
+  const el = $('#hero-title'); if (!el) return;
+  const total = LEVELS.reduce((a, L) => a + starsOf(L), 0);
+  const main = LEVELS.filter((L) => !L.bonus), doneN = main.filter(cleared).length;
+  const next = main.find((L) => unlocked(L) && !cleared(L));
+  $('#hero-kicker').textContent = doneN ? 'Lanjut petualangan' : 'Mulai petualangan';
+  el.textContent = next ? `Level ${next.num} · ${TYPE_NAME[next.type]}` : 'Semua level tamat! 🎉';
+  $('#hero-sub').textContent = `⭐ ${total}/${MAX_STARS} bintang · ${doneN}/${main.length} level`;
+  $('#hero-bar').style.width = `${Math.max(4, (doneN / main.length) * 100)}%`;
+}
 function show(name) {
   Object.entries(screens).forEach(([k, el]) => el.classList.toggle('active', k === name));
   document.body.classList.toggle('playing', name === 'game');
   if (name === 'map') renderMap();
   if (name === 'home' || name === 'map') refreshStreak();
+  if (name === 'home') updateHero();
   if (name === 'letter') renderLetter();
   if (name === 'talk') talk.reset();
   else talk.setSync(false);
@@ -1231,3 +1244,5 @@ for (let i = 0; i < 16; i++) {
   s.style.animationDelay = `${-Math.random() * 20}s`;
   bg.appendChild(s);
 }
+updateHero();
+setupNav();

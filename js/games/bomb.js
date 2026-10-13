@@ -4,6 +4,8 @@
 // Berdua (p.duel): duel. Tiap HP ngatur pemainnya sendiri & mutusin sendiri kalau dia kena ledakan.
 // Peti & power-up diacak pakai seed yang sama, jadi isi arenanya sama di dua HP.
 import { drawEmoji, drawFace, loadImage } from '../util.js';
+import { drawToon, toonLoad } from '../toon.js';
+import { makeFx } from '../scene.js';
 
 const COLS = 11, ROWS = 13, FUSE = 2.5, FLAME = 0.55, ROUND = 120;
 const CORNERS = [[1, 11], [9, 1], [9, 11], [1, 1]];
@@ -52,13 +54,13 @@ export function startBomb(stage, p, api) {
     }
     const mk = (i, look) => ({ x: CORNERS[i][0] + 0.5, y: CORNERS[i][1] + 0.5, alive: true, max: 1, range: 1, speed: 3.2, ...look, ai: { path: [], t: 0 } });
     if (duel) {
-      const A = { img: loadImage(p.face), emoji: p.emoji || '😊', name: p.name || 'Kamu', ring: '#ff8fb7' };
-      const B = { img: loadImage(p.oppFace), emoji: p.oppEmoji || '😈', name: p.oppName || 'Lawan', ring: '#9fb4ff' };
+      const A = { img: loadImage(p.face), emoji: p.emoji || '😊', name: p.name || 'Kamu', ring: '#ff8fb7', toon: p.toon || 'f' };
+      const B = { img: loadImage(p.oppFace), emoji: p.oppEmoji || '😈', name: p.oppName || 'Lawan', ring: '#9fb4ff', toon: p.oppToon || 'm' };
       players = myIdx === 0 ? [mk(0, A), mk(1, B)] : [mk(0, B), mk(1, A)];
     } else {
-      players = [mk(0, { img: loadImage(p.face), emoji: p.emoji || '😊', name: p.name || 'Kamu', ring: '#ff8fb7' })];
+      players = [mk(0, { img: loadImage(p.face), emoji: p.emoji || '😊', name: p.name || 'Kamu', ring: '#ff8fb7', toon: p.toon || 'f' })];
       const bots = [['🤖', 'Robot'], ['🦊', 'Rubah'], ['🐻', 'Beruang']];
-      for (let i = 1; i <= (p.bots || 3); i++) players.push(mk(i, { img: null, emoji: bots[i - 1][0], name: bots[i - 1][1], ring: '#c9b6ff', bot: true }));
+      for (let i = 1; i <= (p.bots || 3); i++) players.push(mk(i, { img: null, emoji: bots[i - 1][0], name: bots[i - 1][1], ring: '#c9b6ff', bot: true, toon: i % 2 ? 'm' : 'f' }));
     }
     bombs = []; flames = []; powers = []; time = ROUND; state = 'intro'; stateT = 0; roundResult = null;
   }
@@ -86,6 +88,7 @@ export function startBomb(stage, p, api) {
         cells.push([x, y]);
         if (g === 'B') {
           grid[y][x] = '.';
+          fx.burst(X(x) + T / 2, Y(y) + T / 2, { n: 12, colors: ['#e0a868', '#b97c45', '#fff2d6'], speed: 170, size: 4 });
           const h = hash(seedBase + round * 7, x, y);
           if (h < 0.33) fresh.push({ x, y, k: h < 0.12 ? 'range' : h < 0.23 ? 'bomb' : 'speed' });
           break;
@@ -274,30 +277,80 @@ export function startBomb(stage, p, api) {
   }
 
   // ---- Gambar ----
+  const fx = makeFx();
+  toonLoad('f', 'm');
   const X = (x) => ox + x * T, Y = (y) => oy + y * T;
   function rr(x, y, w, h, r) { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); }
+  // Gerak & arah tiap pemain (buat animasi jalan), dihitung dari perpindahan posisinya
+  function animate(dt) {
+    for (const pl of players) {
+      const dx = pl.x - (pl._px ?? pl.x), dy = pl.y - (pl._py ?? pl.y), d = Math.hypot(dx, dy);
+      pl._px = pl.x; pl._py = pl.y;
+      if (d > 0.002) { pl._walk = (pl._walk || 0) + d * 5.5; pl._still = 0; if (Math.abs(dx) > 0.004) pl._dir = dx > 0 ? 1 : -1; }
+      else if ((pl._still = (pl._still || 0) + dt) > 0.08) pl._walk = 0;
+    }
+    fx.step(dt);
+  }
+  function stone(px, py) { // tembok batu 3D
+    ctx.fillStyle = '#8a5a86'; rr(px + 1, py + 4, T - 2, T - 4, 6); ctx.fill();
+    ctx.fillStyle = '#c48bbf'; rr(px + 1, py + 1, T - 2, T - 7, 6); ctx.fill();
+    ctx.fillStyle = '#d9a6d4'; rr(px + 3, py + 3, T - 6, T * 0.3, 4); ctx.fill();
+    ctx.strokeStyle = 'rgba(110,60,105,.35)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(px + 3, py + T * 0.5); ctx.lineTo(px + T - 3, py + T * 0.5); ctx.moveTo(px + T * 0.5, py + 3); ctx.lineTo(px + T * 0.5, py + T * 0.5); ctx.moveTo(px + T * 0.28, py + T * 0.5); ctx.lineTo(px + T * 0.28, py + T - 7); ctx.moveTo(px + T * 0.72, py + T * 0.5); ctx.lineTo(px + T * 0.72, py + T - 7); ctx.stroke();
+  }
+  function crate(px, py) { // peti kayu
+    ctx.fillStyle = '#9a6335'; rr(px + 2, py + 5, T - 4, T - 6, 5); ctx.fill();
+    ctx.fillStyle = '#e0a868'; rr(px + 2, py + 2, T - 4, T - 8, 5); ctx.fill();
+    ctx.strokeStyle = '#b97c45'; ctx.lineWidth = Math.max(2, T * 0.08);
+    rr(px + 5, py + 5, T - 10, T - 14, 3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px + 6, py + 6); ctx.lineTo(px + T - 6, py + T - 10); ctx.moveTo(px + T - 6, py + 6); ctx.lineTo(px + 6, py + T - 10); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.3)'; rr(px + 5, py + 4, T - 10, 3, 2); ctx.fill();
+  }
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#e9f7e4'; ctx.fillRect(0, 0, W, H);
+    // taman di sekeliling arena
+    const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#bfeaa6'); bg.addColorStop(1, '#9bd985');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(40,90,40,.22)'; rr(X(0) - 5, Y(0) - 3, T * COLS + 10, T * ROWS + 12, 14); ctx.fill();
+    ctx.fillStyle = '#7b4f78'; rr(X(0) - 5, Y(0) - 5, T * COLS + 10, T * ROWS + 10, 14); ctx.fill();
+    const now = performance.now() / 1000;
     for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
       const g = grid[y][x], px = X(x), py = Y(y);
-      if (g === 'W') {
-        ctx.fillStyle = '#c66b97'; rr(px + 1, py + 3, T - 2, T - 3, 7); ctx.fill();
-        ctx.fillStyle = '#ef9cc1'; rr(px + 1, py + 1, T - 2, T - 5, 7); ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,.35)'; rr(px + 4, py + 4, T * 0.4, T * 0.18, 4); ctx.fill();
-      } else {
-        ctx.fillStyle = (x + y) % 2 ? '#d8f2cf' : '#cdeec2'; ctx.fillRect(px, py, T, T);
-        if (g === 'B') { ctx.fillStyle = '#c99263'; rr(px + 2, py + 4, T - 4, T - 5, 6); ctx.fill(); ctx.fillStyle = '#e8b27d'; rr(px + 2, py + 2, T - 4, T - 7, 6); ctx.fill(); drawEmoji(ctx, '📦', px + T / 2, py + T / 2 - 1, T * 0.7); }
-      }
+      if (g === 'W') { stone(px, py); continue; }
+      ctx.fillStyle = (x + y) % 2 ? '#d3f0c4' : '#c5eab4'; ctx.fillRect(px, py, T, T);
+      if (y > 0 && grid[y - 1][x] !== '.') { ctx.fillStyle = 'rgba(40,80,40,.16)'; ctx.fillRect(px, py, T, T * 0.16); } // bayangan tembok di atasnya
+      if (g === 'B') crate(px, py);
     }
-    for (const q of powers) if (grid[q.y][q.x] === '.') { ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(X(q.x) + T / 2, Y(q.y) + T / 2, T * 0.38, 0, Math.PI * 2); ctx.fill(); drawEmoji(ctx, POWER[q.k], X(q.x) + T / 2, Y(q.y) + T / 2 + Math.sin(performance.now() / 200) * 1.5, T * 0.6); }
-    for (const b of bombs) { const pulse = 1 + Math.sin((FUSE - b.t) * (b.t < 0.8 ? 30 : 10)) * 0.08; drawEmoji(ctx, '💣', X(b.x) + T / 2, Y(b.y) + T / 2, T * 0.85 * pulse); }
-    for (const f of flames) { ctx.globalAlpha = Math.min(1, f.life * 3); ctx.fillStyle = 'rgba(255,170,60,.55)'; rr(X(f.x) + 2, Y(f.y) + 2, T - 4, T - 4, 8); ctx.fill(); drawEmoji(ctx, '🔥', X(f.x) + T / 2, Y(f.y) + T / 2, T * 0.9); ctx.globalAlpha = 1; }
+    for (const q of powers) if (grid[q.y][q.x] === '.') {
+      const cx = X(q.x) + T / 2, cy = Y(q.y) + T / 2, bob = Math.sin(now * 5 + q.x) * 2;
+      const gl = ctx.createRadialGradient(cx, cy, 2, cx, cy, T * 0.6); gl.addColorStop(0, 'rgba(255,240,150,.95)'); gl.addColorStop(1, 'rgba(255,240,150,0)');
+      ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(cx, cy, T * 0.6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#ffc93d'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(cx, cy + bob, T * 0.36, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      drawEmoji(ctx, POWER[q.k], cx, cy + bob, T * 0.5);
+    }
+    for (const b of bombs) {
+      const cx = X(b.x) + T / 2, cy = Y(b.y) + T / 2, hot = b.t < 0.8, pulse = 1 + Math.sin((FUSE - b.t) * (hot ? 30 : 10)) * (hot ? 0.13 : 0.07);
+      ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(cx, cy + T * 0.34, T * 0.32 * pulse, T * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+      if (hot) { ctx.fillStyle = 'rgba(255,80,60,.28)'; ctx.beginPath(); ctx.arc(cx, cy, T * 0.55 * pulse, 0, Math.PI * 2); ctx.fill(); }
+      drawEmoji(ctx, '💣', cx, cy, T * 0.86 * pulse);
+      if (Math.random() < 0.5) fx.burst(cx + T * 0.24, cy - T * 0.34, { n: 1, colors: ['#ffd166', '#ff8a3d', '#fff'], speed: 50, size: 2.2, gravity: 120, life: 0.3 });
+    }
+    // ledakan: inti putih-kuning + pinggir oranye, mengecil pas habis
+    for (const f of flames) {
+      const a = Math.min(1, f.life / FLAME), cx = X(f.x) + T / 2, cy = Y(f.y) + T / 2, r = T * (0.42 + 0.3 * a);
+      const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, r);
+      g.addColorStop(0, `rgba(255,255,235,${a})`); g.addColorStop(0.4, `rgba(255,214,90,${a})`); g.addColorStop(0.75, `rgba(255,128,40,${a * 0.9})`); g.addColorStop(1, 'rgba(255,90,40,0)');
+      ctx.fillStyle = g; rr(X(f.x) - T * 0.12, Y(f.y) - T * 0.12, T * 1.24, T * 1.24, T * 0.3); ctx.fill();
+      ctx.globalAlpha = a; drawEmoji(ctx, '🔥', cx, cy + Math.sin(now * 30 + f.x) * 1.5, T * 0.7 * (0.7 + a * 0.4)); ctx.globalAlpha = 1;
+    }
+    fx.draw(ctx);
+    // pemain: badan kartun kecil yang jalan + muka
     for (const pl of [...players].sort((a, b) => a.y - b.y)) {
       const x = X(pl.x), y = Y(pl.y), r = T * 0.42;
-      if (!pl.alive) { ctx.globalAlpha = 0.45; drawEmoji(ctx, '😵', x, y, T * 0.8); ctx.globalAlpha = 1; continue; }
-      ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x, y + r * 0.85, r * 0.85, r * 0.3, 0, 0, Math.PI * 2); ctx.fill();
-      if (pl.img) drawFace(ctx, pl.img, x, y - 2, r, pl.emoji, pl.ring); else drawEmoji(ctx, pl.emoji, x, y - 2, r * 2.1);
+      if (!pl.alive) { ctx.globalAlpha = 0.5; drawEmoji(ctx, '😵', x, y, T * 0.8); ctx.globalAlpha = 1; continue; }
+      ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(x, y + r * 0.9, r * 0.8, r * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+      drawToon(ctx, pl.toon || 'f', pl._walk ? `walk${Math.floor(pl._walk) % 8}` : 'idle', x, y + r * 1.02, T * 1.5, pl._dir || 1, pl.img, pl.emoji, pl.ring);
+      if (pl === me() && state !== 'over') { ctx.fillStyle = '#ff5c93'; ctx.beginPath(); const ay = y - T * 1.12 + Math.sin(now * 6) * 2; ctx.moveTo(x - 6, ay - 7); ctx.lineTo(x + 6, ay - 7); ctx.lineTo(x, ay + 2); ctx.fill(); }
     }
     // HUD atas
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = '700 14px Fredoka, sans-serif'; ctx.fillStyle = '#5a2a52';
@@ -316,6 +369,7 @@ export function startBomb(stage, p, api) {
   function loop(now) {
     raf = requestAnimationFrame(loop);
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    animate(dt);
     if (!done) update(dt);
     draw();
   }

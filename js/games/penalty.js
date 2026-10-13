@@ -4,6 +4,7 @@
 // Berdua (p.duel): pilihan penendang & kiper dikunci barengan lalu diputar di dua HP, jadi aman walau sinyal lemot.
 import { drawEmoji, drawFace, loadImage } from '../util.js';
 import { drawToon, toonLoad } from '../toon.js';
+import { makeFx } from '../scene.js';
 
 const AIM_TIME = 6, ROUNDS = 5;
 // angka acak 0..1 yang sama di dua HP buat giliran tertentu
@@ -43,7 +44,8 @@ export function startPenalty(stage, p, api) {
   const goals = { me: [], opp: [] }; // hasil tiap tendangan: true gol / false gagal
   let mine = null, theirs = null; // pilihan kita & lawan buat giliran ini
   let anim = null; // { shot, dive, saved, goal, t }
-  let swipe = null, msg = null;
+  let swipe = null, msg = null, cheered = false;
+  const fx = makeFx();
   const offs = [];
 
   // ---- Koordinat gawang: gx -1..1 (kiri-kanan tiang), gy 0..1 (tanah-mistar) ----
@@ -175,12 +177,17 @@ export function startPenalty(stage, p, api) {
     if (!diving) { drawEmoji(ctx, '🧤', ps.x - h * 0.27, ps.y - h * 0.83, h * 0.16); drawEmoji(ctx, '🧤', ps.x + h * 0.27, ps.y - h * 0.83, h * 0.16); }
   }
   function drawGoal() {
-    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(G.l, G.t, G.w, G.h);
-    ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1;
+    // jaring: sisi belakang lebih kecil biar kelihatan dalem
+    const d = 12 * k;
+    ctx.fillStyle = 'rgba(30,40,70,.28)'; ctx.fillRect(G.l, G.t, G.w, G.h);
+    ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(G.l + d, G.t + d, G.w - d * 2, G.h - d);
+    for (const [x0, x1] of [[G.l, G.l + d], [G.r, G.r - d]]) { ctx.beginPath(); ctx.moveTo(x0, G.t); ctx.lineTo(x1, G.t + d); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1;
     for (let x = G.l; x <= G.r; x += 14 * k) { ctx.beginPath(); ctx.moveTo(x, G.t); ctx.lineTo(x, G.b); ctx.stroke(); }
     for (let y = G.t; y <= G.b; y += 14 * k) { ctx.beginPath(); ctx.moveTo(G.l, y); ctx.lineTo(G.r, y); ctx.stroke(); }
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 7 * k; ctx.lineJoin = 'round';
-    ctx.beginPath(); ctx.moveTo(G.l, G.b); ctx.lineTo(G.l, G.t); ctx.lineTo(G.r, G.t); ctx.lineTo(G.r, G.b); ctx.stroke();
+    ctx.lineJoin = 'round';
+    for (const [col, wd, off] of [['rgba(0,0,0,.18)', 9, 3], ['#fff', 8, 0], ['#dfe6f2', 2.5, 2]]) { ctx.strokeStyle = col; ctx.lineWidth = wd * k; ctx.beginPath(); ctx.moveTo(G.l + off * k, G.b); ctx.lineTo(G.l + off * k, G.t + off * k); ctx.lineTo(G.r + off * k, G.t + off * k); ctx.lineTo(G.r + off * k, G.b); ctx.stroke(); }
   }
   function drawBall() {
     const start = { x: W / 2, y: H * 0.84 };
@@ -193,20 +200,46 @@ export function startPenalty(stage, p, api) {
       if (anim.wide && anim.t > 0.55) { const g = anim.t - 0.55; x += sh.gx * g * 200 * k; y -= g * 160 * k; s *= Math.max(0.3, 1 - g); }
     }
     ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x, (anim ? Math.max(y, G.b) : y) + 18 * k * s, 20 * k * s, 6 * k * s, 0, 0, Math.PI * 2); ctx.fill();
+    if (anim && anim.t < 0.6) fx.puff(x, y, 'rgba(255,255,255,.75)', 7 * k * s);
+    fx.draw(ctx);
     ctx.save(); ctx.translate(x, y); ctx.rotate((anim?.t || 0) * 14); drawEmoji(ctx, '⚽', 0, 0, 44 * k * s); ctx.restore();
   }
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, '#bfe6ff'); g.addColorStop(0.12, '#dff3ff'); g.addColorStop(0.12, '#6fcf7a'); g.addColorStop(1, '#4fb562');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(255,255,255,.08)';
-    for (let i = 0; i < 6; i++) if (i % 2) ctx.fillRect(0, H * 0.12 + (H * 0.88 / 6) * i, W, H * 0.88 / 6);
+    const tnow = performance.now() / 1000, line = G.b + 6, cheer = msg && msg.startsWith('GOO') ? 1 : 0;
+    // langit + tribun penonton
+    const sk = ctx.createLinearGradient(0, 0, 0, line); sk.addColorStop(0, '#8fd3ff'); sk.addColorStop(1, '#dff3ff');
+    ctx.fillStyle = sk; ctx.fillRect(0, 0, W, line);
+    const st0 = Math.max(10 * k, G.t - 62 * k), st1 = line - 24 * k;
+    const sg = ctx.createLinearGradient(0, st0, 0, st1); sg.addColorStop(0, '#6a58a8'); sg.addColorStop(1, '#8f7bd0');
+    ctx.fillStyle = sg; ctx.beginPath(); ctx.moveTo(0, st0 + 10 * k); ctx.quadraticCurveTo(W / 2, st0 - 14 * k, W, st0 + 10 * k); ctx.lineTo(W, st1); ctx.lineTo(0, st1); ctx.fill();
+    const CC = ['#ff8fb7', '#ffd166', '#8fd3ff', '#fff', '#b9f0d2', '#ffb38a'];
+    for (let r = 0, y = st0 + 16 * k; y < st1 - 4 * k; r++, y += 11 * k) {
+      for (let c = 0, x = (r % 2) * 5 * k + 4 * k; x < W; c++, x += 10.5 * k) {
+        const h = Math.sin(r * 12.9 + c * 78.2) * 43758.5; const u = h - Math.floor(h);
+        ctx.fillStyle = CC[Math.floor(u * 6)];
+        ctx.beginPath(); ctx.arc(x, y - (cheer ? Math.abs(Math.sin(tnow * 11 + u * 9)) * 5 * k : Math.sin(tnow * 2 + u * 9) * 0.8 * k), 3.6 * k, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    // papan iklan di pinggir lapangan
+    const AD = [['#ff6f9f', 'LOVE QUEST'], ['#7f63f0', '💖 GOL 💖'], ['#ffb020', 'AYO SAYANG!'], ['#2fbf71', '⚽ PENALTI']];
+    const aw = W / 3;
+    ctx.font = `700 ${Math.round(11 * k)}px Fredoka, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let i = 0; i < 4; i++) { const ax = i * aw - aw * 0.35; ctx.fillStyle = AD[i][0]; ctx.fillRect(ax, st1, aw - 3, 24 * k); ctx.fillStyle = '#fff'; ctx.fillText(AD[i][1], ax + aw / 2, st1 + 12.5 * k); }
+    // rumput belang (makin lebar ke arah kita)
+    const pg = ctx.createLinearGradient(0, line, 0, H); pg.addColorStop(0, '#5fc470'); pg.addColorStop(1, '#3fa456');
+    ctx.fillStyle = pg; ctx.fillRect(0, line, W, H - line);
+    ctx.fillStyle = 'rgba(255,255,255,.09)';
+    for (let i = 0; i < 7; i += 2) { const y0 = line + (H - line) * (i / 7) ** 1.5, y1 = line + (H - line) * ((i + 1) / 7) ** 1.5; ctx.fillRect(0, y0, W, y1 - y0); }
+    const vg = ctx.createRadialGradient(W / 2, H * 0.8, H * 0.1, W / 2, H * 0.8, H * 0.7); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,40,20,.22)');
+    ctx.fillStyle = vg; ctx.fillRect(0, line, W, H - line);
     // kotak penalti
-    ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(W * 0.02, G.b + 6); ctx.lineTo(W * 0.98, G.b + 6); ctx.stroke();
-    ctx.strokeRect(W * 0.2, G.b + 6, W * 0.6, H * 0.12);
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(W / 2, H * 0.84 + 22 * k, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(0, line); ctx.lineTo(W, line); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W * 0.2, line); ctx.lineTo(W * 0.1, line + H * 0.14); ctx.lineTo(W * 0.9, line + H * 0.14); ctx.lineTo(W * 0.8, line); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(W / 2, H * 0.84 + 22 * k, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+    if (cheer && !cheered) { cheered = true; for (let i = 0; i < 5; i++) fx.burst(W * (0.15 + 0.175 * i), G.t - 6 * k, { n: 16, colors: ['#ff8fb7', '#ffd166', '#8fd3ff', '#fff', '#b9f0d2'], speed: 230, life: 1.1, gravity: 320, up: 0.7 }); }
+    if (!msg) cheered = false;
     drawGoal();
     const keeper = iShoot(turn) ? look.opp : look.me, shooter = iShoot(turn) ? look.me : look.opp;
     drawKeeper(keeper);
@@ -252,6 +285,7 @@ export function startPenalty(stage, p, api) {
     const dt = Math.min(0.04, (now - last) / 1000);
     last = now;
     if (!done) update(dt);
+    fx.step(dt);
     draw();
   }
   startTurn();

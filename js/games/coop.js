@@ -4,6 +4,7 @@
 // Level dicek otomatis biar pasti bisa diselesaiin (lompat maks 2 ubin ke atas / ±3 ubin datar).
 import { drawEmoji, loadImage } from '../util.js';
 import { drawToon, toonLoad } from '../toon.js';
+import { drawSky, makeFx } from '../scene.js';
 
 // # tembok · L lava · A air · G lendir · P/Q lahir api/air · F/D pintu api/air · f/w permata · o tombol→gerbang g · p tombol→lift m
 export const COOP_LEVELS = [
@@ -179,16 +180,28 @@ export function startCoop(stage, p, api) {
   const X = (x) => ox + x * T, Y = (y) => oy + y * T;
   function rr(x, y, w, h, r) { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); }
   const POOL = { L: ['#ff7a2f', '#ffb347'], A: ['#3b9cff', '#8fd3ff'], G: ['#52c41a', '#a6f07a'] };
+  const fx = makeFx();
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#fbe7ff'); bg.addColorStop(1, '#ffe3ee');
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
     const tm = performance.now() / 1000;
+    // malam hari di jalan pulang: langit berbintang + bukit, bagian dalam level agak digelapin biar karakternya kelihatan
+    drawSky(ctx, W, H, Y(ROWS) - T * 2, (chars.water.x + chars.fire.x) * T * 0.15, tm, 'night', Math.max(0.7, T / 30));
+    ctx.fillStyle = 'rgba(35,25,70,.38)'; ctx.fillRect(X(0), Y(0), T * COLS, T * ROWS);
+    const solid = (xx, yy) => yy >= 0 && yy < ROWS && xx >= 0 && xx < COLS && (map[yy][xx] === '#' || POOL[map[yy][xx]]);
+    const block = (px, py, x, y) => { // batu bata; yang paling atas ditumbuhin rumput
+      ctx.fillStyle = '#6f4f8f'; ctx.fillRect(px, py, T + 0.5, T + 0.5);
+      ctx.fillStyle = '#84629f'; ctx.fillRect(px + 1, py + 1, T - 1.5, T * 0.44); ctx.fillRect(px + ((x + y) % 2 ? 1 : T * 0.5), py + T * 0.52, T * 0.48, T * 0.42);
+      ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.fillRect(px + 2, py + 2, T * 0.5, 2);
+      if (!solid(x, y - 1)) { ctx.fillStyle = '#5fbf7a'; rr(px - 1, py - T * 0.1, T + 2.5, T * 0.3, T * 0.12); ctx.fill(); ctx.fillStyle = '#8fe09a'; ctx.fillRect(px, py - T * 0.1, T + 0.5, T * 0.08); }
+    };
     for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
       const t = map[y][x], px = X(x), py = Y(y);
-      if (t === '#') { ctx.fillStyle = '#9c6b9e'; ctx.fillRect(px, py, T + 0.5, T + 0.5); ctx.fillStyle = '#b585b7'; ctx.fillRect(px, py, T + 0.5, T * 0.22); if ((x * 7 + y * 3) % 5 === 0) { ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(px + T * 0.2, py + T * 0.45, T * 0.3, T * 0.12); } }
+      if (t === '#') block(px, py, x, y);
       if (POOL[t]) {
-        ctx.fillStyle = '#9c6b9e'; ctx.fillRect(px, py, T + 0.5, T + 0.5);
+        ctx.fillStyle = '#6f4f8f'; ctx.fillRect(px, py, T + 0.5, T + 0.5);
+        const gw = ctx.createRadialGradient(px + T / 2, py + T * 0.2, 1, px + T / 2, py + T * 0.2, T * 1.1); gw.addColorStop(0, POOL[t][1] + '88'); gw.addColorStop(1, POOL[t][1] + '00');
+        ctx.fillStyle = gw; ctx.fillRect(px - T * 0.6, py - T, T * 2.2, T * 1.4);
+        if (Math.random() < 0.03) fx.burst(px + Math.random() * T, py + T * 0.15, { n: 1, colors: [POOL[t][1], '#fff'], speed: 40, size: 2.4, gravity: -60, life: 0.7, up: 1 });
         const [c1, c2] = POOL[t], g = ctx.createLinearGradient(0, py, 0, py + T * 0.55); g.addColorStop(0, c2); g.addColorStop(1, c1);
         ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(px, py + T * 0.12);
         for (let i = 0; i <= 6; i++) ctx.lineTo(px + (T * i) / 6, py + T * 0.08 + Math.sin(tm * 4 + x * 2 + i) * T * 0.05);
@@ -198,13 +211,21 @@ export function startCoop(stage, p, api) {
       if (t === 'o' || t === 'p') { const on = pressed(t); ctx.fillStyle = t === 'o' ? '#ffb020' : '#a66bff'; rr(px + T * 0.18, py + T * (on ? 0.86 : 0.76), T * 0.64, T * (on ? 0.14 : 0.24), 5); ctx.fill(); }
       if (t === 'F' || t === 'D') {
         const fire = t === 'F', c = chars[fire ? 'fire' : 'water'];
-        ctx.fillStyle = fire ? '#ffd1b8' : '#cfe8ff'; rr(px + T * 0.05, py - T * 0.55, T * 0.9, T * 1.55, [T * 0.45, T * 0.45, 4, 4]); ctx.fill();
-        ctx.strokeStyle = fire ? '#ff7a2f' : '#3b9cff'; ctx.lineWidth = 3; ctx.stroke();
-        drawEmoji(ctx, fire ? '🔥' : '💧', px + T / 2, py - T * 0.12, T * 0.55);
+        const col = fire ? '#ff7a2f' : '#3b9cff', lite = fire ? '#ffe2cf' : '#d9eeff';
+        const dg = ctx.createRadialGradient(px + T / 2, py + T * 0.2, 2, px + T / 2, py + T * 0.2, T * 1.5); dg.addColorStop(0, c.atDoor ? 'rgba(255,245,170,.75)' : col + '55'); dg.addColorStop(1, col + '00');
+        ctx.fillStyle = dg; ctx.fillRect(px - T, py - T * 1.4, T * 3, T * 2.6);
+        ctx.fillStyle = '#fff6ea'; rr(px - T * 0.12, py - T * 0.5, T * 1.24, T * 1.5, 4); ctx.fill(); // dinding rumah
+        ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(px - T * 0.3, py - T * 0.45); ctx.lineTo(px + T / 2, py - T * 1.1); ctx.lineTo(px + T * 1.3, py - T * 0.45); ctx.closePath(); ctx.fill(); // atap
+        ctx.fillStyle = c.atDoor ? '#fff2a8' : lite; rr(px + T * 0.2, py - T * 0.2, T * 0.6, T * 1.2, [T * 0.3, T * 0.3, 2, 2]); ctx.fill();
+        ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.stroke();
+        ctx.fillStyle = col; ctx.beginPath(); ctx.arc(px + T * 0.68, py + T * 0.45, T * 0.05, 0, Math.PI * 2); ctx.fill();
+        drawEmoji(ctx, fire ? '🔥' : '💧', px + T / 2, py - T * 0.72, T * 0.36);
         if (c.atDoor) drawEmoji(ctx, '✨', px + T / 2, py - T * 0.7, T * 0.5);
       }
     }
     for (const l of lifts()) { ctx.fillStyle = '#a66bff'; rr(X(l.x), Y(l.y), T, T * 0.5, 5); ctx.fill(); ctx.fillStyle = '#c9a6ff'; ctx.fillRect(X(l.x) + 2, Y(l.y) + 2, T - 4, T * 0.12); }
+    for (const g of gems) if (!g.got) { const gx = X(g.x) + T / 2, gy = Y(g.y) + T / 2, gg = ctx.createRadialGradient(gx, gy, 1, gx, gy, T * 0.7); gg.addColorStop(0, g.kind === 'fire' ? 'rgba(255,150,120,.6)' : 'rgba(140,210,255,.6)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(gx, gy, T * 0.7, 0, Math.PI * 2); ctx.fill(); }
+    fx.draw(ctx);
     for (const g of gems) if (!g.got) drawEmoji(ctx, g.kind === 'fire' ? '❤️‍🔥' : '💎', X(g.x) + T / 2, Y(g.y) + T / 2 + Math.sin(tm * 3 + g.x) * T * 0.08, T * 0.7);
     for (const c of [chars.water, chars.fire]) {
       const cx = X(c.x + CW / 2), feet = Y(c.y + CH);
@@ -215,6 +236,7 @@ export function startCoop(stage, p, api) {
       drawToon(ctx, c.toon, pose, cx, feet + T * 0.06, T * 1.5, c.face, c.img, c.emoji, c.kind === 'fire' ? '#ff7a2f' : '#3b9cff');
       if (!duel && c.kind === active && state === 'play') drawEmoji(ctx, '👇', cx, feet - T * 1.75 + Math.sin(tm * 6) * 3, T * 0.45);
     }
+    ctx.fillStyle = 'rgba(255,255,255,.88)'; rr(4, 3, 92, 24, 12); ctx.fill(); rr(W - 74, 3, 70, 24, 12); ctx.fill();
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = '700 15px Fredoka, sans-serif'; ctx.fillStyle = '#5a2a52';
     ctx.fillText(`Level ${lvIdx + 1}/${COOP_LEVELS.length}`, 10, 15);
     ctx.textAlign = 'right';
@@ -231,6 +253,7 @@ export function startCoop(stage, p, api) {
     raf = requestAnimationFrame(loop);
     const dt = Math.min(0.033, (now - last) / 1000); last = now;
     if (!done) update(dt);
+    fx.step(dt);
     draw();
   }
   load(lvIdx);

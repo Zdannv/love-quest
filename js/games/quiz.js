@@ -4,6 +4,7 @@ import { esc } from '../util.js';
 export function startQuiz(stage, p, api) {
   const qs = p.questions;
   let i = 0, correct = 0, locked = false, done = false;
+  const marks = [];
   const timers = [];
 
   const box = document.createElement('div');
@@ -19,11 +20,13 @@ export function startQuiz(stage, p, api) {
     locked = false;
     stats();
     box.innerHTML = `
+      <div class="quiz-dots">${qs.map((_, k) => `<i class="${k < i ? (marks[k] ? 'ok' : 'no') : k === i ? 'now' : ''}"></i>`).join('')}</div>
       <div class="quiz-card">
-        <div class="quiz-num">Pertanyaan ${i + 1}</div>
+        <div class="quiz-badge">💌</div>
+        <div class="quiz-num">Pertanyaan ${i + 1} dari ${qs.length}</div>
         <div class="quiz-q">${esc(q.q)}</div>
         <div class="quiz-opts">
-          ${q.options.map((o, k) => `<button class="opt" data-k="${k}">${esc(o)}</button>`).join('')}
+          ${q.options.map((o, k) => `<button class="opt" data-k="${k}" style="--i:${k}"><span class="opt-l">${'ABCDEF'[k]}</span><span class="opt-t">${esc(o)}</span><span class="opt-m"></span></button>`).join('')}
         </div>
         <div class="quiz-fb" aria-live="polite"></div>
       </div>`;
@@ -36,6 +39,9 @@ export function startQuiz(stage, p, api) {
     const q = qs[i];
     const ok = q.answer === -1 || q.answer === k;
     const fb = box.querySelector('.quiz-fb');
+    marks[i] = ok;
+    box.querySelector('.quiz-dots .now')?.classList.add(ok ? 'ok' : 'no');
+    box.querySelector('.quiz-badge').textContent = ok ? '🥰' : '🙈';
     if (ok) {
       correct++;
       btn.classList.add('right');
