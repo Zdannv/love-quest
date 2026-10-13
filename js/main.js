@@ -255,6 +255,7 @@ function saveBest(type, score) {
   return true;
 }
 const SCORE_UNIT = { race: 'poin', fight: 'menang', penalty: 'poin', pillow: 'menang', cook: 'pesanan', bomb: 'menang', fly: 'tiang', runner: 'detik', stack: 'tingkat', catch: 'poin', timing: 'kena', simon: 'urutan' };
+if (window.__lqTest) window.__startType = (type, k = 2) => startLevel({ id: `t-${type}`, track: type, k, num: k + 1, type, world: 1, params: trackParams(type, k) });
 function endlessLevel(type) {
   const inf = Number.POSITIVE_INFINITY;
   const params = { ...trackParams(type, 1), endless: true, best: bestScores()[type] || 0, ...(type === 'runner' || type === 'catch' ? { time: inf } : { target: inf }) };
@@ -694,7 +695,8 @@ function levelParams(L) {
   }
   if (L.type === 'fly') return { ...L.params, flyer: c.pasangan.emoji, face: faceA };
   if (L.type === 'simon') return { ...L.params, pads: [c.pasangan.emoji, c.pengirim.emoji, '💖', '⭐'] };
-  if (L.type === 'runner') return { ...L.params, face: faceB, emoji: c.pengirim.emoji };
+  if (L.type === 'runner') return { ...L.params, face: faceB, emoji: c.pengirim.emoji, toon: 'm' };
+  if (L.type === 'timing') return { ...L.params, face: faceA, emoji: c.pasangan.emoji, toon: 'f' };
   if (L.type === 'throw') return { ...L.params, face: faceB, emoji: c.pengirim.emoji };
   // Game seru yang baru: yang main = pasangan, lawan / partnernya = pengirim
   const duo = { face: faceA, emoji: c.pasangan.emoji, name: n.pasangan, oppFace: faceB, oppEmoji: c.pengirim.emoji, oppName: n.pengirim, toon: 'f', oppToon: 'm' };

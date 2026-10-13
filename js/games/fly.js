@@ -2,6 +2,7 @@
 // Dibuat santai: 3 nyawa, dan kalau nabrak owl cuma kedip lalu lanjut terbang.
 // Mode balapan online (p.race): tiang pakai angka acak yang sama (p.rng), karakter lawan ikut kelihatan.
 import { rand, drawEmoji, drawFace, loadImage } from '../util.js';
+import { drawSky, drawGround, makeFx, outlined, roundRect } from '../scene.js';
 
 export function startFly(stage, p, api) {
   const face = loadImage(p.face);
@@ -30,6 +31,9 @@ export function startFly(stage, p, api) {
   const owl = { x: W * 0.28, y: H * 0.45, vy: 0, size: 46 * k };
   let pillars = [], hearts = [], floats = [];
   let started = false, done = false, raf = 0, last = performance.now();
+  const fx = makeFx();
+  const floorY = () => H - 44 * k; // batas tanah
+  let scroll = 0, flapT = 1, clock = 0;
   let passed = 0, lives = p.lives, hurtT = 0, spawnX = 0, collected = 0, lastStats = '';
   const pillarW = 62 * k;
 
@@ -37,6 +41,8 @@ export function startFly(stage, p, api) {
     if (done) return;
     if (!started) { started = true; api.say('Terbang terus {pasangan}! {karakter}', 'happy'); }
     owl.vy = -390 * k;
+    flapT = 0;
+    fx.puff(owl.x - owl.size * 0.4, owl.y + owl.size * 0.3, 'rgba(255,255,255,.9)', 7 * k);
     api.sfx('flip');
   }
   const onPointer = (e) => { e.preventDefault(); flap(); };
@@ -48,7 +54,7 @@ export function startFly(stage, p, api) {
   function addPillar(x) {
     const gap = (p.endless ? Math.max(p.gap - 60, p.gap - passed * 1.5) : p.gap) * k;
     const margin = 60 * k;
-    const gy = rnd(margin + gap / 2, H - margin - gap / 2);
+    const gy = rnd(margin + gap / 2, floorY() - margin * 0.6 - gap / 2);
     pillars.push({ x, gy, gap, passed: false });
     if (rng() < 0.8) hearts.push({ x: x + pillarW / 2, y: gy + rnd(-gap / 4, gap / 4), got: false });
   }
@@ -60,6 +66,7 @@ export function startFly(stage, p, api) {
     lives--;
     hurtT = 1.4;
     owl.vy = -200 * k;
+    fx.burst(owl.x, owl.y, { n: 14, colors: ['#ff4d6d', '#ffd166', '#fff'] });
     api.sfx('bad');
     api.streak(false);
     api.say('Aduh nabrak 😵 hati-hati {pasangan}!', 'sad');
@@ -69,6 +76,7 @@ export function startFly(stage, p, api) {
 
   function update(dt) {
     hurtT = Math.max(0, hurtT - dt);
+    clock += dt; flapT += dt; fx.step(dt);
     for (const f of floats) { f.y -= 40 * dt; f.life -= dt * 1.2; }
     floats = floats.filter((f) => f.life > 0);
     if (!started) { owl.y = H * 0.45 + Math.sin(performance.now() / 300) * 8; return; }
@@ -76,9 +84,10 @@ export function startFly(stage, p, api) {
     owl.vy += 1250 * k * dt;
     owl.y += owl.vy * dt;
     if (owl.y < owl.size / 2) { owl.y = owl.size / 2; owl.vy = 0; }
-    if (owl.y > H - owl.size / 2) { owl.y = H - owl.size / 2; owl.vy = -330 * k; hit(); }
+    if (owl.y > floorY() - owl.size / 2) { owl.y = floorY() - owl.size / 2; owl.vy = -330 * k; hit(); }
 
     const speed = (p.endless ? Math.min(p.speed + 120, p.speed + passed * 2.5) : p.speed) * k;
+    scroll += speed * dt;
     spawnX -= speed * dt;
     if (spawnX <= 0) { addPillar(W + 10); spawnX = p.spacing * k; }
 
@@ -101,6 +110,7 @@ export function startFly(stage, p, api) {
         h.got = true;
         collected++;
         api.sfx('good');
+        fx.burst(h.x, h.y, { n: 10, colors: ['#ff5c93', '#ffb3cf', '#fff'], speed: 140 });
         addFloat(h.x, h.y - 20, '+💖', '#ff5c93');
       }
     }
@@ -108,26 +118,45 @@ export function startFly(stage, p, api) {
     hearts = hearts.filter((h) => !h.got && h.x > -30);
   }
 
+  // Tiang permen: badan belang + topi lebih lebar di ujung celah
   function drawPillar(x, y, h, capAtBottom) {
-    ctx.fillStyle = '#b8e986';
-    ctx.strokeStyle = '#86c45a';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(x, y, pillarW, h, 14);
-    else ctx.rect(x, y, pillarW, h);
-    ctx.fill();
-    ctx.stroke();
-    drawEmoji(ctx, '🌸', x + pillarW / 2, capAtBottom ? y + h - 16 * k : y + 16 * k, 26 * k);
+    const g = ctx.createLinearGradient(x, 0, x + pillarW, 0);
+    g.addColorStop(0, '#ff9cc4'); g.addColorStop(0.35, '#ffd0e3'); g.addColorStop(1, '#f06aa6');
+    ctx.fillStyle = g; ctx.fillRect(x, y, pillarW, h);
+    ctx.save(); ctx.beginPath(); ctx.rect(x, y, pillarW, h); ctx.clip();
+    ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 9 * k;
+    for (let yy = y - pillarW + ((capAtBottom ? y + h : y) % (34 * k)); yy < y + h + pillarW; yy += 34 * k) { ctx.beginPath(); ctx.moveTo(x - 4, yy + pillarW * 0.6); ctx.lineTo(x + pillarW + 4, yy); ctx.stroke(); }
+    ctx.restore();
+    ctx.strokeStyle = '#d9508f'; ctx.lineWidth = 2.5; ctx.strokeRect(x, y, pillarW, h);
+    const ch = 26 * k, cy = capAtBottom ? y + h - ch : y, cx = x - 7 * k, cw = pillarW + 14 * k;
+    const cg = ctx.createLinearGradient(cx, 0, cx + cw, 0);
+    cg.addColorStop(0, '#ff7fb3'); cg.addColorStop(0.3, '#ffc2dc'); cg.addColorStop(1, '#e8558f');
+    ctx.fillStyle = cg; roundRect(ctx, cx, cy, cw, ch, 9 * k); ctx.fill(); ctx.stroke();
+    drawEmoji(ctx, '🌸', x + pillarW / 2, cy + ch / 2, 22 * k);
+  }
+
+  // Sayap kecil yang ngepak tiap tap
+  function drawWings(size) {
+    const a = flapT < 0.28 ? Math.sin((flapT / 0.28) * Math.PI) * 0.9 : Math.sin(clock * 9) * 0.12;
+    for (const side of [-1, 1]) {
+      ctx.save(); ctx.scale(side, 1); ctx.translate(-size * 0.42, 0); ctx.rotate(-0.5 + a);
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#ffb3cf'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(-size * 0.3, -size * 0.06, size * 0.36, size * 0.2, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(-size * 0.22, size * 0.12, size * 0.24, size * 0.13, 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
   }
 
   function draw() {
     ctx.clearRect(0, 0, W, H);
+    drawSky(ctx, W, H, floorY(), scroll, clock, 'day', k);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const pl of pillars) {
       drawPillar(pl.x, -20, pl.gy - pl.gap / 2 + 20, true);
-      drawPillar(pl.x, pl.gy + pl.gap / 2, H - (pl.gy + pl.gap / 2) + 20, false);
+      drawPillar(pl.x, pl.gy + pl.gap / 2, floorY() - (pl.gy + pl.gap / 2) + 4, false);
     }
+    drawGround(ctx, W, H, floorY(), scroll, 'day', k);
     for (const h of hearts) drawEmoji(ctx, '💖', h.x, h.y + Math.sin((h.x + performance.now() / 5) / 30) * 4, 26 * k);
 
     if (race) {
@@ -152,17 +181,14 @@ export function startFly(stage, p, api) {
     ctx.translate(owl.x, owl.y);
     ctx.rotate(Math.max(-0.4, Math.min(0.6, owl.vy / (900 * k))));
     if (hurtT > 0 && Math.floor(hurtT * 12) % 2) ctx.globalAlpha = 0.35;
+    drawWings(owl.size);
     if (face) drawFace(ctx, face, 0, 0, owl.size * 0.5, p.flyer || '🦉');
     else drawEmoji(ctx, p.flyer || '🦉', 0, 0, owl.size);
     ctx.restore();
+    fx.draw(ctx);
 
     if (!started) {
-      ctx.font = `600 ${Math.round(22 * k)}px Fredoka, sans-serif`;
-      ctx.fillStyle = '#e8558f';
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 5;
-      ctx.strokeText('Tap buat terbang! 👆', W / 2, H * 0.7);
-      ctx.fillText('Tap buat terbang! 👆', W / 2, H * 0.7);
+      outlined(ctx, 'Tap buat terbang! 👆', W / 2, H * 0.66 + Math.sin(clock * 4) * 4, 23 * k);
     }
 
     ctx.font = `700 ${Math.round(22 * k)}px Fredoka, sans-serif`;

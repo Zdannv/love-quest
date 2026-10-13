@@ -1,24 +1,28 @@
 // Lempar Hati: target (muka!) geser kiri-kanan di atas, tap buat lempar 💖 lurus ke atas.
 // Kena target sejumlah `target` sebelum lemparan habis.
 import { setupCanvas, drawEmoji, drawFace, loadImage, pick } from '../util.js';
+import { drawSky, drawGround, makeFx, outlined, shadow } from '../scene.js';
 
 const HIT_LINES = ['Kena! 😘', 'Tepat sasaran 💘', 'Aww kena hati 🥰', 'Mantap! 💖'];
 
 export function startThrow(stage, p, api) {
   const { canvas, ctx, size, dispose } = setupCanvas(stage);
   const face = loadImage(p.face);
-  const targetY = () => size.H * 0.24;
+  const targetY = () => size.H * 0.3;
   const launchY = () => size.H - 70 * size.k;
   const R = () => 34 * size.k;
 
   const target = { x: 0, dir: 1, wobble: 0 };
   let hearts = [], floats = [], hits = 0, thrown = 0, done = false, raf = 0, last = performance.now(), lastStats = '', t = 0;
   target.x = size.W / 2;
+  const fx = makeFx();
+  let recoil = 0;
 
   function throwHeart() {
     if (done || thrown >= p.throws) return;
     thrown++;
     hearts.push({ x: size.W / 2, y: launchY(), vy: -900 * size.k, resolved: false });
+    recoil = 1;
     api.sfx('flip');
   }
   const onTap = (e) => { e.preventDefault(); throwHeart(); };
@@ -27,7 +31,7 @@ export function startThrow(stage, p, api) {
   window.addEventListener('keydown', onKey);
 
   function update(dt) {
-    t += dt;
+    t += dt; recoil = Math.max(0, recoil - dt * 5); fx.step(dt);
     const speed = (p.speed + hits * p.speedUp) * size.k;
     // Gerak kiri-kanan, kadang ganti arah mendadak biar seru
     target.x += target.dir * speed * dt;
@@ -39,12 +43,14 @@ export function startThrow(stage, p, api) {
 
     for (const h of hearts) {
       h.y += h.vy * dt;
+      if (Math.random() < 0.6) fx.puff(h.x + (Math.random() - 0.5) * 8, h.y + 14, 'rgba(255,170,205,.8)', 4 * size.k);
       if (!h.resolved && h.y <= targetY()) {
         h.resolved = true;
         if (Math.abs(h.x - target.x) < R() * 1.05) {
           h.gone = true;
           hits++;
           target.wobble = 1;
+          fx.burst(target.x, targetY(), { n: 20, colors: ['#ff5c93', '#ffd3e4', '#ffd166', '#fff'], speed: 230 });
           api.sfx('good');
           api.streak(true);
           floats.push({ x: target.x, y: targetY() - R() - 10, text: pick(HIT_LINES), color: '#ff5c93', life: 1 });
@@ -69,31 +75,40 @@ export function startThrow(stage, p, api) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // jalur target
-    ctx.strokeStyle = 'rgba(255,255,255,.7)';
-    ctx.setLineDash([6, 8]);
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(20, targetY());
-    ctx.lineTo(W - 20, targetY());
-    ctx.stroke();
-    ctx.setLineDash([]);
+    const gy = H - 34 * k;
+    drawSky(ctx, W, H, gy, target.x * 0.3, t, 'sunset', k);
+    drawGround(ctx, W, H, gy, 0, 'sunset', k);
 
-    const wob = Math.sin(target.wobble * 20) * target.wobble * 0.3;
+    // sasaran: muka digantung balon, melayang di kawat
+    ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.setLineDash([6, 8]); ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(14, targetY() - R() * 2.3); ctx.lineTo(W - 14, targetY() - R() * 2.3); ctx.stroke(); ctx.setLineDash([]);
+    const wob = Math.sin(target.wobble * 20) * target.wobble * 0.3, sway = Math.sin(t * 2.4) * 0.06 - target.dir * 0.07;
     ctx.save();
-    ctx.translate(target.x, targetY());
-    ctx.rotate(wob);
-    drawFace(ctx, face, 0, 0, R(), p.emoji || '😘', '#ffd1e3');
+    ctx.translate(target.x, targetY() - R() * 2.3);
+    ctx.rotate(sway + wob);
+    for (const [dx, em] of [[-0.55, '🎈'], [0.55, '🎈'], [0, '🎈']]) {
+      ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(dx * R(), R() * 0.2); ctx.lineTo(0, R() * 1.5); ctx.stroke();
+      drawEmoji(ctx, em, dx * R(), -R() * 0.25 + Math.abs(dx) * R() * 0.3, R() * 1.1);
+    }
+    ctx.fillStyle = 'rgba(255,143,183,.28)'; ctx.beginPath(); ctx.arc(0, R() * 2.3, R() * 1.35, 0, Math.PI * 2); ctx.fill();
+    drawFace(ctx, face, 0, R() * 2.3, R(), p.emoji || '😘', '#fff');
     ctx.restore();
 
-    for (const h of hearts) drawEmoji(ctx, '💖', h.x, h.y, 30 * k);
+    fx.draw(ctx);
+    for (const h of hearts) drawEmoji(ctx, '💖', h.x, h.y, 32 * k);
 
-    // pelontar
-    const left = p.throws - thrown;
-    if (left > 0) drawEmoji(ctx, '💘', W / 2, launchY(), 44 * k);
-    ctx.font = `600 ${Math.round(15 * k)}px Fredoka, sans-serif`;
-    ctx.fillStyle = '#a0678a';
-    ctx.fillText(`sisa lemparan: ${left}`, W / 2, launchY() + 38 * k);
+    // ketapel
+    const left = p.throws - thrown, ly = launchY() - recoil * 10 * k;
+    shadow(ctx, W / 2, gy + 4 * k, 34 * k);
+    ctx.strokeStyle = '#a8703f'; ctx.lineWidth = 9 * k; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(W / 2, gy); ctx.lineTo(W / 2, ly + 22 * k); ctx.moveTo(W / 2, ly + 22 * k); ctx.lineTo(W / 2 - 26 * k, ly - 16 * k); ctx.moveTo(W / 2, ly + 22 * k); ctx.lineTo(W / 2 + 26 * k, ly - 16 * k); ctx.stroke();
+    ctx.strokeStyle = '#ff8fb7'; ctx.lineWidth = 3 * k;
+    ctx.beginPath(); ctx.moveTo(W / 2 - 26 * k, ly - 16 * k); ctx.lineTo(W / 2, ly + (1 - recoil) * 8 * k); ctx.lineTo(W / 2 + 26 * k, ly - 16 * k); ctx.stroke();
+    if (left > 0) drawEmoji(ctx, '💖', W / 2, ly + (1 - recoil) * 4 * k, 34 * k * (1 - recoil * 0.5));
+    // sisa lemparan: deretan hati kecil
+    const per = Math.min(22 * k, (W - 40) / Math.max(1, p.throws));
+    for (let i = 0; i < p.throws; i++) { ctx.globalAlpha = i < left ? 1 : 0.22; drawEmoji(ctx, '💗', W / 2 + (i - (p.throws - 1) / 2) * per, H - 12 * k, 15 * k); }
+    ctx.globalAlpha = 1;
 
     ctx.font = `700 ${Math.round(22 * k)}px Fredoka, sans-serif`;
     ctx.lineWidth = 5;
@@ -107,10 +122,7 @@ export function startThrow(stage, p, api) {
     ctx.globalAlpha = 1;
 
     if (t < 1.5 && !done) {
-      ctx.font = `600 ${Math.round(20 * k)}px Fredoka, sans-serif`;
-      ctx.strokeText('Tap buat lempar hati! 👆', W / 2, H * 0.55);
-      ctx.fillStyle = '#e8558f';
-      ctx.fillText('Tap buat lempar hati! 👆', W / 2, H * 0.55);
+      outlined(ctx, 'Tap buat lempar hati! 👆', W / 2, H * 0.55, 21 * k);
     }
 
     const s = `🎯 ${hits}/${p.target} · 💘 ${p.throws - thrown}`;

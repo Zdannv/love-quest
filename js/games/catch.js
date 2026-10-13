@@ -1,6 +1,7 @@
 // Tangkap Cinta: kucing bawa keranjang, tangkap barang lucu, hindari 💔.
 // Sesekali item bonus jatuh (foto kalian atau 😘): +10 poin!
 import { rand, pick, starsFor, drawEmoji, drawFace, loadImage } from '../util.js';
+import { drawSky, drawGround, makeFx, shadow } from '../scene.js';
 
 export function startCatch(stage, p, api) {
   const bonusImg = loadImage(p.bonusImage);
@@ -27,6 +28,8 @@ export function startCatch(stage, p, api) {
   player.x = player.tx = W / 2;
 
   let items = [], floats = [];
+  const fx = makeFx();
+  const groundY = () => H - player.size * 0.36;
   let score = 0, lives = p.lives, t = 0, spawnIn = 0.4, done = false, raf = 0, bonusIn = 6 + Math.random() * 6;
   let last = performance.now(), shakeT = 0, hurtT = 0, lastStats = '', warned = false;
   const pickOuch = () => pick(['Aduh! Hati-hati {pasangan} 🥺', 'Eh eh itu bukan hati 😵', 'Jangan ditangkep yang itu 😭']);
@@ -82,6 +85,7 @@ export function startCatch(stage, p, api) {
       shakeT = 0.35;
       hurtT = 0.6;
       api.sfx('bad');
+      fx.burst(it.x, it.y, { n: 14, colors: ['#ff4d6d', '#7a4a6a', '#fff'] });
       addFloat(it.x, it.y - 20, 'Aduh!', '#ff4d6d');
       api.streak(false);
       api.say(pickOuch(), 'sad');
@@ -89,6 +93,7 @@ export function startCatch(stage, p, api) {
     } else {
       score += it.pts;
       player.squash = 1;
+      fx.burst(it.x, it.y, { n: it.kind === 'good' ? 9 : 22, colors: it.kind === 'gold' ? ['#ffd166', '#fff2a8', '#fff'] : it.kind === 'bonus' ? ['#c9a6ff', '#ffd166', '#fff'] : ['#ff8fb7', '#ffd3e4', '#fff'], speed: it.kind === 'good' ? 150 : 240 });
       api.sfx(it.kind === 'good' ? 'good' : 'gold');
       if (it.kind === 'bonus') {
         addFloat(it.x, it.y - 30, '+10 Bonus! 😍', '#9a6bff');
@@ -138,6 +143,7 @@ export function startCatch(stage, p, api) {
     for (const f of floats) { f.y -= 45 * dt; f.life -= dt * 1.2; }
     floats = floats.filter((f) => f.life > 0);
     player.squash = Math.max(0, player.squash - dt * 5);
+    fx.step(dt);
     shakeT = Math.max(0, shakeT - dt);
     hurtT = Math.max(0, hurtT - dt);
 
@@ -150,10 +156,16 @@ export function startCatch(stage, p, api) {
     ctx.clearRect(0, 0, W, H);
     ctx.save();
     if (shakeT > 0) ctx.translate(rand(-8, 8) * shakeT * 2, rand(-5, 5) * shakeT * 2);
+    drawSky(ctx, W, H, groundY(), player.x * 0.25, t, 'day', k);
+    drawGround(ctx, W, H, groundY(), player.x * 0.1, 'day', k);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
     for (const it of items) {
+      // bayangan di tanah makin jelas pas makin deket, jadi kelihatan jatuhnya di mana
+      const near = Math.max(0, Math.min(1, it.y / groundY()));
+      shadow(ctx, it.x, groundY() + 6 * k, it.size * (0.2 + near * 0.3), 0.05 + near * 0.14);
+      if (it.kind !== 'bad') { ctx.fillStyle = it.kind === 'good' ? 'rgba(255,255,255,.35)' : 'rgba(255,230,120,.45)'; ctx.beginPath(); ctx.moveTo(it.x - it.size * 0.22, it.y); ctx.lineTo(it.x, it.y - it.size * 1.5); ctx.lineTo(it.x + it.size * 0.22, it.y); ctx.fill(); }
       ctx.save();
       ctx.translate(it.x, it.y);
       ctx.rotate(it.rot);
@@ -189,17 +201,11 @@ export function startCatch(stage, p, api) {
     const sq = player.squash;
     ctx.scale(1 + sq * 0.15, 1 - sq * 0.12);
     if (hurtT > 0 && Math.floor(hurtT * 14) % 2) ctx.globalAlpha = 0.35;
-    ctx.fillStyle = 'rgba(255, 255, 255, .85)';
-    ctx.strokeStyle = '#ff9cc4';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(0, 0, player.size * 0.62, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
     drawEmoji(ctx, p.carrier || '🐱', 0, -player.size * 0.42, player.size * 0.62);
     drawEmoji(ctx, p.player, 0, player.size * 0.08, player.size * 0.9);
     ctx.restore();
 
+    fx.draw(ctx);
     ctx.font = `700 ${Math.round(24 * k)}px Fredoka, sans-serif`;
     ctx.lineWidth = 5;
     ctx.strokeStyle = '#fff';

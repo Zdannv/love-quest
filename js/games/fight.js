@@ -7,6 +7,7 @@
 // HP lawan yang ngitung darahnya sendiri (biar tangkisan tetap kehitung).
 import { drawEmoji, drawFace, loadImage } from '../util.js';
 import { drawToon, toonLoad } from '../toon.js';
+import { drawSky } from '../scene.js';
 
 const ARENA = 1000, FLOOR = 0.8;
 const MOVES = {
@@ -351,13 +352,14 @@ export function startFight(stage, p, api) {
   }
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    // panggung
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, '#ffd6e7'); g.addColorStop(FLOOR, '#f3c6ff'); g.addColorStop(FLOOR, '#c99ae0'); g.addColorStop(1, '#b07fcc');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(255,255,255,.35)';
-    for (let i = 0; i < 6; i++) drawEmoji(ctx, i % 2 ? '💗' : '✨', (W / 6) * (i + 0.5), H * 0.5 + Math.sin(i * 2 + performance.now() / 900) * 8, 18 * k);
-    ctx.fillRect(0, H * FLOOR, W, 3);
+    // panggung: langit senja + bukit, lantai arena
+    drawSky(ctx, W, H, H * FLOOR, (me.x + opp.x) * 0.06, performance.now() / 1000, p.endless && wins % 2 ? 'night' : 'sunset', k);
+    const fl = ctx.createLinearGradient(0, H * FLOOR, 0, H); fl.addColorStop(0, '#d9a0e8'); fl.addColorStop(1, '#a874c9');
+    ctx.fillStyle = fl; ctx.fillRect(0, H * FLOOR, W, H - H * FLOOR);
+    ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(0, H * FLOOR, W, 4);
+    ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 2;
+    for (let i = -4; i <= 4; i++) { ctx.beginPath(); ctx.moveTo(W / 2 + i * W * 0.11, H * FLOOR); ctx.lineTo(W / 2 + i * W * 0.3, H); ctx.stroke(); }
+    ctx.beginPath(); ctx.ellipse(W / 2, H * FLOOR + (H - H * FLOOR) * 0.45, W * 0.34, (H - H * FLOOR) * 0.28, 0, 0, Math.PI * 2); ctx.stroke();
     for (const f of [opp, me]) drawFighter(f);
     for (const pr of projs) drawEmoji(ctx, '💖', SX(pr.x), H * FLOOR - 100 * k + Math.sin(pr.x / 30) * 6, 40 * k);
     for (const s of sparks) { ctx.globalAlpha = Math.min(1, s.life * 3); drawEmoji(ctx, s.em, SX(s.x), H * FLOOR - s.y * 180 * k, 40 * k * (1.3 - s.life)); }

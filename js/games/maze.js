@@ -132,46 +132,51 @@ export function startMaze(stage, p, api) {
     const L = layout();
     ctx.clearRect(0, 0, W, H);
 
-    // lantai labirin
-    ctx.fillStyle = 'rgba(255,255,255,.75)';
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(L.x - 6, L.y - 6, L.w + 12, L.h + 12, 16); else ctx.rect(L.x - 6, L.y - 6, L.w + 12, L.h + 12);
-    ctx.fill();
+    // taman: rumput kotak-kotak + bingkai
+    const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#cdeffd'); bg.addColorStop(1, '#e9f9d8');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    const rrp = (x, y, w, h, r) => { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); };
+    ctx.fillStyle = 'rgba(60,110,50,.18)'; rrp(L.x - 10, L.y - 6, L.w + 20, L.h + 22, 20); ctx.fill();
+    ctx.fillStyle = '#b9e88f'; rrp(L.x - 10, L.y - 10, L.w + 20, L.h + 20, 20); ctx.fill();
+    ctx.save(); rrp(L.x - 4, L.y - 4, L.w + 8, L.h + 8, 12); ctx.clip();
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { ctx.fillStyle = (r + c) % 2 ? '#c9f0a3' : '#bdeb94'; ctx.fillRect(L.x + c * L.cell, L.y + r * L.cell, L.cell + 1, L.cell + 1); }
+    ctx.restore();
 
-    // kotak awal (hijau) & tujuan (pink)
-    ctx.fillStyle = 'rgba(143, 227, 200, .45)';
-    ctx.fillRect(L.x, L.y, L.cell, L.cell);
-    ctx.fillStyle = 'rgba(255, 126, 176, .28)';
-    ctx.fillRect(L.x + goal.c * L.cell, L.y + goal.r * L.cell, L.cell, L.cell);
+    // kotak awal & tujuan
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; rrp(L.x + 3, L.y + 3, L.cell - 6, L.cell - 6, 8); ctx.fill();
+    ctx.fillStyle = 'rgba(255,126,176,.45)'; rrp(L.x + goal.c * L.cell + 3, L.y + goal.r * L.cell + 3, L.cell - 6, L.cell - 6, 8); ctx.fill();
 
-    // garis jalan
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'rgba(255, 126, 176, .85)';
-    ctx.lineWidth = L.cell * 0.34;
-    ctx.beginPath();
-    path.forEach((cell, i) => {
-      const { x, y } = center(L, cell);
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-
-    // tembok
-    ctx.strokeStyle = '#b86b95';
-    ctx.lineWidth = Math.max(3, L.cell * 0.1);
-    ctx.beginPath();
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const x = L.x + c * L.cell, y = L.y + r * L.cell, w = walls[r][c];
-        const isStart = r === 0 && c === 0;
-        const isGoal = r === goal.r && c === goal.c;
-        if (w.n && !isStart) { ctx.moveTo(x, y); ctx.lineTo(x + L.cell, y); }
-        if (w.w) { ctx.moveTo(x, y); ctx.lineTo(x, y + L.cell); }
-        if (r === rows - 1 && w.s && !isGoal) { ctx.moveTo(x, y + L.cell); ctx.lineTo(x + L.cell, y + L.cell); }
-        if (c === cols - 1 && w.e) { ctx.moveTo(x + L.cell, y); ctx.lineTo(x + L.cell, y + L.cell); }
-      }
+    // jejak jalan: pita pink + titik hati
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (const [col, wd] of [['rgba(255,255,255,.9)', 0.44], ['#ff9cc4', 0.32]]) {
+      ctx.strokeStyle = col; ctx.lineWidth = L.cell * wd; ctx.beginPath();
+      path.forEach((cell, i) => { const { x, y } = center(L, cell); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+      ctx.stroke();
     }
-    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    path.forEach((cell, i) => { if (i === path.length - 1) return; const { x, y } = center(L, cell); ctx.beginPath(); ctx.arc(x, y, L.cell * 0.06, 0, Math.PI * 2); ctx.fill(); });
+
+    // pagar tanaman: bayangan, badan hijau tua, kilap hijau muda
+    const hedge = () => {
+      ctx.beginPath();
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const x = L.x + c * L.cell, y = L.y + r * L.cell, w = walls[r][c];
+          const isStart = r === 0 && c === 0;
+          const isGoal = r === goal.r && c === goal.c;
+          if (w.n && !isStart) { ctx.moveTo(x, y); ctx.lineTo(x + L.cell, y); }
+          if (w.w) { ctx.moveTo(x, y); ctx.lineTo(x, y + L.cell); }
+          if (r === rows - 1 && w.s && !isGoal) { ctx.moveTo(x, y + L.cell); ctx.lineTo(x + L.cell, y + L.cell); }
+          if (c === cols - 1 && w.e) { ctx.moveTo(x + L.cell, y); ctx.lineTo(x + L.cell, y + L.cell); }
+        }
+      }
+    };
+    const hw = Math.max(6, L.cell * 0.2);
+    ctx.save(); ctx.translate(0, hw * 0.45); ctx.strokeStyle = 'rgba(40,80,40,.28)'; ctx.lineWidth = hw; hedge(); ctx.stroke(); ctx.restore();
+    ctx.strokeStyle = '#3f9d5a'; ctx.lineWidth = hw; hedge(); ctx.stroke();
+    ctx.save(); ctx.translate(0, -hw * 0.18); ctx.strokeStyle = '#6fce7c'; ctx.lineWidth = hw * 0.5; hedge(); ctx.stroke(); ctx.restore();
+    // bunga kecil di tiap pojok pagar
+    for (let r = 0; r <= rows; r += 2) for (let c = (r / 2) % 2; c <= cols; c += 2) drawEmoji(ctx, (r + c) % 4 ? '🌸' : '🌼', L.x + c * L.cell, L.y + r * L.cell - hw * 0.2, hw * 1.25);
 
     // tujuan (goyang pelan manggil-manggil)
     const g = center(L, goal);

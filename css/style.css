@@ -616,7 +616,8 @@ body.playing #bg-hearts { display: none; }
 
 
 /* ---------- Panah Cinta ---------- */
-.timing-wrap { width: min(100%, 420px); display: flex; flex-direction: column; align-items: center; gap: 28px; }
+.timing-wrap { width: min(100%, 420px); display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.timing-scene { width: 100%; height: min(46vh, 300px); border-radius: 24px; box-shadow: var(--shadow); display: block; }
 .timing-target { font-size: 72px; line-height: 1; }
 .timing-target.pop { animation: comboPop .6s ease-out; }
 .timing-bar { position: relative; width: 100%; height: 56px; background: #fff; border-radius: 999px; box-shadow: var(--shadow); overflow: hidden; border: 4px solid #fff; }
@@ -1132,3 +1133,31 @@ img.fx { display: inline-block; width: 1.18em; height: 1.18em; vertical-align: -
 .fp2 button[data-label]::after { bottom: -18px; font-size: 11px; color: #8a3f6e; }
 @media (max-width: 360px) { .fp2 .b-dir { width: 54px; height: 54px; } .fp2 .fp-act button { width: 48px; height: 48px; } .fp2 .b-punch { width: 58px !important; height: 58px !important; } .fp2 .fp-act { gap: 18px 6px; } }
 .fight-pad.fp2 .fp-act button.on, .fight-pad.fp2 .fp-act .b-sp.ready { background: radial-gradient(circle at 35% 30%, var(--c1), var(--c2)); }
+
+/* ---- Poles tampilan game papan (taman, kartu, tombol mengkilap) ---- */
+.pop-grid { padding: 26px 14px 16px; border-radius: 28px; gap: 10px 12px; box-sizing: border-box;
+  background:
+    radial-gradient(circle at 82% 9%, #fff6b8 0 22px, rgba(255,246,184,.35) 23px 40px, transparent 41px),
+    radial-gradient(ellipse 60px 16px at 22% 8%, #fff 98%, transparent), radial-gradient(ellipse 38px 12px at 34% 11%, #fff 98%, transparent),
+    linear-gradient(#aee0ff 0, #dff3ff 15%, #a9e486 15.2%, #8ed36c 100%);
+  box-shadow: 0 10px 0 #6bb352, 0 18px 30px rgba(60,110,50,.25), inset 0 0 0 4px rgba(255,255,255,.55); }
+[data-theme="w-candy"] .pop-grid { background: linear-gradient(#ffd6ea 0, #fff0f7 15%, #ffb8d8 15.2%, #ff9cc8 100%); box-shadow: 0 10px 0 #e279ab, 0 18px 30px rgba(160,60,120,.25), inset 0 0 0 4px rgba(255,255,255,.55); }
+[data-theme="w-beach"] .pop-grid { background: linear-gradient(#9fe3ff 0, #d6f6ff 15%, #ffe9a8 15.2%, #ffd97a 100%); box-shadow: 0 10px 0 #dcb354, 0 18px 30px rgba(150,110,40,.25), inset 0 0 0 4px rgba(255,255,255,.55); }
+[data-theme="w-night"] .pop-grid { background: linear-gradient(#3a2f6e 0, #6a559f 15%, #b9a8f5 15.2%, #9d8bea 100%); box-shadow: 0 10px 0 #7563c9, 0 18px 30px rgba(50,30,110,.3), inset 0 0 0 4px rgba(255,255,255,.35); }
+.hole::before { box-shadow: inset 0 6px 8px rgba(0,0,0,.35); }
+.critter { filter: drop-shadow(0 4px 0 rgba(0,0,0,.12)); }
+.hole.hit .critter { filter: brightness(1.15) drop-shadow(0 0 10px #fff); }
+
+.simon-grid { padding: 14px; border-radius: 30px; background: #fff; box-shadow: 0 8px 0 #f3bcd4, 0 16px 28px rgba(160,60,120,.2); box-sizing: border-box; }
+.simon-pad { position: relative; overflow: hidden; border: none !important; box-shadow: inset 0 -8px 0 rgba(0,0,0,.12), inset 0 6px 0 rgba(255,255,255,.4), 0 4px 0 rgba(120,40,90,.12); }
+.simon-pad::before { content: ''; position: absolute; left: 10%; right: 10%; top: 7%; height: 26%; border-radius: 50%; background: linear-gradient(rgba(255,255,255,.55), rgba(255,255,255,0)); pointer-events: none; }
+.simon-pad.owl { background: linear-gradient(160deg, #d9c8ff, #a98bf5); }
+.simon-pad.cat { background: linear-gradient(160deg, #ffd9ae, #ffa45c); }
+.simon-pad.heart { background: linear-gradient(160deg, #ffb6d3, #ff6fa8); }
+.simon-pad.star { background: linear-gradient(160deg, #fff0a6, #ffc93d); }
+.simon-pad.lit { box-shadow: 0 0 0 6px #fff, 0 0 32px 10px rgba(255,255,255,.95), inset 0 0 30px rgba(255,255,255,.7); }
+
+.memory-grid .card-inner { filter: drop-shadow(0 5px 0 rgba(160,60,120,.16)); }
+.memory-grid .card:active .card-inner { filter: drop-shadow(0 2px 0 rgba(160,60,120,.16)); }
+.odd-grid { padding: 12px; border-radius: 26px; background: #fff; box-shadow: 0 8px 0 #f3bcd4, 0 16px 28px rgba(160,60,120,.18); }
+.odd-cell { box-shadow: inset 0 -5px 0 rgba(160,60,120,.09); }

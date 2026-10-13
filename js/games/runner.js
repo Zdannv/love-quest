@@ -1,12 +1,18 @@
 // Lari Lompat: karakter (atau muka!) lari terus, tap buat lompat lewati rintangan & ambil 💖.
 // Bertahan sampai waktunya habis. Nabrak = kedip & nyawa berkurang (santai, nggak langsung kalah).
 import { setupCanvas, drawEmoji, drawFace, loadImage, rand, pick } from '../util.js';
+import { drawToon, toonLoad } from '../toon.js';
+import { drawSky, drawGround, makeFx, outlined, shadow } from '../scene.js';
 
 export function startRunner(stage, p, api) {
   const { canvas, ctx, size, dispose } = setupCanvas(stage);
   const face = loadImage(p.face);
   const groundY = () => size.H * 0.78;
-  const R = () => 26 * size.k; // jari-jari pelari
+  const R = () => 26 * size.k; // jari-jari pelari (buat hitung tabrakan)
+  const toon = p.toon || 'f';
+  toonLoad(toon);
+  const fx = makeFx();
+  let stepT = 0, landT = 1;
 
   const runner = { y: 0, vy: 0, onGround: true, jumps: 0 };
   let obstacles = [], hearts = [], floats = [], clouds = [];
@@ -22,6 +28,7 @@ export function startRunner(stage, p, api) {
       runner.vy = -620 * size.k;
       runner.onGround = false;
       runner.jumps++;
+      fx.burst(rx(), groundY() + runner.y, { n: 6, colors: ['#fff', '#e9d8c4'], speed: 90, size: 4, gravity: 200, life: 0.4, up: 0.1 });
       api.sfx('flip');
     }
   }
@@ -37,6 +44,7 @@ export function startRunner(stage, p, api) {
     if (hurtT > 0) return;
     lives--;
     hurtT = 1.3;
+    fx.burst(rx(), groundY() + runner.y - R(), { n: 14, colors: ['#ff4d6d', '#ffd166', '#fff'] });
     api.sfx('bad');
     api.streak(false);
     api.say('Aduh kesandung 😵', 'sad');
@@ -52,7 +60,9 @@ export function startRunner(stage, p, api) {
 
     runner.vy += 1800 * size.k * dt;
     runner.y += runner.vy * dt;
-    if (runner.y >= 0) { runner.y = 0; runner.vy = 0; runner.onGround = true; runner.jumps = 0; }
+    if (runner.y >= 0) { if (!runner.onGround) { landT = 0; fx.burst(rx(), groundY(), { n: 5, colors: ['#fff', '#e9d8c4'], speed: 80, size: 4, gravity: 150, life: 0.35, up: 0.1 }); } runner.y = 0; runner.vy = 0; runner.onGround = true; runner.jumps = 0; }
+    landT += dt; fx.step(dt);
+    stepT += dt * speed() / (38 * size.k); // langkah kaki ngikutin kecepatan
 
     spawnIn -= dt;
     if (spawnIn <= 0) {
@@ -80,6 +90,7 @@ export function startRunner(stage, p, api) {
         h.got = true;
         collected++;
         api.sfx('good');
+        fx.burst(h.x, h.y, { n: 10, colors: ['#ff5c93', '#ffb3cf', '#fff'], speed: 140 });
         floats.push({ x: h.x, y: h.y - 20, text: '+💖', color: '#ff5c93', life: 1 });
       }
     }
@@ -98,31 +109,21 @@ export function startRunner(stage, p, api) {
     ctx.clearRect(0, 0, W, H);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.globalAlpha = 0.8;
-    for (const c of clouds) drawEmoji(ctx, '☁️', c.x, c.y, 34 * k);
-    ctx.globalAlpha = 1;
+    drawSky(ctx, W, H, groundY(), scroll, t, 'sunset', k);
+    drawGround(ctx, W, H, groundY(), scroll, 'sunset', k);
 
-    // tanah
-    ctx.fillStyle = '#b8e986';
-    ctx.fillRect(0, groundY(), W, H - groundY());
-    ctx.fillStyle = '#9fd66f';
-    for (let x = -(scroll % 40); x < W; x += 40) ctx.fillRect(x, groundY(), 20, 6 * k);
+    for (const h of hearts) { const hy = h.y + Math.sin(t * 4 + h.x / 40) * 4 * k; drawEmoji(ctx, '💖', h.x, hy, 28 * k); }
+    for (const o of obstacles) { shadow(ctx, o.x, groundY() + 5 * k, o.size * 0.42); drawEmoji(ctx, o.em, o.x, groundY() - o.size / 2 + 3 * k, o.size); }
 
-    for (const h of hearts) drawEmoji(ctx, '💖', h.x, h.y, 26 * k);
-    for (const o of obstacles) drawEmoji(ctx, o.em, o.x, groundY() - o.size / 2, o.size);
-
-    const r = R();
-    const ry = groundY() + runner.y - r;
-    ctx.fillStyle = 'rgba(0,0,0,.12)';
-    ctx.beginPath();
-    ctx.ellipse(rx(), groundY() + 4, r * (runner.onGround ? 0.9 : 0.6), 5, 0, 0, Math.PI * 2);
-    ctx.fill();
+    // pelari: badan kartun (lari / lompat) + foto muka
+    const hgt = 122 * k, squash = landT < 0.12 ? 1 - Math.sin((landT / 0.12) * Math.PI) * 0.08 : 1;
+    shadow(ctx, rx(), groundY() + 5 * k, 26 * k * (runner.onGround ? 1 : Math.max(0.5, 1 + runner.y / (300 * k))));
     ctx.save();
     if (hurtT > 0 && Math.floor(hurtT * 12) % 2) ctx.globalAlpha = 0.35;
-    // sedikit "goyang" waktu lari
-    const bob = runner.onGround ? Math.sin(t * 18) * 2 : 0;
-    drawFace(ctx, face, rx(), ry + bob, r, p.emoji || '🐱');
+    const pose = runner.onGround ? `walk${Math.floor(stepT) % 8}` : 'jump';
+    drawToon(ctx, toon, pose, rx(), groundY() + runner.y + 6 * k, hgt * squash, 1, face, p.emoji || '🐱', '#fff', runner.onGround ? 0.06 : Math.max(-0.2, Math.min(0.2, runner.vy / (4000 * k))));
     ctx.restore();
+    fx.draw(ctx);
 
     ctx.font = `700 ${Math.round(22 * k)}px Fredoka, sans-serif`;
     ctx.lineWidth = 5;
@@ -136,10 +137,7 @@ export function startRunner(stage, p, api) {
     ctx.globalAlpha = 1;
 
     if (t < 1.5 && !done) {
-      ctx.font = `600 ${Math.round(20 * k)}px Fredoka, sans-serif`;
-      ctx.strokeText('Tap buat lompat! (bisa 2x) 👆', W / 2, H * 0.3);
-      ctx.fillStyle = '#e8558f';
-      ctx.fillText('Tap buat lompat! (bisa 2x) 👆', W / 2, H * 0.3);
+      outlined(ctx, 'Tap buat lompat! (bisa 2x) 👆', W / 2, H * 0.3, 21 * k);
     }
 
     const s = p.endless ? `🏃 ${Math.floor(t)} dtk · 🏆 ${Math.max(p.best || 0, Math.floor(t))} · 💖 ${collected} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}` : `⏱ ${Math.max(0, Math.ceil(p.time - t))}s · 💖 ${collected} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(p.lives - Math.max(0, lives))}`;
