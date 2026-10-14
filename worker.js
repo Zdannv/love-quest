@@ -9,6 +9,8 @@ const DEFAULT_ICONS = [
   { src: '/icons/icon-maskable-512.png?v=2', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
 ];
 
+const BOTS = /WhatsApp|facebookexternalhit|Facebot|Instagram|Twitterbot|TelegramBot|Slackbot|Discordbot|LinkedInBot|Line\/|Pinterest|Googlebot|bingbot/i;
+
 async function loadContent(slug) {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_couple`, {
@@ -78,7 +80,26 @@ export default {
     if (url.pathname.startsWith('/video/')) return serveVideo(request, env);
     const m = url.pathname.match(/^\/c\/([a-z0-9]{10,32})(\/manifest\.webmanifest|\/?)$/);
     if (m && m[2] === '/manifest.webmanifest') return manifest(m[1]);
-    if (m) return env.ASSETS.fetch(new Request(new URL('/', url), request)); // game pasangan = index.html
+    if (m) {
+      const page = await env.ASSETS.fetch(new Request(new URL('/', url), request)); // game pasangan = index.html
+      // Pas link dibagi di WhatsApp/IG/Telegram: preview-nya "Ada kado buat <nama>" (cuma buat bot pembuat preview,
+      // pengunjung biasa langsung dapet halamannya tanpa nunggu database)
+      if (!BOTS.test(request.headers.get('User-Agent') || '')) return page;
+      const content = await loadContent(m[1]);
+      const n = content?.names || {};
+      const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+      const title = esc(n.pasangan ? `Ada kado buat ${n.pasangan} 🎁` : 'Ada kado buat kamu 🎁');
+      const desc = esc(`${n.pengirim || 'Seseorang yang sayang kamu'} bikinin game kecil khusus buat kamu. Buka yuk 💌`);
+      const set = (sel, attr, val) => [sel, { element(e) { e.setAttribute(attr, val); } }];
+      let rw = new HTMLRewriter();
+      for (const [sel, h] of [
+        set('meta[property="og:title"]', 'content', title), set('meta[property="og:description"]', 'content', desc),
+        set('meta[name="description"]', 'content', desc), set('meta[property="og:image"]', 'content', 'https://lovequest.id/img/og/kado.jpg'),
+        set('meta[property="og:url"]', 'content', `https://lovequest.id/c/${m[1]}`),
+      ]) rw = rw.on(sel, h);
+      rw = rw.on('title', { element(e) { e.setInnerContent(title); } });
+      return rw.transform(page);
+    }
     return env.ASSETS.fetch(request);
   },
 };

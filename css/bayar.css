@@ -38,3 +38,5 @@ body.pay { min-height: 100dvh; background: linear-gradient(180deg, #ffeef6, #fbf
 .pay-row > label { min-width: 0; }
 .pay-card input:not([type="radio"]) { width: 100%; min-width: 0; box-sizing: border-box; }
 body.pay { overflow-x: hidden; }
+
+.pay-note a { color: var(--pink-deep); }

@@ -3,6 +3,7 @@ import { CONFIG } from './config.js';
 import { fxWatch } from './fx.js';
 import { setupNav } from './nav.js';
 import { maybeWelcome } from './welcome.js';
+import { track } from './track.js';
 import { gameTile, gameHead } from './game-look.js';
 import { initPet } from './pet.js';
 import { getNames, setNames, fill, getLook, setLook, getChars, getFace, saveFace, clearFace } from './personal.js';
@@ -408,7 +409,9 @@ if (CONFIG.demo && $('#lp-prices')) {
       ${CONFIG.checkout?.enabled ? `<a class="btn ${i ? '' : 'ghost'}" href="/bayar?paket=${i ? 'custom' : 'basic'}">Pesan ${esc(pk.price)}</a><button class="link-btn" type="button" data-paket>lihat detail</button>` : `<button class="btn ${i ? '' : 'ghost'}" type="button" data-paket>Lihat detail paket</button>`}
     </article>`).join('');
 }
-document.addEventListener('click', (e) => { if (e.target.closest('[data-try]')) $('#btn-play').click(); });
+document.addEventListener('click', (e) => { if (e.target.closest('[data-try]')) { track('try_click'); $('#btn-play').click(); } });
+if (CONFIG.demo && !CONFIG.showcase) track('landing_view', { once: true });
+if (CONFIG.slug) track('game_open', { once: true });
 
 // ---------- Paket ----------
 function showPackages() {
@@ -435,6 +438,7 @@ function showPackages() {
 }
 document.addEventListener('click', (e) => {
   if (!e.target.closest('[data-paket]')) return;
+  track('paket_open');
   sfx('click');
   stopGame();
   showPackages();

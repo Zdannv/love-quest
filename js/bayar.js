@@ -2,6 +2,7 @@
 // Kode rahasia pesanan disimpen di HP ini aja, jadi cuma yang bayar yang bisa ambil login-nya.
 import { CONFIG } from './config.js';
 import { esc } from './util.js';
+import { track } from './track.js';
 
 const $ = (s) => document.querySelector(s);
 const { url, anonKey } = CONFIG.cloud;
@@ -42,6 +43,7 @@ $('#pay-form').addEventListener('submit', async (e) => {
   try {
     const r = await call({ action: 'create', plan, email: $('#pay-email').value, names: { pengirim: $('#pay-pengirim').value, pasangan: $('#pay-pasangan').value } });
     try { localStorage.setItem(KEY(r.order_id), r.secret); localStorage.setItem('lq-order-last', r.order_id); } catch {}
+    track('bayar_submit');
     location.href = r.redirect_url;
   } catch (x) {
     err.textContent = x.message; err.hidden = false;
@@ -70,6 +72,7 @@ async function track(orderId) {
     if (r.status === 'paid') {
       const login = await call({ action: 'claim', order_id: orderId, secret });
       try { localStorage.setItem(`${KEY(orderId)}-login`, JSON.stringify(login)); } catch {}
+      track('bayar_paid');
       done(login); return;
     }
     if (r.status === 'failed') { show('#pay-fail'); return; }
@@ -99,4 +102,4 @@ function done(l) {
 $('#pay-recheck').addEventListener('click', () => { $('#pay-recheck').hidden = true; $('#pay-wait-txt').textContent = 'Ngecek lagi…'; track(params.get('order')); });
 
 if (params.get('order')) track(params.get('order'));
-else { renderPlans(); show('#pay-form'); }
+else { renderPlans(); show('#pay-form'); track('bayar_view', { once: true }); }

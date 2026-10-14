@@ -62,6 +62,21 @@ const timeAgo = (iso) => {
   return m < 1 ? 'baru aja' : m < 60 ? `${m} menit lalu` : m < 1440 ? `${Math.round(m / 60)} jam lalu` : fmtDate(iso.slice(0, 10));
 };
 let filterNow = 'all';
+let events = null, fnDays = 7; // null = statistik belum bisa dimuat (migration-10 belum dijalankan)
+const SAMPLE_EVENTS = (() => { const out = []; const base = { landing_view: 120, try_click: 46, paket_open: 30, bayar_view: 22, bayar_submit: 9, bayar_paid: 6, game_open: 40, upgrade_click: 2 };
+  for (let i = 0; i < 30; i++) { const d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10); for (const [k, v] of Object.entries(base)) out.push({ day: d, name: k, n: Math.round(v * (0.5 + ((i * 7 + k.length) % 10) / 10)) }); } return out; })();
+const FUNNEL = [['landing_view', 'Buka landing'], ['try_click', 'Coba main gratis'], ['paket_open', 'Lihat paket'], ['bayar_view', 'Buka halaman bayar'], ['bayar_submit', 'Klik bayar'], ['bayar_paid', 'Lunas 🎉']];
+function renderFunnel() {
+  const box = $('#funnel');
+  if (events === null) { box.innerHTML = '<p class="muted small">Statistik belum bisa dimuat. Jalankan <code>supabase/migration-10.sql</code> di SQL Editor dulu.</p>'; return; }
+  const from = new Date(Date.now() - (fnDays - 1) * 864e5).toISOString().slice(0, 10);
+  const sum = (k) => events.filter((e) => e.name === k && e.day >= from).reduce((a, e) => a + e.n, 0);
+  const top = Math.max(1, sum('landing_view'));
+  box.innerHTML = FUNNEL.map(([k, label], i) => {
+    const n = sum(k), prev = i ? sum(FUNNEL[i - 1][0]) : 0;
+    return `<div class="fn-row"><span class="fn-label">${label}</span><div class="fn-bar"><i style="width:${Math.max(2, (n / top) * 100)}%"></i></div><b>${n}</b><small>${i ? (prev ? `${Math.round((n / prev) * 100)}%` : '-') : ''}</small></div>`;
+  }).join('') + `<p class="muted small fn-extra">🎮 Game pasangan dibuka: <b>${sum('game_open')}</b> · ✨ Klik upgrade: <b>${sum('upgrade_click')}</b> · Konversi landing → lunas: <b>${sum('landing_view') ? ((sum('bayar_paid') / sum('landing_view')) * 100).toFixed(1) : 0}%</b></p>`;
+}
 
 function gameLink(slug) {
   const local = ['localhost', '127.0.0.1'].includes(location.hostname);
@@ -87,6 +102,7 @@ function render() {
   $('#filter-chips').innerHTML = [['all', `Semua ${couples.length}`], ['active', `Aktif ${counts.active}`], ['soon', `Segera habis ${counts.soon}`], ['expired', `Berhenti ${counts.expired}`]]
     .map(([v, t]) => `<button type="button" class="${filterNow === v ? 'on' : ''}" data-filter="${v}">${t}</button>`).join('');
   renderOrders();
+  renderFunnel();
 
   const list = couples.filter((c) => {
     const hay = `${c.owner_email} ${c.slug} ${c.names?.pasangan ?? ''} ${c.names?.pengirim ?? ''} ${c.note ?? ''}`.toLowerCase();
@@ -306,12 +322,13 @@ async function removeAccount(c) {
 }
 $('#search').addEventListener('input', render);
 $('#filter').addEventListener('change', render);
+$('#fn-range').addEventListener('click', (e) => { const b = e.target.closest('[data-days]'); if (!b) return; fnDays = Number(b.dataset.days); $('#fn-range').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); renderFunnel(); });
 $('#filter-chips').addEventListener('click', (e) => { const b = e.target.closest('[data-filter]'); if (!b) return; filterNow = b.dataset.filter; render(); });
 $('#btn-refresh').addEventListener('click', async () => { if (PREVIEW) { toast('Mode contoh'); return; } if (await refresh()) toast('Data terbaru ✓'); });
 
 async function load() {
   if (PREVIEW) {
-    couples = SAMPLE; orders = SAMPLE_ORDERS;
+    couples = SAMPLE; orders = SAMPLE_ORDERS; events = SAMPLE_EVENTS;
     setStatus('Mode contoh: data bohongan, nggak ada yang disimpan.');
     $('#view-login').hidden = true; $('#view-list').hidden = false; render(); return;
   }
@@ -347,6 +364,8 @@ async function refresh() {
   couples = data;
   const ord = await sb.rpc('admin_list_orders');
   orders = ord.error ? null : ord.data;
+  const ev = await sb.rpc('admin_event_counts', { p_days: 30 });
+  events = ev.error ? null : ev.data;
   render();
   return true;
 }

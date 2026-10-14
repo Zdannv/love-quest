@@ -5,6 +5,7 @@ import { LEVEL_MAP, TYPE_NAME, levelList } from './level-map.js';
 import { TRACKS, createPlayer } from './music.js';
 import { THEMES, CHARACTERS, DEFAULT_THEME, DEFAULT_CHARACTERS } from './themes.js';
 import { esc } from './util.js';
+import { track } from './track.js';
 
 const $ = (s) => document.querySelector(s);
 const views = { login: $('#view-login'), create: $('#view-create'), editor: $('#view-editor'), forgot: $('#view-forgot'), newpass: $('#view-newpass') };
@@ -315,6 +316,7 @@ function upsellNote(what) {
 }
 document.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-upgrade]'); if (!b) return;
+  track('upgrade_click');
   if (PREVIEW) { toast('Mode contoh: upgrade nggak bisa dicoba di sini'); return; }
   if (dirty) await save(null);
   b.disabled = true; b.textContent = 'Nyiapin pembayaran…';

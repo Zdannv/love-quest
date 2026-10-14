@@ -320,3 +320,17 @@ details.panel > summary:hover { background: #fffafc; }
 .cc-body { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 16px; background: #fffafc; border: 1px solid var(--line); }
 .cc-foot { margin: 0; }
 .couple-card.soon { border-color: #ffd5a8; } .couple-card.expired { opacity: .8; }
+
+/* corong penjualan */
+.funnel-panel { padding: 14px 14px 10px; }
+.fn-range { display: flex; gap: 4px; background: #f6eef2; padding: 3px; border-radius: 999px; }
+.fn-range button { font: inherit; font-size: 12px; font-weight: 600; border: 0; background: none; color: var(--text-soft); padding: 4px 10px; border-radius: 999px; cursor: pointer; }
+.fn-range button.on { background: #fff; color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.funnel { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.fn-row { display: grid; grid-template-columns: 128px 1fr 44px 38px; align-items: center; gap: 8px; font-size: 13px; }
+.fn-label { color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fn-bar { height: 14px; border-radius: 8px; background: #f6eef2; overflow: hidden; }
+.fn-bar i { display: block; height: 100%; border-radius: 8px; background: linear-gradient(90deg, var(--pink), #9a6bff); }
+.fn-row b { text-align: right; font-family: 'Fredoka', sans-serif; font-size: 15px; }
+.fn-row small { text-align: right; color: var(--text-soft); font-size: 11.5px; }
+.fn-extra { margin: 8px 0 2px; }
