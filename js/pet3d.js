@@ -36,9 +36,9 @@ export async function createPet3D() {
   sun.shadow.radius = 4;
   scene.add(sun);
   // karpet bulat
-  const rug = new THREE.Mesh(new THREE.CircleGeometry(1.9, 48), new THREE.MeshStandardMaterial({ color: 0xffc7dc, roughness: 1 }));
+  const rug = new THREE.Mesh(new THREE.CircleGeometry(1.45, 48), new THREE.MeshStandardMaterial({ color: 0xffc7dc, roughness: 1 }));
   rug.rotation.x = -Math.PI / 2; rug.receiveShadow = true; scene.add(rug);
-  const rim = new THREE.Mesh(new THREE.RingGeometry(1.9, 2.05, 48), new THREE.MeshStandardMaterial({ color: 0xff9fc2, roughness: 1 }));
+  const rim = new THREE.Mesh(new THREE.RingGeometry(1.45, 1.58, 48), new THREE.MeshStandardMaterial({ color: 0xff9fc2, roughness: 1 }));
   rim.rotation.x = -Math.PI / 2; rim.position.y = 0.002; scene.add(rim);
 
   const holder = new THREE.Group(); scene.add(holder);
@@ -120,7 +120,7 @@ export async function createPet3D() {
         if (wander.t <= 0) {
           wander.t = 6 + Math.random() * 6;
           const home = Math.hypot(holder.position.x, holder.position.z) > 0.3;
-          wander.target = home ? { x: 0, z: 0 } : { x: (Math.random() - 0.5) * 1.8, z: (Math.random() - 0.3) * 0.9 };
+          wander.target = home ? { x: 0, z: 0 } : { x: (Math.random() - 0.5) * 1.5, z: (Math.random() - 0.3) * 0.8 };
           play('walk');
         }
       }

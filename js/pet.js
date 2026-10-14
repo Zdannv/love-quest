@@ -118,7 +118,8 @@ export function initPet({ sfx, toast }) {
     if (!st.kind || !animalOf(st) || choosing) { renderChooser(); return; }
     const s = st, lvl = levelOf(s.xp), m = mood(s), A = animalOf(s) || ANIMALS[0];
     const outfit = s.outfit && OUTFITS.find((o) => o.em === s.outfit && o.lvl <= lvl) ? s.outfit : null;
-    const bar = (em, label, v) => `<div class="pet-stat"><span>${em}</span><div><small>${label}</small><i><b style="width:${Math.round(v)}%;--c:${v < 30 ? '#ff4d6d' : v < 60 ? '#ffb020' : '#2fbf71'}"></b></i></div></div>`;
+    // meteran bulat: makin penuh makin hijau, di bawah 30 jadi merah & kedip
+    const bar = (em, label, v) => `<div class="pet-ring ${v < 30 ? 'low' : ''}" style="--v:${Math.round(v)};--c:${v < 30 ? '#ff4d6d' : v < 60 ? '#ffb020' : '#2fbf71'}"><span class="pr-ic">${em}</span><small>${label}</small><b>${Math.round(v)}</b></div>`;
     const last = s.log?.[0];
     root.innerHTML = `
       <div class="pet-head">
@@ -128,6 +129,7 @@ export function initPet({ sfx, toast }) {
         <div class="pet-xp"><b style="width:${Math.round(((s.xp - xpAt(lvl)) / (xpAt(lvl + 1) - xpAt(lvl))) * 100)}%"></b></div>
       </div>
       <div class="pet-room ${s.sleep ? 'night' : ''}" id="pet-room">
+        <div class="pet-decor" aria-hidden="true"><i class="pd-window"><u></u></i><i class="pd-frame">💞</i><i class="pd-shelf"><span>🪴</span><span>📚</span></i><i class="pd-bed">🧺</i><i class="pd-bowl">🥣</i><i class="pd-toy">🧸</i></div>
         <div class="pet-bubble">${m.em} ${m.t}</div>
         <div class="pet-3d-slot" id="pet-3d-slot">
           <div class="pet-body pet-fallback ${s.sleep ? 'sleep' : ''}" style="--sz:${Math.min(1.35, 0.85 + lvl * 0.06)}"><span class="pet-em">${A.em}</span></div>
@@ -144,6 +146,7 @@ export function initPet({ sfx, toast }) {
         <button data-pet="main" ${s.sleep || s.energy < 10 ? 'disabled' : ''}><span>⚽</span>Main</button>
         <button data-pet="tidur"><span>${s.sleep ? '☀️' : '💤'}</span>${s.sleep ? 'Bangun' : 'Tidur'}</button>
       </div>
+      <div class="pet-sec"><b>👗 Lemari</b><small>aksesoris kebuka tiap naik level</small></div>
       <div class="pet-outfits">${OUTFITS.map((o) => `<button data-pet="outfit" data-v="${o.em}" class="${s.outfit === o.em ? 'on' : ''}" ${o.lvl > lvl ? `disabled title="Buka di level ${o.lvl}"` : ''}>${o.lvl > lvl ? '🔒' : o.em}<small>Lv${o.lvl}</small></button>`).join('')}</div>
       <div class="pet-couple">
         <p>Hari ini: <b>${s.daily.pasangan ? '✅' : '⬜'} ${esc(getNames().pasangan)}</b> · <b>${s.daily.pengirim ? '✅' : '⬜'} ${esc(getNames().pengirim)}</b>${s.daily.bonus ? ' · <span>kompak +30 XP 💞</span>' : ' · rawat berdua buat bonus XP 💞'}</p>

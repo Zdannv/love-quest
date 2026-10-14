@@ -28,7 +28,7 @@ export function initTalk({ sfx }) {
 
   function renderCats() {
     $('#talk-cats').innerHTML = cats.map((c) => `
-      <button type="button" class="talk-cat ${c === cat ? 'on' : ''}" data-cat="${c}">${c === 'semua' ? '🃏' : TALK_CATS[c].icon} ${esc(catName(c))}</button>`).join('');
+      <button type="button" class="talk-cat ${c === cat ? 'on' : ''}" data-cat="${c}" style="--tc:${c === 'semua' ? 'var(--pink)' : TALK_CATS[c].color}"><span class="tc-ic">${c === 'semua' ? '🃏' : TALK_CATS[c].icon}</span><b>${esc(catName(c))}</b><small>${cards.filter((x) => c === 'semua' || x.cat === c).length}</small></button>`).join('');
   }
   function newDeck() {
     deck = shuffle(cards.filter((x) => cat === 'semua' || x.cat === cat));
@@ -52,6 +52,12 @@ export function initTalk({ sfx }) {
       el.style.setProperty('--talk', info.color);
       $('#talk-cat').textContent = `${info.icon} ${fill(info.name)}`;
       $('#talk-q').textContent = fill(card.q);
+      // gantian siapa yang jawab duluan + sisa kartu di tumpukan
+      $('#talk-turn').textContent = drawn % 2 ? '🎤 Yang megang HP jawab duluan' : '🎤 Kasih HP-nya, dia jawab duluan';
+      const total = cards.filter((x) => cat === 'semua' || x.cat === cat).length;
+      $('#talk-prog').style.width = `${((total - deck.length) / total) * 100}%`;
+      $('#talk-left').textContent = `${deck.length} kartu lagi`;
+      el.classList.remove('deal'); void el.offsetWidth; el.classList.add('deal');
       el.classList.add('flipped');
       $('#talk-count').textContent = sync ? `💞 Bareng ${peerNet()?.name || ''}` : `Kartu ke-${drawn}`;
       $('#talk-next').textContent = 'Kartu berikutnya 🃏';
@@ -86,6 +92,8 @@ export function initTalk({ sfx }) {
       $('#talk-card').classList.remove('flipped');
       $('#talk-count').textContent = `${cards.length} kartu`;
       $('#talk-next').textContent = 'Tarik kartu 🃏';
+      $('#talk-prog').style.width = '0%';
+      $('#talk-left').textContent = 'Pilih topik dulu';
     },
   };
 }

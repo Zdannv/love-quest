@@ -1,6 +1,6 @@
 // Service worker Love Quest: bisa dipasang ke home screen, bisa dimainin offline,
 // dan menampilkan notifikasi streak.
-const CACHE = 'love-quest-v43';
+const CACHE = 'love-quest-v44';
 const FONT_CACHE = 'love-quest-fonts';
 const FX_CACHE = 'lq-fx-v1'; // ikon 3D (img/fx): nggak ikut kehapus tiap update
 const PHOTO_CACHE = 'love-quest-photos';
