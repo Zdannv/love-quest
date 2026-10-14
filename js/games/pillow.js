@@ -116,7 +116,7 @@ export function startPillow(stage, p, api) {
   function sendState(force) {
     if (!duel) return;
     const now = performance.now();
-    if (!force && now - lastSent < 66) return;
+    if (!force && now - lastSent < 110) return;
     lastSent = now;
     const [cx, cy] = canon(me.x, me.y);
     duel.send('pstate', { x: Math.round(cx), y: Math.round(cy), hp: me.hp, am: me.ammo });

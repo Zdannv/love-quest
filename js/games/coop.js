@@ -166,7 +166,7 @@ export function startCoop(stage, p, api) {
     if (duel) {
       step(chars[mine], ctrl, dt);
       const o = chars[other]; if (o.tx != null) { o.x += (o.tx - o.x) * Math.min(1, dt * 14); o.y += (o.ty - o.y) * Math.min(1, dt * 14); o.walk = o.walkOn ? o.walk + dt * 10 : 0; }
-      if (performance.now() - lastSent > 66) { lastSent = performance.now(); const m = chars[mine]; duel.send('jpos', { l: lvIdx, x: +m.x.toFixed(3), y: +m.y.toFixed(3), f: m.face, g: m.ground ? 1 : 0, dr: m.atDoor ? 1 : 0, w: m.walk ? 1 : 0 }); }
+      if (performance.now() - lastSent > 110) { lastSent = performance.now(); const m = chars[mine]; duel.send('jpos', { l: lvIdx, x: +m.x.toFixed(3), y: +m.y.toFixed(3), f: m.face, g: m.ground ? 1 : 0, dr: m.atDoor ? 1 : 0, w: m.walk ? 1 : 0 }); }
     } else {
       for (const k of ['fire', 'water']) if (state === 'play') step(chars[k], k === active ? ctrl : null, dt);
     }

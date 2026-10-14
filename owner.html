@@ -15,14 +15,15 @@
 </head>
 <body class="admin">
   <header class="admin-top">
-    <div class="brand">💖 Love Quest <small>OWNER</small></div>
+    <div class="brand"><img src="/icons/icon-192.png?v=2" alt="" class="brand-logo"><span>Love Quest</span><small>OWNER</small></div>
     <button class="link-btn" id="btn-logout" hidden>keluar</button>
   </header>
 
   <main class="admin-main">
     <p class="admin-status" id="status" hidden></p>
 
-    <section class="panel" id="view-login" hidden>
+    <section class="panel login-panel" id="view-login" hidden>
+      <div class="login-hero"><img src="/icons/icon-512.png" alt=""><span class="lh-b1">🔑</span><span class="lh-b2">📊</span></div>
       <h1>Masuk sebagai owner</h1>
       <p class="muted">Pakai akun CMS yang sudah dijadikan admin di database.</p>
       <form id="form-login" class="form">
@@ -33,7 +34,16 @@
     </section>
 
     <div id="view-list" hidden>
-      <section class="panel owner-summary" id="summary"></section>
+      <section class="owner-hero">
+        <div class="oh-top"><div><small>Dashboard owner</small><h1 id="oh-hi">Halo, owner! 👋</h1></div><button class="btn ghost small-btn" id="btn-refresh" type="button">↻ Muat ulang</button></div>
+        <div class="oh-money"><small>Perkiraan total penjualan</small><b id="oh-income">Rp0</b><span id="oh-sub"></span></div>
+      </section>
+      <section class="owner-summary" id="summary"></section>
+
+      <section class="panel orders-panel" id="orders-panel">
+        <div class="op-head"><div><b>💳 Pembayaran otomatis</b><small>Pesanan dari halaman /bayar (Midtrans)</small></div><span class="op-count" id="op-count"></span></div>
+        <div id="order-list" class="order-list"></div>
+      </section>
 
       <section class="panel">
         <details id="new-box">
@@ -76,13 +86,14 @@
       <section class="panel">
         <div class="row owner-filters">
           <input id="search" placeholder="Cari email, nama, atau kode…" autocomplete="off">
-          <select id="filter">
+          <select id="filter" hidden>
             <option value="all">Semua</option>
             <option value="active">Aktif</option>
             <option value="soon">Habis ≤ 3 hari</option>
             <option value="expired">Berhenti</option>
           </select>
         </div>
+        <div class="filter-chips" id="filter-chips"></div>
       </section>
       <div id="couple-list" class="couple-list"></div>
     </div>

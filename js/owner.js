@@ -30,6 +30,21 @@ const daysBetween = (a, b) => Math.round((new Date(`${b}T00:00:00Z`) - new Date(
 const fmtDate = (d) => (d ? new Date(`${d}T12:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '-');
 
 let couples = [];
+let orders = null; // null = daftar pembayaran belum bisa dimuat (migration-9 belum dijalankan)
+// Mode contoh (cuma di komputer sendiri): data bohongan buat ngecek tampilan, nggak nyentuh database
+const PREVIEW = new URLSearchParams(location.search).has('contoh') && ['localhost', '127.0.0.1'].includes(location.hostname);
+const SAMPLE = [
+  { id: 'a1', slug: 'kiranaarga27', owner_email: 'arga@email.com', names: { pengirim: 'Arga', pasangan: 'Kirana' }, plan: 'custom', paid_until: null, active: true, note: 'Midtrans LQ-20261015-abc123', created_at: '2026-10-15T09:00:00Z', updated_at: '2026-10-15T12:00:00Z' },
+  { id: 'a2', slug: 'rakanadia001', owner_email: 'raka@email.com', names: { pengirim: 'Raka', pasangan: 'Nadia' }, plan: 'basic', paid_until: null, active: true, note: 'bayar 3 Okt via QRIS', created_at: '2026-10-03T09:00:00Z', updated_at: '2026-10-10T12:00:00Z' },
+  { id: 'a3', slug: 'dimasayu0002', owner_email: 'dimas@email.com', names: { pengirim: 'Dimas', pasangan: '' }, plan: 'basic', paid_until: '2026-10-17', active: true, note: '', created_at: '2026-09-28T09:00:00Z', updated_at: '2026-09-29T12:00:00Z' },
+  { id: 'a4', slug: 'lamaaaaa0003', owner_email: 'lama@email.com', names: {}, plan: 'basic', paid_until: '2026-09-30', active: false, note: 'nggak lanjut', created_at: '2026-09-20T09:00:00Z', updated_at: '2026-09-20T12:00:00Z' },
+];
+const SAMPLE_ORDERS = [
+  { id: 'LQ-20261015-abc123', plan: 'custom', amount: 49000, email: 'arga@email.com', names: { pengirim: 'Arga', pasangan: 'Kirana' }, status: 'paid', pay_status: 'settlement', slug: 'kiranaarga27', claimed: 1, created_at: '2026-10-15T08:58:00Z', paid_at: '2026-10-15T09:00:00Z' },
+  { id: 'LQ-20261015-zzz999', plan: 'basic', amount: 29000, email: 'raka@email.com', names: {}, status: 'need_help', pay_status: 'settlement', note: 'Akun gagal dibuat: email sudah terdaftar', claimed: 0, created_at: '2026-10-15T10:00:00Z', paid_at: '2026-10-15T10:02:00Z' },
+  { id: 'LQ-20261015-pend01', plan: 'basic', amount: 29000, email: 'calon@email.com', names: {}, status: 'pending', pay_status: 'pending', claimed: 0, created_at: '2026-10-15T11:00:00Z' },
+  { id: 'LQ-20261014-fail01', plan: 'custom', amount: 49000, email: 'batal@email.com', names: {}, status: 'failed', pay_status: 'expire', claimed: 0, created_at: '2026-10-14T11:00:00Z' },
+];
 
 function stateOf(c) {
   if (!c.active) return 'expired';
@@ -38,7 +53,15 @@ function stateOf(c) {
   if (left < 0) return 'expired';
   return left <= 3 ? 'soon' : 'active';
 }
-const STATE_LABEL = { active: '✅ Aktif', soon: '⏳ Segera habis', expired: '⛔ Berhenti' };
+const STATE_LABEL = { active: 'Aktif', soon: 'Segera habis', expired: 'Berhenti' };
+const ORDER_LABEL = { paid: ['Lunas', 'ok'], creating: ['Lagi dibuat', 'wait'], pending: ['Nunggu bayar', 'wait'], failed: ['Batal / kedaluwarsa', 'off'], need_help: ['Perlu dibantu', 'bad'] };
+const initials = (n) => (n || '?').trim().slice(0, 1).toUpperCase();
+const timeAgo = (iso) => {
+  if (!iso) return '-';
+  const m = Math.round((Date.now() - new Date(iso)) / 60000);
+  return m < 1 ? 'baru aja' : m < 60 ? `${m} menit lalu` : m < 1440 ? `${Math.round(m / 60)} jam lalu` : fmtDate(iso.slice(0, 10));
+};
+let filterNow = 'all';
 
 function gameLink(slug) {
   const local = ['localhost', '127.0.0.1'].includes(location.hostname);
@@ -47,19 +70,23 @@ function gameLink(slug) {
 
 function render() {
   const q = $('#search').value.trim().toLowerCase();
-  const f = $('#filter').value;
+  const f = filterNow;
   const counts = { active: 0, soon: 0, expired: 0 };
   couples.forEach((c) => counts[stateOf(c)]++);
   const PRICE = { basic: 29000, custom: 49000 };
   const forever = couples.filter((c) => !c.paid_until && c.active).length;
   const income = couples.reduce((a, c) => a + (PRICE[c.plan] || 0), 0);
-  $('#summary').innerHTML = `
-    <div><b>${couples.length}</b><small>total game</small></div>
-    <div><b>${counts.active}</b><small>aktif</small></div>
-    <div><b>${counts.soon}</b><small>habis ≤ 3 hari</small></div>
-    <div><b>${counts.expired}</b><small>berhenti</small></div>
-    <div><b>${forever}</b><small>aktif selamanya</small></div>
-    <div><b>Rp${income.toLocaleString('id-ID')}</b><small>perkiraan total penjualan*</small></div>`;
+  const paidOrders = (orders || []).filter((o) => o.status === 'paid');
+  const help = (orders || []).filter((o) => o.status === 'need_help').length;
+  $('#oh-income').textContent = `Rp${income.toLocaleString('id-ID')}`;
+  $('#oh-sub').textContent = `${couples.length} game · ${paidOrders.length} lunas otomatis${help ? ` · ⚠️ ${help} perlu dibantu` : ''}`;
+  const stat = (n, t, ic, cls) => `<div class="stat ${cls}"><span>${ic}</span><b>${n}</b><small>${t}</small></div>`;
+  $('#summary').innerHTML = stat(couples.length, 'total game', '🎮', 'c1') + stat(counts.active, 'aktif', '✅', 'c2') + stat(forever, 'selamanya', '♾️', 'c3')
+    + stat(couples.filter((c) => c.plan === 'custom').length, 'Premium', '✨', 'c4') + stat(counts.soon, 'habis ≤ 3 hari', '⏳', 'c5') + stat(counts.expired, 'berhenti', '⛔', 'c6');
+  $('#filter').value = filterNow;
+  $('#filter-chips').innerHTML = [['all', `Semua ${couples.length}`], ['active', `Aktif ${counts.active}`], ['soon', `Segera habis ${counts.soon}`], ['expired', `Berhenti ${counts.expired}`]]
+    .map(([v, t]) => `<button type="button" class="${filterNow === v ? 'on' : ''}" data-filter="${v}">${t}</button>`).join('');
+  renderOrders();
 
   const list = couples.filter((c) => {
     const hay = `${c.owner_email} ${c.slug} ${c.names?.pasangan ?? ''} ${c.names?.pengirim ?? ''} ${c.note ?? ''}`.toLowerCase();
@@ -72,12 +99,14 @@ function render() {
     return `
       <article class="panel couple-card ${st}" data-id="${c.id}">
         <header>
-          <div>
+          <span class="cc-ava ${c.plan}">${esc(initials(c.names?.pengirim || c.owner_email))}</span>
+          <div class="cc-who">
             <b>${esc(names)}</b>
             <div class="muted small">${esc(c.owner_email || '-')} · <a href="${esc(gameLink(c.slug))}" target="_blank" rel="noopener">${esc(c.slug)}</a></div>
+            <div class="cc-tags"><span class="plan-chip ${c.plan}">${c.plan === 'custom' ? '✨ Premium' : 'Love Quest'}</span><span class="state-chip ${st}">${STATE_LABEL[st]}</span><span class="cc-date">${c.paid_until ? `s/d ${fmtDate(c.paid_until)}` : '♾️ selamanya'}</span></div>
           </div>
-          <span class="state-chip">${STATE_LABEL[st]}</span>
         </header>
+        <details class="cc-manage"><summary>Kelola akun</summary><div class="cc-body">
         <div class="grid2">
           <label>Paket
             <select data-f="plan">
@@ -99,12 +128,29 @@ function render() {
           <button class="link-btn" data-pass>🔑 Ganti password</button>
           <button class="link-btn danger" data-delete>🗑️ Hapus akun</button>
         </div>
-        <div class="muted small">Dibuat ${fmtDate(c.created_at?.slice(0, 10))} · terakhir diedit ${fmtDate(c.updated_at?.slice(0, 10))}</div>
+        </div></details>
+        <div class="muted small cc-foot">Dibuat ${fmtDate(c.created_at?.slice(0, 10))} · terakhir diedit ${fmtDate(c.updated_at?.slice(0, 10))}${c.note ? ` · 📝 ${esc(c.note)}` : ''}</div>
       </article>`;
   }).join('') : '<p class="muted">Belum ada game yang cocok.</p>';
 }
 
+function renderOrders() {
+  const box = $('#order-list');
+  if (orders === null) { box.innerHTML = '<p class="muted small">Daftar pembayaran belum bisa dimuat. Jalankan <code>supabase/migration-9.sql</code> di SQL Editor dulu.</p>'; $('#op-count').textContent = ''; return; }
+  if (!orders.length) { box.innerHTML = '<p class="muted small">Belum ada pembayaran otomatis.</p>'; $('#op-count').textContent = ''; return; }
+  $('#op-count').textContent = `${orders.filter((o) => o.status === 'paid').length} lunas`;
+  box.innerHTML = orders.slice(0, 30).map((o) => {
+    const [label, cls] = ORDER_LABEL[o.status] || [o.status, 'off'];
+    return `<div class="order-row ${cls}">
+      <span class="or-dot"></span>
+      <div class="or-main"><b>${esc(o.email)}</b><small>${esc(o.id)} · ${o.plan === 'custom' ? 'Premium' : 'Love Quest'} · Rp${(o.amount || 0).toLocaleString('id-ID')}</small>${o.note ? `<small class="or-note">${esc(o.note)}</small>` : ''}</div>
+      <div class="or-side"><span class="or-chip ${cls}">${label}</span><small>${timeAgo(o.paid_at || o.created_at)}</small></div>
+    </div>`;
+  }).join('');
+}
+
 async function update(c, patch) {
+  if (PREVIEW) { Object.assign(c, patch); render(); toast('Mode contoh: nggak disimpan'); return; }
   const next = { ...c, ...patch };
   const { error } = await sb.rpc('admin_update_couple', {
     p_id: c.id, p_plan: next.plan, p_paid_until: next.paid_until || null, p_active: next.active, p_note: next.note || null,
@@ -260,8 +306,15 @@ async function removeAccount(c) {
 }
 $('#search').addEventListener('input', render);
 $('#filter').addEventListener('change', render);
+$('#filter-chips').addEventListener('click', (e) => { const b = e.target.closest('[data-filter]'); if (!b) return; filterNow = b.dataset.filter; render(); });
+$('#btn-refresh').addEventListener('click', async () => { if (PREVIEW) { toast('Mode contoh'); return; } if (await refresh()) toast('Data terbaru ✓'); });
 
 async function load() {
+  if (PREVIEW) {
+    couples = SAMPLE; orders = SAMPLE_ORDERS;
+    setStatus('Mode contoh: data bohongan, nggak ada yang disimpan.');
+    $('#view-login').hidden = true; $('#view-list').hidden = false; render(); return;
+  }
   const { data: { session } } = await sb.auth.getSession();
   $('#btn-logout').hidden = !session;
   if (!session) { $('#view-login').hidden = false; $('#view-list').hidden = true; return; }
@@ -280,6 +333,7 @@ async function load() {
     $('#view-login').hidden = true;
     return;
   }
+  $('#oh-hi').textContent = `Halo, ${session.user.email.split('@')[0]}! 👋`;
   if (!(await refresh())) return;
   setStatus('');
   $('#view-login').hidden = true;
@@ -291,6 +345,8 @@ async function refresh() {
   const { data, error } = await sb.rpc('admin_list_couples');
   if (error) { setStatus(`Gagal memuat: ${error.message}`); return false; }
   couples = data;
+  const ord = await sb.rpc('admin_list_orders');
+  orders = ord.error ? null : ord.data;
   render();
   return true;
 }

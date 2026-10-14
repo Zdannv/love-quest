@@ -165,7 +165,7 @@ export function startCook(stage, p, api) {
   function snap(force) {
     if (!duel || !host) return;
     const now = performance.now();
-    if (!force && now - lastSnap < 100) return;
+    if (!force && now - lastSnap < 150) return;
     lastSnap = now;
     duel.send('cks', pack());
   }
@@ -461,7 +461,7 @@ export function startCook(stage, p, api) {
     if (!host) for (const o of orders) o.left -= dt;
     for (const f of floats) { f.y -= dt * 0.6; f.life -= dt; }
     floats = floats.filter((f) => f.life > 0);
-    if (duel && now - lastPos > 66) { lastPos = now; duel.send('ckp', { x: +me.x.toFixed(2), y: +me.y.toFixed(2), fx: +me.fx.toFixed(2), fy: +me.fy.toFixed(2) }); }
+    if (duel && now - lastPos > 110) { lastPos = now; duel.send('ckp', { x: +me.x.toFixed(2), y: +me.y.toFixed(2), fx: +me.fx.toFixed(2), fy: +me.fy.toFixed(2) }); }
     snap(false);
     draw();
   }

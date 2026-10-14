@@ -163,7 +163,7 @@ export function startFight(stage, p, api) {
   function sendState(force) {
     if (!duel) return;
     const now = performance.now();
-    if (!force && now - lastSent < 66) return;
+    if (!force && now - lastSent < 110) return; // ±9x/detik: hemat kuota realtime, gerakan lawan tetap dihaluskan
     lastSent = now;
     duel.send('fstate', { x: Math.round(me.x), y: Math.round(me.y), dir: me.dir, act: me.act, at: +me.t.toFixed(2), hp: me.hp, m: Math.round(me.meter) });
   }

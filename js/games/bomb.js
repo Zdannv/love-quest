@@ -252,7 +252,7 @@ export function startBomb(stage, p, api) {
     for (const pl of duel ? [m] : players) {
       if (pl.alive && inFlame(...cellOf(pl))) { pl.alive = false; api.sfx('bad'); if (pl === m) api.streak(false); if (duel) duel.send('bdead', { r: round }); }
     }
-    if (duel && performance.now() - lastSent > 66) { lastSent = performance.now(); duel.send('bpos', { r: round, x: +m.x.toFixed(2), y: +m.y.toFixed(2), mx: m.max, rg: m.range }); }
+    if (duel && performance.now() - lastSent > 110) { lastSent = performance.now(); duel.send('bpos', { r: round, x: +m.x.toFixed(2), y: +m.y.toFixed(2), mx: m.max, rg: m.range }); }
     // selesai ronde?
     const alive = players.filter((q) => q.alive);
     const meAlive = m.alive, othersAlive = alive.filter((q) => q !== m).length;

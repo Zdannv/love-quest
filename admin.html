@@ -35,6 +35,28 @@
       <p class="muted small" id="login-help"></p>
     </section>
 
+    <!-- LUPA PASSWORD: kirim link reset ke email -->
+    <section class="panel login-panel" id="view-forgot" hidden>
+      <div class="login-hero"><img src="/icons/icon-512.png" alt=""><span class="lh-b1">🔑</span><span class="lh-b2">📧</span></div>
+      <h1>Lupa password?</h1>
+      <p class="muted">Masukin email akun CMS-mu. Kami kirim link buat bikin password baru.</p>
+      <form id="form-forgot" class="form">
+        <label>Email<input type="email" id="fg-email" required autocomplete="email"></label>
+        <button class="btn" type="submit" id="fg-go">Kirim link reset</button>
+      </form>
+      <p class="muted small"><a href="#" id="fg-back">← Balik ke halaman masuk</a></p>
+    </section>
+
+    <!-- BIKIN PASSWORD BARU (dibuka dari link email) -->
+    <section class="panel login-panel" id="view-newpass" hidden>
+      <div class="login-hero"><img src="/icons/icon-512.png" alt=""><span class="lh-b1">🔐</span><span class="lh-b2">✨</span></div>
+      <h1>Bikin password baru</h1>
+      <form id="form-newpass" class="form">
+        <label>Password baru<input type="password" id="np-pass" required minlength="8" autocomplete="new-password"></label>
+        <button class="btn" type="submit">Simpan password</button>
+      </form>
+    </section>
+
     <!-- AKUN TANPA GAME -->
     <section class="panel" id="view-create" hidden>
       <h1>Game-mu belum ada</h1>

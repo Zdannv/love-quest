@@ -2,6 +2,7 @@
 //   { action: "create", plan, email, names }   → bikin pesanan + link bayar Midtrans
 //   { action: "status", order_id, secret }      → cek status pesanan (dipanggil halaman /bayar)
 //   { action: "claim",  order_id, secret }      → setelah lunas: kasih login CMS (password baru tiap diambil)
+//   { action: "upgrade" } + header Authorization: Bearer <token login CMS> → bayar selisih Rp20.000, paket jadi Premium
 //   Notifikasi Midtrans (POST berisi signature_key) → cek tanda tangan, cek ulang ke API Midtrans,
 //   kalau lunas: bikin akun CMS + game-nya otomatis (sekali bayar, aktif selamanya).
 // Secret yang perlu diisi di Supabase → Edge Functions → Secrets:
@@ -22,6 +23,7 @@ const API = PROD ? 'https://api.midtrans.com/v2' : 'https://api.sandbox.midtrans
 const PLANS: Record<string, { amount: number; name: string }> = {
   basic: { amount: 29000, name: 'Love Quest' },
   custom: { amount: 49000, name: 'Love Quest Premium' },
+  upgrade: { amount: 20000, name: 'Upgrade ke Love Quest Premium' },
 };
 
 const CORS = {
@@ -41,6 +43,15 @@ const wib = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' })
 
 // Lunas → bikin akun + game (aman dipanggil berkali-kali, cuma jalan sekali)
 async function fulfill(orderId: string) {
+  const { data: kind } = await db.from('orders').select('plan, couple_id').eq('id', orderId).maybeSingle();
+  if (kind?.plan === 'upgrade') {
+    // Upgrade: game-nya udah ada, tinggal ganti paketnya jadi Premium
+    const { data: lk } = await db.from('orders').update({ status: 'creating' }).eq('id', orderId).in('status', ['pending', 'failed']).select('couple_id');
+    if (!lk?.length) return;
+    const { error } = await db.from('couples').update({ plan: 'custom' }).eq('id', kind.couple_id);
+    await db.from('orders').update(error ? { status: 'need_help', note: `Upgrade gagal: ${error.message}` } : { status: 'paid', paid_at: new Date().toISOString() }).eq('id', orderId);
+    return;
+  }
   // Kunci dulu: notifikasi Midtrans & halaman /bayar bisa manggil barengan, akun cuma boleh dibikin sekali
   const { data: lock } = await db.from('orders').update({ status: 'creating' }).eq('id', orderId).in('status', ['pending', 'failed']).is('couple_id', null).select('*');
   const o = lock?.[0];
@@ -94,9 +105,36 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
+  // ---- Upgrade ke Premium dari CMS (harus login) ----
+  if (body.action === 'upgrade') {
+    const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    const { data: { user } } = token ? await db.auth.getUser(token) : { data: { user: null } };
+    if (!user) return json({ error: 'Login CMS dulu ya' }, 401);
+    const { data: c } = await db.from('couples').select('id, slug, plan').eq('owner', user.id).maybeSingle();
+    if (!c) return json({ error: 'Game-mu nggak ketemu' }, 404);
+    if (c.plan === 'custom') return json({ error: 'Game-mu udah Premium 💖' }, 400);
+    const id = `LQU-${wib()}-${rand(6)}`, secret = rand(32);
+    const { error } = await db.from('orders').insert({ id, plan: 'upgrade', amount: PLANS.upgrade.amount, email: user.email, token_hash: await sha('SHA-256', secret), couple_id: c.id, slug: c.slug });
+    if (error) return json({ error: 'Gagal nyimpen pesanan upgrade' }, 500);
+    const res = await fetch(SNAP, {
+      method: 'POST',
+      headers: { Authorization: auth(), 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        transaction_details: { order_id: id, gross_amount: PLANS.upgrade.amount },
+        item_details: [{ id: 'upgrade', price: PLANS.upgrade.amount, quantity: 1, name: PLANS.upgrade.name }],
+        customer_details: { email: user.email },
+        callbacks: { finish: `${SITE}/admin?upgrade=${id}` },
+        expiry: { unit: 'hours', duration: 24 },
+      }),
+    });
+    const snap = await res.json().catch(() => ({}));
+    if (!res.ok || !snap.redirect_url) return json({ error: 'Midtrans lagi nggak bisa dihubungi, coba sebentar lagi ya' }, 502);
+    return json({ ok: true, order_id: id, redirect_url: snap.redirect_url });
+  }
+
   // ---- Pembeli bikin pesanan ----
   if (body.action === 'create') {
-    const plan = PLANS[body.plan] ? body.plan : 'basic';
+    const plan = body.plan === 'custom' ? 'custom' : 'basic';
     const email = String(body.email || '').trim().toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 120) return json({ error: 'Email-nya belum bener' }, 400);
     const names = { pasangan: String(body.names?.pasangan || '').trim().slice(0, 40), pengirim: String(body.names?.pengirim || '').trim().slice(0, 40) };

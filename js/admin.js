@@ -7,12 +7,12 @@ import { THEMES, CHARACTERS, DEFAULT_THEME, DEFAULT_CHARACTERS } from './themes.
 import { esc } from './util.js';
 
 const $ = (s) => document.querySelector(s);
-const views = { login: $('#view-login'), create: $('#view-create'), editor: $('#view-editor') };
+const views = { login: $('#view-login'), create: $('#view-create'), editor: $('#view-editor'), forgot: $('#view-forgot'), newpass: $('#view-newpass') };
 const status = $('#status');
 
 function show(name) {
   Object.entries(views).forEach(([k, el]) => (el.hidden = k !== name));
-  $('#btn-logout').hidden = name === 'login';
+  $('#btn-logout').hidden = ['login', 'forgot', 'newpass'].includes(name);
   $('#save-bar').hidden = name !== 'editor';
 }
 function setStatus(text) {
@@ -30,6 +30,8 @@ function toast(text) {
 
 // ?contoh = lihat editor tanpa login (nggak ada yang disimpan)
 const PREVIEW = new URLSearchParams(location.search).has('contoh');
+// Dibuka dari link reset password di email? (dicek sebelum Supabase sempat ngapus tanda di URL)
+const RECOVERY = /type=recovery/.test(location.hash) || new URLSearchParams(location.search).has('reset');
 const { url, anonKey } = CONFIG.cloud;
 if (!PREVIEW && (!url || !anonKey)) {
   setStatus('CMS belum disambungkan: isi `cloud.url` dan `cloud.anonKey` di js/config.js dulu.');
@@ -175,7 +177,7 @@ function renderSubscription() {
     panel.className = 'panel sub-panel';
     panel.innerHTML = `
       <div><div class="muted small">${esc(planName)}</div><b><span class="dot ok"></span>Aktif selamanya</b></div>
-      ${wa ? `<a class="btn small-btn" href="${esc(wa)}" target="_blank" rel="noopener">Upgrade ke Premium</a>` : ''}`;
+      ${couple.plan !== 'custom' ? (CONFIG.checkout?.enabled ? upgradeBtn() : wa ? `<a class="btn small-btn" href="${esc(wa)}" target="_blank" rel="noopener">Upgrade ke Premium</a>` : '') : ''}`;
     panel.hidden = !couple.active;
     return;
   }
@@ -301,26 +303,41 @@ $('#music-list').addEventListener('click', (e) => {
 
 // ---------- Fitur paket Premium (tema, karakter, muka, lagu) ----------
 const isCustom = () => couple.plan === 'custom';
-function upsellNote(what) {
-  const url = CONFIG.whatsapp
-    ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(`Halo! Aku mau upgrade ke Love Quest Premium 💖\nKode game: ${couple.slug}`)}`
-    : '';
-  return `<div class="locked-note">${ICON.lock}<span>${what} tersedia di paket <b>Premium</b>.</span>
-    ${url ? `<a class="btn small-btn" href="${esc(url)}" target="_blank" rel="noopener">Upgrade via WhatsApp</a>` : ''}</div>`;
+// Tombol upgrade: bayar otomatis (kalau Midtrans aktif), kalau nggak lewat WhatsApp
+function upgradeBtn() {
+  if (CONFIG.checkout?.enabled) return '<button type="button" class="btn small-btn" data-upgrade>✨ Upgrade Rp20.000</button>';
+  const url = CONFIG.whatsapp ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(`Halo! Aku mau upgrade ke Love Quest Premium 💖\nKode game: ${couple.slug}`)}` : '';
+  return url ? `<a class="btn small-btn" href="${esc(url)}" target="_blank" rel="noopener">Upgrade via WhatsApp</a>` : '';
 }
+function upsellNote(what) {
+  return `<div class="locked-note">${ICON.lock}<span>${what} tersedia di paket <b>Premium</b>.</span>
+    ${upgradeBtn()}</div>`;
+}
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-upgrade]'); if (!b) return;
+  if (PREVIEW) { toast('Mode contoh: upgrade nggak bisa dicoba di sini'); return; }
+  if (dirty) await save(null);
+  b.disabled = true; b.textContent = 'Nyiapin pembayaran…';
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(`${url.replace(/\/$/, '')}/functions/v1/${CONFIG.checkout?.fn || 'checkout'}`, {
+      method: 'POST', headers: { apikey: anonKey, Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'upgrade' }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok || !d.redirect_url) throw new Error(d.error || `Error ${res.status}`);
+    location.href = d.redirect_url;
+  } catch (x) { toast(x.message); b.disabled = false; b.textContent = '✨ Upgrade Rp20.000'; }
+});
 
 function renderLook() {
   const isCustom = couple.plan === 'custom';
   const opts = (sel) => Object.entries(CHARACTERS).map(([id, ch]) =>
     `<option value="${id}" ${sel === id ? 'selected' : ''}>${ch.emoji} ${esc(ch.name)}</option>`).join('');
-  const upsell = CONFIG.whatsapp
-    ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(`Halo! Aku mau upgrade ke Love Quest Premium 💖\nKode game: ${couple.slug}`)}`
-    : '';
   $('#look-editor').innerHTML = `
     ${isCustom ? '' : `
       <div class="locked-note">
         ${ICON.lock}<span>Tema &amp; karakter tersedia di paket <b>Premium</b>.</span>
-        ${upsell ? `<a class="btn small-btn" href="${esc(upsell)}" target="_blank" rel="noopener">Upgrade via WhatsApp</a>` : ''}
+        ${upgradeBtn()}
       </div>`}
     <fieldset class="look-fields" ${isCustom ? '' : 'disabled'}>
       <div class="field-label">Tema warna</div>
@@ -568,7 +585,30 @@ $('#btn-copy').addEventListener('click', async () => {
 
 // ---------- Akun ----------
 const waLink = (text) => `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(text)}`;
-$('#login-help').innerHTML = `Belum punya akun? <a href="/bayar">Pesan di sini</a> · Lupa password? <a href="${waLink('Halo! Aku lupa password CMS Love Quest 🙏')}" target="_blank" rel="noopener">Chat WhatsApp</a>`;
+$('#login-help').innerHTML = `Belum punya akun? <a href="/bayar">Pesan di sini</a> · <a href="#" id="go-forgot">Lupa password?</a>`;
+
+// ---------- Lupa password: link reset lewat email (Supabase Auth) ----------
+$('#go-forgot').addEventListener('click', (e) => { e.preventDefault(); setStatus(''); $('#fg-email').value = $('#in-email').value; show('forgot'); });
+$('#fg-back').addEventListener('click', (e) => { e.preventDefault(); setStatus(''); show('login'); });
+$('#form-forgot').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('#fg-go'); btn.disabled = true;
+  const { error } = await sb.auth.resetPasswordForEmail($('#fg-email').value.trim(), { redirectTo: `${location.origin}/admin` });
+  btn.disabled = false;
+  // Sengaja nggak bilang emailnya terdaftar atau nggak (biar nggak bisa dipakai nebak email orang)
+  if (error && !/not found|user/i.test(error.message)) { setStatus(`Gagal ngirim: ${error.message}. Coba lagi bentar lagi, atau chat admin.`); return; }
+  setStatus('Kalau email itu terdaftar, link buat bikin password baru udah dikirim. Cek inbox & folder spam ya 📧');
+});
+if (sb) sb.auth.onAuthStateChange((ev) => { if (ev === 'PASSWORD_RECOVERY') { setStatus(''); show('newpass'); } });
+$('#form-newpass').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const { error } = await sb.auth.updateUser({ password: $('#np-pass').value });
+  if (error) { setStatus(`Gagal: ${error.message}`); return; }
+  history.replaceState(null, '', location.pathname);
+  setStatus('');
+  toast('Password baru tersimpan 🔐');
+  await loadMine();
+});
 $('#btn-create').href = waLink('Halo! Aku udah punya akun Love Quest tapi game-nya belum ada 🥺');
 
 $('#form-login').addEventListener('submit', async (e) => {
@@ -602,6 +642,30 @@ async function loadMine() {
   show('editor');
   renderEditor();
   markDirty(false);
+  checkUpgradeReturn();
+}
+
+// Balik dari Midtrans setelah bayar upgrade: tunggu sampai paketnya jadi Premium
+let upgradeWatching = false;
+async function checkUpgradeReturn() {
+  const id = new URLSearchParams(location.search).get('upgrade');
+  if (!id || upgradeWatching || couple.plan === 'custom') {
+    if (id && couple.plan === 'custom') { history.replaceState(null, '', location.pathname); toast('Premium udah aktif ✨ Tema, karakter, lagu & muka kebuka!'); }
+    return;
+  }
+  upgradeWatching = true;
+  setStatus('Ngecek pembayaran upgrade… 💳');
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 3000));
+    const { data } = await sb.from('couples').select('plan').eq('id', couple.id).maybeSingle();
+    if (data?.plan === 'custom') {
+      couple.plan = 'custom'; setStatus(''); history.replaceState(null, '', location.pathname);
+      renderEditor(); toast('Premium udah aktif ✨ Tema, karakter, lagu & muka kebuka!');
+      upgradeWatching = false; return;
+    }
+  }
+  setStatus('Pembayaran upgrade belum masuk. Kalau pakai transfer/VA, selesain dulu bayarnya terus muat ulang halaman ini. Ada kendala? Chat admin ya.');
+  upgradeWatching = false;
 }
 
 if (PREVIEW) {
@@ -611,6 +675,8 @@ if (PREVIEW) {
   renderEditor();
   setStatus('Mode contoh: kamu bisa lihat & coba editornya, tapi nggak ada yang disimpan.');
   $('#btn-logout').hidden = true;
+} else if (RECOVERY) {
+  show('newpass'); // dibuka dari link reset password di email
 } else {
   loadMine();
   // Balik ke halaman ini (misal tombol Back setelah buka game): muat ulang biar nggak pakai tampilan lama
