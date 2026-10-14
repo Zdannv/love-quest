@@ -197,3 +197,61 @@ details.panel > textarea { width: calc(100% - 32px); display: block; }
 .save-pill { white-space: nowrap; }
 #talk-custom { min-height: 150px; }
 .bd-state { font-weight: 500; color: var(--text-soft); } .bd-state.ok { color: #1f9d6f; }
+
+/* ================= Rombakan CMS: login lucu, kartu progres, warna per bagian ================= */
+.login-panel { text-align: center; padding-top: 26px; margin-top: 18px; }
+.login-panel .form { text-align: left; }
+.login-hero { position: relative; width: 112px; height: 112px; margin: 0 auto 12px; }
+.login-hero img { width: 112px; height: 112px; border-radius: 30px; box-shadow: 0 14px 30px rgba(214, 80, 140, .3); animation: heroFloat 4s ease-in-out infinite; }
+.login-hero span { position: absolute; font-size: 30px; filter: drop-shadow(0 4px 6px rgba(160,60,120,.2)); animation: hop 2s ease-in-out infinite; }
+.login-hero span img.fx { width: 34px; height: 34px; box-shadow: none; border-radius: 0; animation: none; }
+.lh-b1 { left: -26px; top: 8px; } .lh-b2 { right: -24px; bottom: 4px; animation-delay: .6s !important; }
+.login-panel h1 { font-size: 28px; }
+.login-panel #login-help a { color: var(--accent); font-weight: 600; }
+
+.dash { position: relative; overflow: hidden; border-radius: 26px; padding: 20px 18px 16px; color: #fff;
+  background: linear-gradient(135deg, var(--pink) 0%, var(--pink-deep) 55%, #9a6bff 120%); box-shadow: 0 16px 34px rgba(214, 80, 140, .28); }
+.dash::before { content: ''; position: absolute; right: -60px; top: -70px; width: 220px; height: 220px; border-radius: 50%; background: rgba(255,255,255,.14); }
+.dash > * { position: relative; }
+.dash-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dash-top small { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .85; }
+.dash h1 { margin: 2px 0 0; font-size: 26px; color: #fff; font-weight: 600; }
+.dash-ring { --p: 0; flex: none; width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle, var(--pink-deep) 0 58%, transparent 59%), conic-gradient(#fff calc(var(--p) * 1%), rgba(255,255,255,.28) 0); transition: background .4s; }
+.dash-ring b { font-family: 'Fredoka', sans-serif; font-size: 17px; }
+.dash-txt { margin: 10px 0 10px; font-size: 14px; line-height: 1.45; opacity: .95; }
+.dash-todo { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-wrap: wrap; gap: 7px; }
+.dash-todo button { font: inherit; font-size: 13px; font-weight: 600; border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; color: var(--pink-deep); background: #fff; box-shadow: 0 3px 0 rgba(0,0,0,.08); }
+.dash-todo button.ok { color: #fff; background: rgba(255,255,255,.22); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.55); }
+.dash .link-panel { background: rgba(255,255,255,.96); color: var(--text); border-radius: 18px; padding: 12px 14px; box-shadow: none; border: 0; margin: 0; }
+.dash .link-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.dash .link-actions .btn { flex: 1 1 auto; }
+
+/* status di judul tiap bagian */
+.sec-state { margin-left: auto; flex: none; font-style: normal; font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.sec-state.ok { background: #e3f8ec; color: #1f9e5f; } .sec-state.todo { background: #fff0e2; color: #d07215; } .sec-state.opt { background: #f3eef6; color: #9a86a8; }
+.sec-state:empty { display: none; }
+details.panel > summary::after { margin-left: 10px; }
+
+/* warna ikon tiap bagian */
+details[data-sec] .sec-ico { color: #fff; box-shadow: 0 4px 10px rgba(0,0,0,.08), inset 0 -3px 0 rgba(0,0,0,.08); }
+details[data-sec="names"] .sec-ico { background: linear-gradient(145deg, #ff9cc4, #ef5f9b); }
+details[data-sec="profile"] .sec-ico { background: linear-gradient(145deg, #ffc778, #ff9a3d); }
+details[data-sec="music"] .sec-ico { background: linear-gradient(145deg, #9fd9ff, #4aa8ff); }
+details[data-sec="look"] .sec-ico { background: linear-gradient(145deg, #c9b2ff, #8c72f2); }
+details[data-sec="photos"] .sec-ico { background: linear-gradient(145deg, #8fe3b5, #35b779); }
+details[data-sec="letter"] .sec-ico { background: linear-gradient(145deg, #ffb3a7, #f0705c); }
+details[data-sec="messages"] .sec-ico { background: linear-gradient(145deg, #ffa8d4, #d85fb0); }
+details[data-sec="quiz"] .sec-ico { background: linear-gradient(145deg, #ffe08a, #f2b91e); }
+details[data-sec="talk"] .sec-ico { background: linear-gradient(145deg, #a9b8ff, #6177f0); }
+details.panel { transition: box-shadow .2s, transform .2s; scroll-margin-top: 70px; }
+details.panel[open] { box-shadow: 0 2px 4px rgba(80, 20, 50, .04), 0 14px 34px rgba(214, 80, 140, .12); }
+details.panel > summary:hover { background: #fffafc; }
+
+/* laptop: kartu progres nempel di kiri, bagian-bagian di kanan */
+@media (min-width: 980px) {
+  .admin-main { max-width: 1080px; }
+  #view-editor:not([hidden]) { display: grid; grid-template-columns: 360px 1fr; gap: 14px 22px; align-items: start; }
+  #view-editor > .dash { grid-column: 1; grid-row: 1 / span 30; position: sticky; top: 76px; }
+  #view-editor > :not(.dash) { grid-column: 2; }
+}

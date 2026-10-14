@@ -23,7 +23,8 @@
     <p class="admin-status" id="status" hidden></p>
 
     <!-- LOGIN -->
-    <section class="panel" id="view-login" hidden>
+    <section class="panel login-panel" id="view-login" hidden>
+      <div class="login-hero"><img src="/icons/icon-512.png" alt=""><span class="lh-b1">💌</span><span class="lh-b2">🎮</span></div>
       <h1>Masuk ke CMS</h1>
       <p class="muted">Kelola isi game buat pasanganmu: nama, pesan, surat, foto, dan lagu. Email & password-nya muncul otomatis setelah kamu bayar.</p>
       <form id="form-login" class="form">
@@ -45,27 +46,36 @@
     <div id="view-editor" hidden>
       <section class="panel sub-panel" id="sub-panel" hidden></section>
 
-      <section class="panel link-panel">
-        <div class="link-label">Link game kalian</div>
-        <a id="game-link" target="_blank" rel="noopener"></a>
-        <div class="link-actions">
-          <button class="btn ghost small-btn" id="btn-copy">Salin link</button>
-          <a class="btn small-btn" id="btn-open" target="_blank" rel="noopener">Buka game</a>
+      <section class="dash">
+        <div class="dash-top">
+          <div><small>CMS Love Quest</small><h1 id="dash-hi">Hai! 👋</h1></div>
+          <div class="dash-ring" id="dash-ring"><b id="dash-pct">0%</b></div>
+        </div>
+        <p class="dash-txt" id="dash-txt">Yuk lengkapin isi game-nya biar makin personal.</p>
+        <ul class="dash-todo" id="dash-todo"></ul>
+        <div class="link-panel">
+          <div class="link-label">Link game buat pasanganmu</div>
+          <a id="game-link" target="_blank" rel="noopener"></a>
+          <div class="link-actions">
+            <button class="btn ghost small-btn" id="btn-copy">Salin link</button>
+            <a class="btn ghost small-btn" id="btn-wa" target="_blank" rel="noopener">Kirim via WA</a>
+            <a class="btn small-btn" id="btn-open" target="_blank" rel="noopener">Buka game</a>
+          </div>
         </div>
       </section>
 
       <p class="tip"><b>Tips:</b> tulis <code>{pasangan}</code> atau <code>{pengirim}</code> di teks mana pun, nanti otomatis jadi nama kalian. <code>{karakter}</code> &amp; <code>{karakter2}</code> jadi karakter kalian.</p>
 
-      <details class="panel" open>
-        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.6c2.3.1 4 1.5 4.5 4.4"/></svg></span><span class="sec-txt"><b>Nama</b><small>Nama kalian berdua</small></span></summary>
+      <details class="panel" data-sec="names" open>
+        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.6c2.3.1 4 1.5 4.5 4.4"/></svg></span><span class="sec-txt"><b>Nama</b><small>Nama kalian berdua</small></span><em class="sec-state" data-state="names"></em></summary>
         <div class="grid2">
           <label>Nama pasangan (yang main)<input data-path="names.pasangan" maxlength="20" placeholder="contoh: Nadia"></label>
           <label>Nama kamu (yang ngasih)<input data-path="names.pengirim" maxlength="20" placeholder="contoh: Raka"></label>
         </div>
       </details>
 
-      <details class="panel">
-        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M12 14.2c.8-1.3 2.9-.9 2.9.6 0 1.4-2.9 2.9-2.9 2.9s-2.9-1.5-2.9-2.9c0-1.5 2.1-1.9 2.9-.6z"/></svg></span><span class="sec-txt"><b>Profil berdua</b><small>Masuk pakai tanggal lahir</small></span></summary>
+      <details class="panel" data-sec="profile">
+        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M12 14.2c.8-1.3 2.9-.9 2.9.6 0 1.4-2.9 2.9-2.9 2.9s-2.9-1.5-2.9-2.9c0-1.5 2.1-1.9 2.9-.6z"/></svg></span><span class="sec-txt"><b>Profil berdua</b><small>Masuk pakai tanggal lahir</small></span><em class="sec-state" data-state="profile"></em></summary>
         <p class="muted small">Isi tanggal lahir kalian berdua. Pas pertama buka game, masing-masing cukup masukin tanggal lahirnya sekali, terus HP-nya langsung kenal dia siapa (buat Main Berdua &amp; streak). Tanggalnya nggak disimpan mentah, cuma kode acaknya.</p>
         <div class="grid2">
           <label>Tanggal lahir pasangan<input type="date" data-birthday="pasangan"><small class="bd-state" data-bd-state="pasangan"></small></label>
@@ -73,40 +83,40 @@
         </div>
       </details>
 
-      <details class="panel">
-        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></span><span class="sec-txt"><b>Lagu latar</b><small>Musik yang diputar di game</small></span></summary>
+      <details class="panel" data-sec="music">
+        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></span><span class="sec-txt"><b>Lagu latar</b><small>Musik yang diputar di game</small></span><em class="sec-state" data-state="music"></em></summary>
         <div id="music-list" class="music-list"></div>
       </details>
 
-      <details class="panel">
-        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7.5" r="1.2"/><circle cx="15" cy="7.8" r="1.2"/></svg></span><span class="sec-txt"><b>Tema &amp; karakter</b><small>Warna dan karakter game</small></span></summary>
+      <details class="panel" data-sec="look">
+        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7.5" r="1.2"/><circle cx="15" cy="7.8" r="1.2"/></svg></span><span class="sec-txt"><b>Tema &amp; karakter</b><small>Warna dan karakter game</small></span><em class="sec-state" data-state="look"></em></summary>
         <div id="look-editor"></div>
       </details>
 
-      <details class="panel">
-        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="3"/><circle cx="9" cy="11" r="2"/><path d="m21 16-4.5-4.5L7 20"/></svg></span><span class="sec-txt"><b>Foto</b><small>Muka, logo aplikasi, foto puzzle</small></span></summary>
+      <details class="panel" data-sec="photos">
+        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="3"/><circle cx="9" cy="11" r="2"/><path d="m21 16-4.5-4.5L7 20"/></svg></span><span class="sec-txt"><b>Foto</b><small>Muka, logo aplikasi, foto puzzle</small></span><em class="sec-state" data-state="photos"></em></summary>
         <p class="muted small">Foto muka jadi karakter di game (pakai foto close-up, nanti dipotong bulat). Foto puzzle tiap dunia opsional, kalau kosong pakai foto utama. Kalau logo aplikasi diganti, yang udah pasang di HP perlu pasang ulang biar ikonnya ikut ganti.</p>
         <div id="photo-list" class="photo-list"></div>
       </details>
 
-      <details class="panel">
-        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></svg></span><span class="sec-txt"><b>Surat</b><small>Surat rahasia di akhir game</small></span></summary>
+      <details class="panel" data-sec="letter">
+        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></svg></span><span class="sec-txt"><b>Surat</b><small>Surat rahasia di akhir game</small></span><em class="sec-state" data-state="letter"></em></summary>
         <textarea data-path="finalLetter" rows="12"></textarea>
         <p class="muted small hint">Pisahkan paragraf dengan satu baris kosong.</p>
       </details>
 
-      <details class="panel">
-        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M8.5 11h7M8.5 14h4"/></svg></span><span class="sec-txt"><b>Pesan tiap level</b><small>Muncul tiap level selesai</small></span></summary>
+      <details class="panel" data-sec="messages">
+        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M8.5 11h7M8.5 14h4"/></svg></span><span class="sec-txt"><b>Pesan tiap level</b><small>Muncul tiap level selesai</small></span><em class="sec-state" data-state="messages"></em></summary>
         <div id="message-list"></div>
       </details>
 
-      <details class="panel">
-        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.8"/><path d="M12 17h.01"/></svg></span><span class="sec-txt"><b>Kuis</b><small>Pertanyaan di akhir tiap dunia</small></span></summary>
+      <details class="panel" data-sec="quiz">
+        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.8"/><path d="M12 17h.01"/></svg></span><span class="sec-txt"><b>Kuis</b><small>Pertanyaan di akhir tiap dunia</small></span><em class="sec-state" data-state="quiz"></em></summary>
         <div id="quiz-list"></div>
       </details>
 
-      <details class="panel">
-        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="12" height="15" rx="2.5" transform="rotate(-8 9 13.5)"/><rect x="9" y="3" width="12" height="15" rx="2.5"/><path d="M13 9h4M13 12h4"/></svg></span><span class="sec-txt"><b>Kartu Deep Talk</b><small>Pertanyaan buat ngobrol berdua</small></span></summary>
+      <details class="panel" data-sec="talk">
+        <summary><span class="sec-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="12" height="15" rx="2.5" transform="rotate(-8 9 13.5)"/><rect x="9" y="3" width="12" height="15" rx="2.5"/><path d="M13 9h4M13 12h4"/></svg></span><span class="sec-txt"><b>Kartu Deep Talk</b><small>Pertanyaan buat ngobrol berdua</small></span><em class="sec-state" data-state="talk"></em></summary>
         <p class="muted small">Udah ada 100 kartu bawaan (Ringan, Kenangan, Deep Talk, Masa Depan, Receh &amp; Gombal). Kamu bisa nambahin pertanyaan sendiri di sini, <b>satu pertanyaan per baris</b>. Nanti muncul di kategori "Dari (nama kamu)".</p>
         <textarea id="talk-custom" rows="8" placeholder="contoh: Kapan terakhir kali kamu kangen aku banget?"></textarea>
       </details>

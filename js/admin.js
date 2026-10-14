@@ -103,7 +103,50 @@ function markDirty(on = true) {
   clearTimeout(autoSaveTimer);
   // Simpan otomatis 1 detik setelah berhenti ngedit, biar nggak ada yang hilang
   if (on) autoSaveTimer = setTimeout(() => save(null), 1000);
+  if (on) updateProgress();
 }
+
+// ---------- Kelengkapan isi game (kartu atas) ----------
+const changed = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
+function updateProgress() {
+  if (!content || !$('#dash-todo')) return;
+  const nm = content.names || {};
+  const msgs = [...content.messages, ...content.stageMessages], defMsgs = [...CONFIG.messages, ...CONFIG.stageMessages];
+  const own = msgs.filter((m, i) => changed(m, defMsgs[i])).length;
+  const quizOwn = content.quiz.filter((q, i) => changed(q, CONFIG.quiz[i])).length;
+  const STEPS = [
+    { sec: 'names', t: 'Nama kalian', ok: !!(nm.pasangan?.trim() && nm.pengirim?.trim()) },
+    { sec: 'profile', t: 'Tanggal lahir', ok: !!(content.profiles?.pasangan && content.profiles?.pengirim) },
+    { sec: 'photos', t: 'Foto utama', ok: !!content.photos?.letter },
+    { sec: 'letter', t: 'Surat rahasia', ok: changed(content.finalLetter, CONFIG.finalLetter) },
+    { sec: 'messages', t: `Pesan level (${own}/${msgs.length})`, ok: own >= 5 },
+    { sec: 'quiz', t: 'Kuis', ok: quizOwn > 0 },
+  ];
+  const done = STEPS.filter((x) => x.ok).length, pct = Math.round((done / STEPS.length) * 100);
+  $('#dash-pct').textContent = `${pct}%`;
+  $('#dash-ring').style.setProperty('--p', pct);
+  $('#dash-txt').textContent = done === STEPS.length
+    ? 'Semua udah diisi! Tinggal kirim link-nya ke pasanganmu 💌'
+    : `${done} dari ${STEPS.length} langkah selesai. Tap yang belum buat langsung ngisi.`;
+  $('#dash-todo').innerHTML = STEPS.map((x) => `<li><button type="button" class="${x.ok ? 'ok' : ''}" data-go-sec="${x.sec}">${x.ok ? '✓' : '○'} ${esc(x.t)}</button></li>`).join('');
+  const pn = nm.pengirim?.trim();
+  $('#dash-hi').textContent = pn ? `Hai, ${pn}! 👋` : 'Hai! 👋';
+  // tanda kecil di judul tiap bagian
+  const state = Object.fromEntries(STEPS.map((x) => [x.sec, x.ok]));
+  state.talk = content.talkCustom.length > 0 ? true : null;
+  state.music = state.look = null;
+  document.querySelectorAll('.sec-state').forEach((el) => {
+    const v = state[el.dataset.state];
+    el.className = `sec-state ${v === true ? 'ok' : v === false ? 'todo' : 'opt'}`;
+    el.textContent = v === true ? 'Udah diisi' : v === false ? 'Belum' : 'Opsional';
+  });
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-go-sec]'); if (!b) return;
+  const d = document.querySelector(`details[data-sec="${b.dataset.goSec}"]`); if (!d) return;
+  d.open = true;
+  d.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
 // Ikon garis kecil (pengganti emoji di tampilan CMS)
@@ -162,6 +205,7 @@ function renderEditor() {
   $('#game-link').textContent = link;
   $('#game-link').href = link;
   $('#btn-open').href = link;
+  $('#btn-wa').href = `https://wa.me/?text=${encodeURIComponent(`Ada kado buat kamu 🎁💖 Buka ya: ${link}`)}`;
 
   // Semua input berlabel data-path langsung terhubung ke `content`
   document.querySelectorAll('#view-editor [data-path]').forEach((el) => { el.value = getPath(content, el.dataset.path) ?? ''; });
@@ -173,6 +217,7 @@ function renderEditor() {
   renderPhotos();
   renderMessages();
   renderQuiz();
+  updateProgress();
 }
 
 // Pesan & kuis ditampilin per dunia (tab), biar halamannya nggak kepanjangan
@@ -497,6 +542,7 @@ async function doSave(message) {
   $('#save-bar').classList.remove('dirty');
   $('#save-state').textContent = 'Tersimpan';
   if (message) toast(message);
+  updateProgress();
   return true;
 }
 $('#save-bar').addEventListener('click', () => { if ($('#save-bar').classList.contains('failed')) save(); });
