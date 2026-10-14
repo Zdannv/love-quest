@@ -79,12 +79,14 @@ Deno.serve(async (req) => {
   // ---- Notifikasi dari Midtrans ----
   if (body.signature_key) {
     const expect = await sha('SHA-512', `${body.order_id}${body.status_code}${body.gross_amount}${SERVER_KEY}`);
-    if (expect !== body.signature_key) return json({ error: 'Tanda tangan salah' }, 403);
+    // Tanda tangan salah / pesanan bukan dari kita (misalnya tombol "Test notification" di dashboard):
+    // dijawab OK tapi nggak ngapa-ngapain
+    if (expect !== body.signature_key) return json({ ok: true, ignored: 'signature' });
+    const { data: o } = await db.from('orders').select('amount').eq('id', String(body.order_id)).maybeSingle();
+    if (!o) return json({ ok: true, ignored: 'unknown order' });
     // Jangan percaya isi notifikasi mentah-mentah: tanya ulang status aslinya ke Midtrans
     const st = await fetch(`${API}/${encodeURIComponent(body.order_id)}/status`, { headers: { Authorization: auth(), Accept: 'application/json' } }).then((r) => r.json()).catch(() => null);
-    if (!st?.transaction_status) return json({ ok: false }, 502);
-    const { data: o } = await db.from('orders').select('amount').eq('id', st.order_id).maybeSingle();
-    if (!o) return json({ ok: true }); // bukan pesanan kita
+    if (!st?.transaction_status) return json({ ok: false }, 502); // Midtrans bakal kirim ulang nanti
     const ts = st.transaction_status, paid = (ts === 'settlement' || (ts === 'capture' && st.fraud_status === 'accept')) && Math.round(Number(st.gross_amount)) === o.amount;
     await db.from('orders').update({ pay_status: ts }).eq('id', st.order_id);
     if (paid) await fulfill(st.order_id);
