@@ -29,7 +29,7 @@ export const CONFIG = {
   // Kalau kosong, tombol pesan disembunyikan.
   orderUrl: 'https://wa.me/6285136086902?text=' + encodeURIComponent('Halo! Aku mau pesan Love Quest 💖'),
   // Bayar otomatis (Midtrans, lihat supabase/functions/checkout). Nyalain kalau edge function + key Midtrans udah siap.
-  checkout: { enabled: false, fn: 'checkout' },
+  checkout: { enabled: true, fn: 'checkout' },
   whatsapp: '6285136086902', // dipakai juga di CMS buat bayar / upgrade paket
 
   // Model: sekali bayar, akses selamanya (nggak ada biaya bulanan).
