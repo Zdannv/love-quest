@@ -35,3 +35,6 @@ body.pay { min-height: 100dvh; background: linear-gradient(180deg, #ffeef6, #fbf
 .pay-login dd { margin: 0; font-size: 15.5px; font-weight: 600; word-break: break-all; }
 .pay-login code { font-size: 18px; background: #fff; padding: 2px 8px; border-radius: 8px; box-shadow: inset 0 0 0 1.5px #ffd6e7; }
 .pay-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.pay-row > label { min-width: 0; }
+.pay-card input:not([type="radio"]) { width: 100%; min-width: 0; box-sizing: border-box; }
+body.pay { overflow-x: hidden; }

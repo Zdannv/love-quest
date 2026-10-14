@@ -522,7 +522,7 @@ $('#btn-copy').addEventListener('click', async () => {
 
 // ---------- Akun ----------
 const waLink = (text) => `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(text)}`;
-$('#login-help').innerHTML = `Belum punya akun atau lupa password? <a href="${waLink('Halo! Aku mau pesan Love Quest 💖')}" target="_blank" rel="noopener">Chat WhatsApp</a>`;
+$('#login-help').innerHTML = `Belum punya akun? <a href="/bayar">Pesan di sini</a> · Lupa password? <a href="${waLink('Halo! Aku lupa password CMS Love Quest 🙏')}" target="_blank" rel="noopener">Chat WhatsApp</a>`;
 $('#btn-create').href = waLink('Halo! Aku udah punya akun Love Quest tapi game-nya belum ada 🥺');
 
 $('#form-login').addEventListener('submit', async (e) => {
