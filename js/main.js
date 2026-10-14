@@ -395,6 +395,20 @@ document.querySelectorAll('.tutorial video').forEach((v) => {
   v.addEventListener('ended', () => holdMusic(false));
 });
 
+// ---------- Landing: kartu harga + tombol coba ----------
+if (CONFIG.demo && $('#lp-prices')) {
+  $('#lp-prices').innerHTML = CONFIG.packages.map((pk, i) => `
+    <article class="lp-price ${i ? 'hot' : ''}">
+      ${i ? '<span class="lp-badge">✨ Paling lengkap</span>' : ''}
+      <small>${esc(pk.tag)}</small>
+      <h3>${esc(pk.name)}</h3>
+      <div class="lp-amt">${esc(pk.price)} <span>${esc(pk.per)}</span></div>
+      <ul>${(pk.highlights || pk.features.slice(0, 5)).map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
+      <button class="btn ${i ? '' : 'ghost'}" type="button" data-paket>Lihat detail paket</button>
+    </article>`).join('');
+}
+document.addEventListener('click', (e) => { if (e.target.closest('[data-try]')) $('#btn-play').click(); });
+
 // ---------- Paket ----------
 function showPackages() {
   modal.querySelector('.modal-card').innerHTML = `
