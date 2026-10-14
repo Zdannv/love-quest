@@ -2,6 +2,7 @@
 //   { action: "create", plan, email, names }   → bikin pesanan + link bayar Midtrans
 //   { action: "status", order_id, secret }      → cek status pesanan (dipanggil halaman /bayar)
 //   { action: "claim",  order_id, secret }      → setelah lunas: kasih login CMS (password baru tiap diambil)
+//   { action: "upgrade_check", order_id } + header Authorization → cek & proses pesanan upgrade (cadangan kalau notifikasi telat)
 //   { action: "upgrade" } + header Authorization: Bearer <token login CMS> → bayar selisih Rp20.000, paket jadi Premium
 //   Notifikasi Midtrans (POST berisi signature_key) → cek tanda tangan, cek ulang ke API Midtrans,
 //   kalau lunas: bikin akun CMS + game-nya otomatis (sekali bayar, aktif selamanya).
@@ -130,6 +131,25 @@ Deno.serve(async (req) => {
     const snap = await res.json().catch(() => ({}));
     if (!res.ok || !snap.redirect_url) return json({ error: 'Midtrans lagi nggak bisa dihubungi, coba sebentar lagi ya' }, 502);
     return json({ ok: true, order_id: id, redirect_url: snap.redirect_url });
+  }
+
+  // ---- CMS ngecek pesanan upgrade-nya (nggak cuma nunggu notifikasi Midtrans) ----
+  if (body.action === 'upgrade_check') {
+    const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    const { data: { user } } = token ? await db.auth.getUser(token) : { data: { user: null } };
+    if (!user) return json({ error: 'Login CMS dulu ya' }, 401);
+    const { data: c } = await db.from('couples').select('id, plan').eq('owner', user.id).maybeSingle();
+    if (!c) return json({ error: 'Game-mu nggak ketemu' }, 404);
+    const { data: o } = await db.from('orders').select('id, amount, status').eq('id', String(body.order_id || '')).eq('couple_id', c.id).eq('plan', 'upgrade').maybeSingle();
+    if (o && o.status === 'pending') {
+      const st = await fetch(`${API}/${encodeURIComponent(o.id)}/status`, { headers: { Authorization: auth(), Accept: 'application/json' } }).then((r) => r.json()).catch(() => null);
+      const ts = st?.transaction_status;
+      if ((ts === 'settlement' || (ts === 'capture' && st.fraud_status === 'accept')) && Math.round(Number(st.gross_amount)) === o.amount) await fulfill(o.id);
+      else if (['expire', 'cancel', 'deny', 'failure'].includes(ts)) await db.from('orders').update({ status: 'failed', pay_status: ts }).eq('id', o.id);
+    }
+    const { data: now } = await db.from('couples').select('plan').eq('id', c.id).single();
+    const { data: ord } = o ? await db.from('orders').select('status').eq('id', o.id).single() : { data: null };
+    return json({ ok: true, plan: now.plan, status: ord?.status || null });
   }
 
   // ---- Pembeli bikin pesanan ----

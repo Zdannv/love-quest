@@ -657,7 +657,11 @@ async function checkUpgradeReturn() {
   setStatus('Ngecek pembayaran upgrade… 💳');
   for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 3000));
-    const { data } = await sb.from('couples').select('plan').eq('id', couple.id).maybeSingle();
+    const { data: { session } } = await sb.auth.getSession();
+    const data = await fetch(`${url.replace(/\/$/, '')}/functions/v1/${CONFIG.checkout?.fn || 'checkout'}`, {
+      method: 'POST', headers: { apikey: anonKey, Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'upgrade_check', order_id: id }),
+    }).then((r) => r.json()).catch(() => null);
+    if (data?.status === 'failed') { setStatus('Pembayaran upgrade dibatalin atau kedaluwarsa. Coba upgrade lagi ya.'); history.replaceState(null, '', location.pathname); upgradeWatching = false; return; }
     if (data?.plan === 'custom') {
       couple.plan = 'custom'; setStatus(''); history.replaceState(null, '', location.pathname);
       renderEditor(); toast('Premium udah aktif ✨ Tema, karakter, lagu & muka kebuka!');
