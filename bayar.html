@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Love Quest · Pesan</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#fff0f6">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/bayar.css">
+</head>
+<body class="pay">
+  <header class="pay-top"><a href="/"><img src="/icons/icon-192.png" alt="">Love Quest</a><span>🔒 Pembayaran aman via Midtrans</span></header>
+  <main class="pay-main">
+    <!-- 1. Formulir pesan -->
+    <form class="pay-card" id="pay-form" hidden>
+      <h1>Bikin Love Quest kalian 💖</h1>
+      <p class="pay-sub">Bayar sekali, akun CMS langsung jadi otomatis. Nggak perlu nunggu admin.</p>
+      <div class="pay-plans" id="pay-plans"></div>
+      <label>Email kamu <small>buat login CMS</small><input type="email" id="pay-email" required autocomplete="email" placeholder="nama@email.com"></label>
+      <div class="pay-row">
+        <label>Nama kamu<input id="pay-pengirim" maxlength="40" placeholder="contoh: Raka"></label>
+        <label>Nama pasangan<input id="pay-pasangan" maxlength="40" placeholder="contoh: Nadia"></label>
+      </div>
+      <small class="pay-note">Nama bisa diganti lagi nanti di CMS. Bayar pakai QRIS, e-wallet, transfer bank, atau kartu.</small>
+      <p class="pay-err" id="pay-err" hidden></p>
+      <button class="btn big" id="pay-go" type="submit">Bayar <span id="pay-amt"></span> ▶</button>
+      <a class="pay-wa" id="pay-wa" target="_blank" rel="noopener">Lebih suka pesan lewat WhatsApp?</a>
+    </form>
+
+    <!-- 2. Habis bayar: nunggu / berhasil / gagal -->
+    <section class="pay-card" id="pay-wait" hidden>
+      <div class="pay-spin"></div>
+      <h1>Ngecek pembayaran…</h1>
+      <p class="pay-sub" id="pay-wait-txt">Biasanya cuma beberapa detik. Jangan tutup halaman ini ya.</p>
+      <button class="btn ghost" id="pay-recheck" type="button" hidden>Cek lagi</button>
+    </section>
+    <section class="pay-card pay-done" id="pay-done" hidden>
+      <div class="pay-big">🎉</div>
+      <h1>Pembayaran berhasil!</h1>
+      <p class="pay-sub">Game kalian udah jadi. <b>Simpan login ini</b> (screenshot aja), passwordnya cuma muncul di sini.</p>
+      <dl class="pay-login">
+        <dt>Halaman CMS</dt><dd><a id="pd-cms" target="_blank" rel="noopener"></a></dd>
+        <dt>Email</dt><dd id="pd-email"></dd>
+        <dt>Password</dt><dd><code id="pd-pass"></code></dd>
+        <dt>Link game buat pasangan</dt><dd><a id="pd-game" target="_blank" rel="noopener"></a></dd>
+      </dl>
+      <div class="pay-actions"><button class="btn" id="pd-copy" type="button">📋 Salin semua</button><a class="btn ghost" id="pd-open" target="_blank" rel="noopener">✍️ Buka CMS</a></div>
+      <small class="pay-note">Isi nama, pesan, foto & surat di CMS dulu, baru kirim link game-nya ke pasanganmu 💌</small>
+    </section>
+    <section class="pay-card" id="pay-fail" hidden>
+      <div class="pay-big">🥲</div>
+      <h1 id="pf-title">Pembayaran belum masuk</h1>
+      <p class="pay-sub" id="pf-txt">Kalau tadi dibatalin atau waktunya habis, kamu bisa pesan ulang.</p>
+      <div class="pay-actions"><a class="btn" href="/bayar">Pesan ulang</a><a class="btn ghost" id="pf-wa" target="_blank" rel="noopener">Tanya admin</a></div>
+    </section>
+  </main>
+  <script type="module" src="/js/bayar.js"></script>
+</body>
+</html>

@@ -2,6 +2,7 @@ import { setPaused } from './pause.js';
 import { CONFIG } from './config.js';
 import { fxWatch } from './fx.js';
 import { setupNav } from './nav.js';
+import { maybeWelcome } from './welcome.js';
 import { gameTile, gameHead } from './game-look.js';
 import { initPet } from './pet.js';
 import { getNames, setNames, fill, getLook, setLook, getChars, getFace, saveFace, clearFace } from './personal.js';
@@ -404,7 +405,7 @@ if (CONFIG.demo && $('#lp-prices')) {
       <h3>${esc(pk.name)}</h3>
       <div class="lp-amt">${esc(pk.price)} <span>${esc(pk.per)}</span></div>
       <ul>${(pk.highlights || pk.features.slice(0, 5)).map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
-      <button class="btn ${i ? '' : 'ghost'}" type="button" data-paket>Lihat detail paket</button>
+      ${CONFIG.checkout?.enabled ? `<a class="btn ${i ? '' : 'ghost'}" href="/bayar?paket=${i ? 'custom' : 'basic'}">Pesan ${esc(pk.price)}</a><button class="link-btn" type="button" data-paket>lihat detail</button>` : `<button class="btn ${i ? '' : 'ghost'}" type="button" data-paket>Lihat detail paket</button>`}
     </article>`).join('');
 }
 document.addEventListener('click', (e) => { if (e.target.closest('[data-try]')) $('#btn-play').click(); });
@@ -427,7 +428,7 @@ function showPackages() {
     </div>
     <div class="modal-actions">
       <button class="btn ghost" data-act="close">Nanti dulu</button>
-      ${CONFIG.orderUrl ? `<a class="btn" href="${esc(CONFIG.orderUrl)}" target="_blank" rel="noopener">💌 Pesan sekarang</a>` : ''}
+      ${CONFIG.checkout?.enabled ? '<a class="btn" href="/bayar">💳 Bayar sekarang</a>' : CONFIG.orderUrl ? `<a class="btn" href="${esc(CONFIG.orderUrl)}" target="_blank" rel="noopener">💌 Pesan sekarang</a>` : ''}
     </div>
     ${CONFIG.orderUrl ? '' : '<p class="detail">Info pemesanan segera hadir ✨</p>'}`;
   modal.classList.remove('hidden');
@@ -1260,3 +1261,4 @@ for (let i = 0; i < 16; i++) {
 }
 updateHero();
 setupNav();
+maybeWelcome({ sfx });
