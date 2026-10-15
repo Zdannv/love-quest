@@ -46,6 +46,33 @@
         <div id="funnel" class="funnel"></div>
       </section>
 
+      <section class="panel promo-panel">
+        <div class="op-head"><div><b>🏷️ Kode promo</b><small>Buat 11.11, 12.12, tanggal kembar, atau promo apa aja</small></div></div>
+        <div class="promo-presets"><span class="muted small">Isi cepat:</span><button type="button" class="chip-btn" data-preset="twin">📅 Tanggal kembar berikutnya</button><button type="button" class="chip-btn" data-preset="week">🔥 Diskon 20% seminggu</button><button type="button" class="chip-btn" data-preset="payday">💸 Gajian (25–28)</button></div>
+        <form id="promo-form" class="form promo-form" autocomplete="off">
+          <div class="grid2">
+            <label>Kode<input id="pf-code" required maxlength="20" pattern="[A-Za-z0-9]{3,20}" placeholder="contoh: LOVE1111"></label>
+            <label>Potongan
+              <span class="row nowrap"><select id="pf-kind"><option value="amount">Rupiah</option><option value="percent">Persen</option></select><input id="pf-value" type="number" min="1" required placeholder="11000"></span>
+            </label>
+          </div>
+          <div class="grid2">
+            <label>Mulai (WIB)<input id="pf-start" type="datetime-local" required></label>
+            <label>Berakhir (WIB)<input id="pf-end" type="datetime-local" required></label>
+          </div>
+          <div class="grid2">
+            <label>Kuota pemakaian (kosongin = bebas)<input id="pf-max" type="number" min="1" placeholder="contoh: 100"></label>
+            <div class="field-label pf-plans">Berlaku buat
+              <span class="row"><label class="check"><input type="checkbox" id="pf-basic" checked> Love Quest</label><label class="check"><input type="checkbox" id="pf-custom" checked> Premium</label></span>
+            </div>
+          </div>
+          <label>Teks pita di halaman depan (opsional)<input id="pf-banner" maxlength="80" placeholder="contoh: Promo 11.11: hemat Rp11.000!"></label>
+          <label>Catatan<input id="pf-note" maxlength="120" placeholder="contoh: promo IG 11.11"></label>
+          <div class="row"><button class="btn" type="submit" id="pf-save">Simpan promo</button><button class="btn ghost small-btn" type="button" id="pf-reset">Kosongin form</button></div>
+        </form>
+        <div id="promo-list" class="promo-list"></div>
+      </section>
+
       <section class="panel orders-panel" id="orders-panel">
         <div class="op-head"><div><b>💳 Pembayaran otomatis</b><small>Pesanan dari halaman /bayar (Midtrans)</small></div><span class="op-count" id="op-count"></span></div>
         <div id="order-list" class="order-list"></div>

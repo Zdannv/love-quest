@@ -409,6 +409,20 @@ if (CONFIG.demo && $('#lp-prices')) {
       ${CONFIG.checkout?.enabled ? `<a class="btn ${i ? '' : 'ghost'}" href="/bayar?paket=${i ? 'custom' : 'basic'}">Pesan ${esc(pk.price)}</a><button class="link-btn" type="button" data-paket>lihat detail</button>` : `<button class="btn ${i ? '' : 'ghost'}" type="button" data-paket>Lihat detail paket</button>`}
     </article>`).join('');
 }
+// Pita promo di halaman depan (kalau owner lagi bikin promo yang ada teks banner-nya)
+if (CONFIG.demo && !CONFIG.showcase && $('.lp')) {
+  fetch(`${CONFIG.cloud.url.replace(/\/$/, '')}/rest/v1/rpc/promo_banner`, { method: 'POST', headers: { apikey: CONFIG.cloud.anonKey, 'Content-Type': 'application/json' }, body: '{}' })
+    .then((r) => r.json()).then((rows) => {
+      const p = Array.isArray(rows) && rows[0]; if (!p) return;
+      const end = new Date(p.ends_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' });
+      const a = document.createElement('a');
+      a.className = 'promo-strip'; a.href = `/bayar?promo=${encodeURIComponent(p.code)}`;
+      a.innerHTML = `<span>🎉 ${esc(p.banner)}</span><b>Kode ${esc(p.code)}</b><small>s/d ${esc(end)} WIB →</small>`;
+      $('.lp').prepend(a);
+      // tombol pesan di kartu harga ikut bawa kode promonya
+      document.querySelectorAll('.lp-price a[href^="/bayar"]').forEach((x) => { x.href += `${x.href.includes('?') ? '&' : '?'}promo=${encodeURIComponent(p.code)}`; });
+    }).catch(() => {});
+}
 document.addEventListener('click', (e) => { if (e.target.closest('[data-try]')) { track('try_click'); $('#btn-play').click(); } });
 if (CONFIG.demo && !CONFIG.showcase) track('landing_view', { once: true });
 if (CONFIG.slug) track('game_open', { once: true });

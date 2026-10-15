@@ -65,6 +65,62 @@ let filterNow = 'all';
 let events = null, fnDays = 7; // null = statistik belum bisa dimuat (migration-10 belum dijalankan)
 const SAMPLE_EVENTS = (() => { const out = []; const base = { landing_view: 120, try_click: 46, paket_open: 30, bayar_view: 22, bayar_submit: 9, bayar_paid: 6, game_open: 40, upgrade_click: 2 };
   for (let i = 0; i < 30; i++) { const d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10); for (const [k, v] of Object.entries(base)) out.push({ day: d, name: k, n: Math.round(v * (0.5 + ((i * 7 + k.length) % 10) / 10)) }); } return out; })();
+let promos = null; // null = belum bisa dimuat (migration-11 belum dijalankan)
+const SAMPLE_PROMOS = [
+  { code: 'LOVE1111', kind: 'amount', value: 11000, plans: ['basic', 'custom'], starts_at: '2026-11-09T00:00:00+07:00', ends_at: '2026-11-11T23:59:00+07:00', max_uses: 111, used: 0, active: true, banner: 'Promo 11.11: hemat Rp11.000!', note: 'promo IG 11.11' },
+  { code: 'LDR20', kind: 'percent', value: 20, plans: ['custom'], starts_at: '2026-10-10T00:00:00+07:00', ends_at: '2026-10-31T23:59:00+07:00', max_uses: null, used: 7, active: true, banner: null, note: 'kolab kreator LDR' },
+  { code: 'COBA5', kind: 'amount', value: 5000, plans: ['basic'], starts_at: '2026-10-01T00:00:00+07:00', ends_at: '2026-10-07T23:59:00+07:00', max_uses: 50, used: 50, active: true, banner: null, note: '' },
+];
+const PRICE_OF = { basic: 29000, custom: 49000 };
+const wibInput = (d) => new Date(d.getTime() + 7 * 3600e3).toISOString().slice(0, 16); // Date → nilai input datetime-local (WIB)
+const fromWib = (v) => new Date(`${v}:00+07:00`).toISOString();
+function promoState(p) {
+  const now = Date.now();
+  if (!p.active) return ['Nonaktif', 'off'];
+  if (p.max_uses && p.used >= p.max_uses) return ['Kuota habis', 'off'];
+  if (now < new Date(p.starts_at)) return ['Terjadwal', 'wait'];
+  if (now > new Date(p.ends_at)) return ['Berakhir', 'off'];
+  return ['Aktif', 'ok'];
+}
+const discText = (p) => (p.kind === 'percent' ? `${p.value}%` : `Rp${p.value.toLocaleString('id-ID')}`);
+function renderPromos() {
+  const box = $('#promo-list');
+  if (promos === null) { box.innerHTML = '<p class="muted small">Kode promo belum bisa dimuat. Jalankan <code>supabase/migration-11.sql</code> di SQL Editor dulu.</p>'; return; }
+  if (!promos.length) { box.innerHTML = '<p class="muted small">Belum ada kode promo. Bikin dari form di atas.</p>'; return; }
+  const fmt = (d) => new Date(d).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' });
+  box.innerHTML = promos.map((p) => {
+    const [label, cls] = promoState(p);
+    const ex = (p.plans || []).map((pl) => { const full = PRICE_OF[pl]; if (!full) return ''; const d = Math.min(p.kind === 'percent' ? Math.floor(full * Math.min(p.value, 90) / 100) : p.value, full - 1000); return `${pl === 'custom' ? 'Premium' : 'Love Quest'} Rp${(full - d).toLocaleString('id-ID')}`; }).filter(Boolean).join(' · ');
+    return `<div class="promo-row ${cls}" data-code="${esc(p.code)}">
+      <div class="pr-main"><div class="pr-top"><span class="pr-code">${esc(p.code)}</span><span class="or-chip ${cls}">${label}</span><b>−${discText(p)}</b></div>
+        <small>${fmt(p.starts_at)} – ${fmt(p.ends_at)} WIB · dipakai ${p.used}${p.max_uses ? `/${p.max_uses}` : ''}</small>
+        <small>Jadi: ${ex}${p.banner ? ` · 🎀 pita: "${esc(p.banner)}"` : ''}${p.note ? ` · 📝 ${esc(p.note)}` : ''}</small></div>
+      <div class="pr-act"><button type="button" class="link-btn" data-pedit>Edit</button><button type="button" class="link-btn" data-ptoggle>${p.active ? 'Matikan' : 'Nyalakan'}</button><button type="button" class="link-btn danger" data-pdel>Hapus</button><button type="button" class="link-btn" data-plink>Salin link</button></div>
+    </div>`;
+  }).join('');
+}
+function fillPromo(p) {
+  $('#pf-code').value = p.code || ''; $('#pf-kind').value = p.kind || 'amount'; $('#pf-value').value = p.value || '';
+  $('#pf-start').value = p.starts_at ? wibInput(new Date(p.starts_at)) : ''; $('#pf-end').value = p.ends_at ? wibInput(new Date(p.ends_at)) : '';
+  $('#pf-max').value = p.max_uses || ''; $('#pf-banner').value = p.banner || ''; $('#pf-note').value = p.note || '';
+  $('#pf-basic').checked = (p.plans || ['basic']).includes('basic'); $('#pf-custom').checked = (p.plans || ['custom']).includes('custom');
+  $('#promo-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+// Isi cepat: tanggal kembar berikutnya (11.11, 12.12, 1.1, 2.2, …), diskon seminggu, gajian
+function preset(kind) {
+  const wib = new Date(Date.now() + 7 * 3600e3); let y = wib.getUTCFullYear(), m = wib.getUTCMonth() + 1, d = wib.getUTCDate();
+  if (kind === 'twin') {
+    let tm = m, ty = y; if (d > m) { tm = m + 1; if (tm > 12) { tm = 1; ty++; } }
+    const s = new Date(Date.UTC(ty, tm - 1, tm, 0, 0) - 7 * 3600e3), e = new Date(Date.UTC(ty, tm - 1, tm, 23, 59) - 7 * 3600e3);
+    const tag = `${tm}${tm}`;
+    fillPromo({ code: `LOVE${tag}`, kind: 'amount', value: Math.min(15000, tm * 1000), plans: ['basic', 'custom'], starts_at: new Date(s.getTime() - 2 * 864e5).toISOString(), ends_at: e.toISOString(), banner: `Promo ${tm}.${tm}: hemat Rp${(Math.min(15000, tm * 1000)).toLocaleString('id-ID')}!`, note: `promo tanggal kembar ${tm}.${tm}` });
+  } else if (kind === 'week') {
+    fillPromo({ code: 'SAYANG20', kind: 'percent', value: 20, plans: ['basic', 'custom'], starts_at: new Date().toISOString(), ends_at: new Date(Date.now() + 7 * 864e5).toISOString(), banner: 'Diskon 20% minggu ini!', note: '' });
+  } else {
+    let pm = m, py = y; if (d > 28) { pm++; if (pm > 12) { pm = 1; py++; } }
+    fillPromo({ code: 'GAJIAN', kind: 'amount', value: 7000, plans: ['basic', 'custom'], starts_at: new Date(Date.UTC(py, pm - 1, 25, 0, 0) - 7 * 3600e3).toISOString(), ends_at: new Date(Date.UTC(py, pm - 1, 28, 23, 59) - 7 * 3600e3).toISOString(), banner: 'Promo gajian: hemat Rp7.000!', note: 'promo gajian' });
+  }
+}
 const FUNNEL = [['landing_view', 'Buka landing'], ['try_click', 'Coba main gratis'], ['paket_open', 'Lihat paket'], ['bayar_view', 'Buka halaman bayar'], ['bayar_submit', 'Klik bayar'], ['bayar_paid', 'Lunas 🎉']];
 function renderFunnel() {
   const box = $('#funnel');
@@ -103,6 +159,7 @@ function render() {
     .map(([v, t]) => `<button type="button" class="${filterNow === v ? 'on' : ''}" data-filter="${v}">${t}</button>`).join('');
   renderOrders();
   renderFunnel();
+  renderPromos();
 
   const list = couples.filter((c) => {
     const hay = `${c.owner_email} ${c.slug} ${c.names?.pasangan ?? ''} ${c.names?.pengirim ?? ''} ${c.note ?? ''}`.toLowerCase();
@@ -322,13 +379,42 @@ async function removeAccount(c) {
 }
 $('#search').addEventListener('input', render);
 $('#filter').addEventListener('change', render);
+document.querySelector('.promo-presets').addEventListener('click', (e) => { const b = e.target.closest('[data-preset]'); if (b) preset(b.dataset.preset); });
+$('#pf-reset').addEventListener('click', () => $('#promo-form').reset());
+$('#promo-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const plans = [$('#pf-basic').checked && 'basic', $('#pf-custom').checked && 'custom'].filter(Boolean);
+  if (!plans.length) { toast('Pilih minimal satu paket'); return; }
+  const p = { code: $('#pf-code').value.trim().toUpperCase(), kind: $('#pf-kind').value, value: Number($('#pf-value').value), plans,
+    starts_at: fromWib($('#pf-start').value), ends_at: fromWib($('#pf-end').value), max_uses: $('#pf-max').value || '', active: true,
+    banner: $('#pf-banner').value.trim(), note: $('#pf-note').value.trim() };
+  if (new Date(p.ends_at) <= new Date(p.starts_at)) { toast('Waktu berakhir harus setelah waktu mulai'); return; }
+  if (p.kind === 'percent' && p.value > 90) { toast('Diskon persen maksimal 90%'); return; }
+  if (PREVIEW) { promos = [{ ...p, used: 0, max_uses: p.max_uses ? Number(p.max_uses) : null }, ...promos.filter((x) => x.code !== p.code)]; renderPromos(); toast('Mode contoh: nggak disimpan'); return; }
+  const { error } = await sb.rpc('admin_save_promo', { p });
+  if (error) { toast(`Gagal: ${error.message}`); return; }
+  toast(`Promo ${p.code} tersimpan ✓`); $('#promo-form').reset(); await refresh();
+});
+$('#promo-list').addEventListener('click', async (e) => {
+  const row = e.target.closest('.promo-row'); if (!row) return;
+  const p = promos.find((x) => x.code === row.dataset.code); if (!p) return;
+  if (e.target.closest('[data-pedit]')) { fillPromo(p); return; }
+  if (e.target.closest('[data-plink]')) { try { await navigator.clipboard.writeText(`${location.origin}/bayar?promo=${p.code}`); toast('Link promo disalin 🔗'); } catch { toast(`${location.origin}/bayar?promo=${p.code}`); } return; }
+  if (e.target.closest('[data-pdel]') && !confirm(`Hapus kode ${p.code}?`)) return;
+  if (PREVIEW) { if (e.target.closest('[data-pdel]')) promos = promos.filter((x) => x !== p); else p.active = !p.active; renderPromos(); return; }
+  const { error } = e.target.closest('[data-pdel]')
+    ? await sb.rpc('admin_delete_promo', { p_code: p.code })
+    : await sb.rpc('admin_save_promo', { p: { ...p, active: !p.active, max_uses: p.max_uses ?? '' } });
+  if (error) { toast(`Gagal: ${error.message}`); return; }
+  await refresh();
+});
 $('#fn-range').addEventListener('click', (e) => { const b = e.target.closest('[data-days]'); if (!b) return; fnDays = Number(b.dataset.days); $('#fn-range').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); renderFunnel(); });
 $('#filter-chips').addEventListener('click', (e) => { const b = e.target.closest('[data-filter]'); if (!b) return; filterNow = b.dataset.filter; render(); });
 $('#btn-refresh').addEventListener('click', async () => { if (PREVIEW) { toast('Mode contoh'); return; } if (await refresh()) toast('Data terbaru ✓'); });
 
 async function load() {
   if (PREVIEW) {
-    couples = SAMPLE; orders = SAMPLE_ORDERS; events = SAMPLE_EVENTS;
+    couples = SAMPLE; orders = SAMPLE_ORDERS; events = SAMPLE_EVENTS; promos = SAMPLE_PROMOS;
     setStatus('Mode contoh: data bohongan, nggak ada yang disimpan.');
     $('#view-login').hidden = true; $('#view-list').hidden = false; render(); return;
   }
@@ -366,6 +452,8 @@ async function refresh() {
   orders = ord.error ? null : ord.data;
   const ev = await sb.rpc('admin_event_counts', { p_days: 30 });
   events = ev.error ? null : ev.data;
+  const pr = await sb.rpc('admin_list_promos');
+  promos = pr.error ? null : pr.data;
   render();
   return true;
 }

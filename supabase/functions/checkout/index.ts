@@ -73,6 +73,7 @@ async function fulfill(orderId: string) {
   }
   await db.from('couples').update({ plan: o.plan, paid_until: null, active: true, owner_email: o.email, note: `Midtrans ${orderId}` }).eq('id', couple.id);
   await db.from('orders').update({ status: 'paid', couple_id: couple.id, slug: couple.slug, paid_at: new Date().toISOString() }).eq('id', orderId);
+  if (o.promo_code) await db.rpc('promo_use', { p_code: o.promo_code });
 }
 
 async function checkOwner(orderId: string, secret: string) {
@@ -159,14 +160,21 @@ Deno.serve(async (req) => {
     if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 120) return json({ error: 'Email-nya belum bener' }, 400);
     const names = { pasangan: String(body.names?.pasangan || '').trim().slice(0, 40), pengirim: String(body.names?.pengirim || '').trim().slice(0, 40) };
     const id = `LQ-${wib()}-${rand(6)}`, secret = rand(32);
-    const { error } = await db.from('orders').insert({ id, plan, amount: PLANS[plan].amount, email, names, token_hash: await sha('SHA-256', secret) });
+    // Kode promo dicek ulang di server (harga dari halaman nggak dipercaya)
+    let amount = PLANS[plan].amount, promo: string | null = null, discount = 0;
+    if (body.promo) {
+      const { data: pc } = await db.rpc('promo_check', { p_code: String(body.promo), p_plan: plan });
+      if (!pc?.ok) return json({ error: pc?.message || 'Kode promo nggak berlaku' }, 400);
+      promo = pc.code; discount = pc.discount; amount = pc.final;
+    }
+    const { error } = await db.from('orders').insert({ id, plan, amount, email, names, token_hash: await sha('SHA-256', secret), promo_code: promo, discount });
     if (error) return json({ error: 'Gagal nyimpen pesanan, coba lagi ya' }, 500);
     const res = await fetch(SNAP, {
       method: 'POST',
       headers: { Authorization: auth(), 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
-        transaction_details: { order_id: id, gross_amount: PLANS[plan].amount },
-        item_details: [{ id: plan, price: PLANS[plan].amount, quantity: 1, name: PLANS[plan].name }],
+        transaction_details: { order_id: id, gross_amount: amount },
+        item_details: [{ id: plan, price: amount, quantity: 1, name: promo ? `${PLANS[plan].name} (promo ${promo})` : PLANS[plan].name }],
         customer_details: { email, first_name: names.pengirim || undefined },
         callbacks: { finish: `${SITE}/bayar?order=${id}` },
         expiry: { unit: 'hours', duration: 24 },

@@ -2,7 +2,7 @@
 // Kode rahasia pesanan disimpen di HP ini aja, jadi cuma yang bayar yang bisa ambil login-nya.
 import { CONFIG } from './config.js';
 import { esc } from './util.js';
-import { track } from './track.js';
+import { track as trackEvent } from './track.js';
 
 const $ = (s) => document.querySelector(s);
 const { url, anonKey } = CONFIG.cloud;
@@ -23,6 +23,26 @@ const show = (id) => ['#pay-form', '#pay-wait', '#pay-done', '#pay-fail'].forEac
 // ---------- Formulir ----------
 const params = new URLSearchParams(location.search);
 let plan = params.get('paket') === 'custom' ? 'custom' : 'basic';
+let promo = null; // { code, discount, final } kalau kode promo berlaku
+
+// ---------- Kode promo ----------
+async function checkPromo(code, quiet = false) {
+  const msg = $('#pay-promo-msg');
+  code = String(code || '').trim().toUpperCase();
+  if (!code) { promo = null; msg.hidden = true; renderAmount(); return; }
+  try {
+    const r = await fetch(`${url.replace(/\/$/, '')}/rest/v1/rpc/promo_check`, { method: 'POST', headers: { apikey: anonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_code: code, p_plan: plan }) }).then((x) => x.json());
+    promo = r.ok ? { code: r.code, discount: r.discount, final: r.final } : null;
+    msg.hidden = quiet && !r.ok;
+    msg.textContent = r.ok ? `✅ ${r.code}: ${r.message}` : `❌ ${r.message || 'Kode promo nggak berlaku'}`;
+    msg.className = `pay-promo-msg ${r.ok ? 'ok' : 'bad'}`;
+  } catch { promo = null; msg.hidden = false; msg.textContent = 'Nggak bisa ngecek kode sekarang, coba lagi ya'; msg.className = 'pay-promo-msg bad'; }
+  renderAmount();
+}
+function renderAmount() {
+  const full = PRICE[plan];
+  $('#pay-amt').innerHTML = promo ? `<s>${rupiah(full)}</s> ${rupiah(promo.final)}` : rupiah(full);
+}
 function renderPlans() {
   $('#pay-plans').innerHTML = CONFIG.packages.map((pk, i) => {
     const id = i ? 'custom' : 'basic';
@@ -30,9 +50,11 @@ function renderPlans() {
       <span class="pp-head"><b>${esc(pk.name)}</b><em>${esc(pk.price)}</em></span>
       <ul>${(pk.highlights || []).slice(0, 4).map((f) => `<li>${esc(f)}</li>`).join('')}</ul></label>`;
   }).join('');
-  $('#pay-amt').textContent = rupiah(PRICE[plan]);
+  renderAmount();
 }
-$('#pay-plans').addEventListener('change', (e) => { plan = e.target.value; renderPlans(); });
+$('#pay-plans').addEventListener('change', (e) => { plan = e.target.value; renderPlans(); if ($('#pay-code').value.trim()) checkPromo($('#pay-code').value); });
+$('#pay-apply').addEventListener('click', () => checkPromo($('#pay-code').value));
+$('#pay-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); checkPromo($('#pay-code').value); } });
 $('#pay-wa').href = wa('Halo! Aku mau pesan Love Quest 💖');
 $('#pf-wa').href = wa('Halo! Aku udah coba bayar Love Quest tapi belum berhasil, bisa dibantu? 🙏');
 
@@ -41,13 +63,13 @@ $('#pay-form').addEventListener('submit', async (e) => {
   const btn = $('#pay-go'), err = $('#pay-err');
   err.hidden = true; btn.disabled = true; btn.textContent = 'Nyiapin pembayaran…';
   try {
-    const r = await call({ action: 'create', plan, email: $('#pay-email').value, names: { pengirim: $('#pay-pengirim').value, pasangan: $('#pay-pasangan').value } });
+    const r = await call({ action: 'create', plan, promo: promo?.code || undefined, email: $('#pay-email').value, names: { pengirim: $('#pay-pengirim').value, pasangan: $('#pay-pasangan').value } });
     try { localStorage.setItem(KEY(r.order_id), r.secret); localStorage.setItem('lq-order-last', r.order_id); } catch {}
-    track('bayar_submit');
+    trackEvent('bayar_submit');
     location.href = r.redirect_url;
   } catch (x) {
     err.textContent = x.message; err.hidden = false;
-    btn.disabled = false; btn.innerHTML = `Bayar <span id="pay-amt">${rupiah(PRICE[plan])}</span> ▶`;
+    btn.disabled = false; btn.innerHTML = 'Bayar <span id="pay-amt"></span> ▶'; renderAmount();
   }
 });
 
@@ -72,7 +94,7 @@ async function track(orderId) {
     if (r.status === 'paid') {
       const login = await call({ action: 'claim', order_id: orderId, secret });
       try { localStorage.setItem(`${KEY(orderId)}-login`, JSON.stringify(login)); } catch {}
-      track('bayar_paid');
+      trackEvent('bayar_paid');
       done(login); return;
     }
     if (r.status === 'failed') { show('#pay-fail'); return; }
@@ -102,4 +124,7 @@ function done(l) {
 $('#pay-recheck').addEventListener('click', () => { $('#pay-recheck').hidden = true; $('#pay-wait-txt').textContent = 'Ngecek lagi…'; track(params.get('order')); });
 
 if (params.get('order')) track(params.get('order'));
-else { renderPlans(); show('#pay-form'); track('bayar_view', { once: true }); }
+else {
+  renderPlans(); show('#pay-form'); trackEvent('bayar_view', { once: true });
+  if (params.get('promo')) { $('#pay-code').value = params.get('promo').toUpperCase(); checkPromo(params.get('promo')); }
+}
