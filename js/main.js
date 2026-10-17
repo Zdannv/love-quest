@@ -199,12 +199,12 @@ function hintFor(L) {
     case 'throw': return `Lempar 💖 ke ${n.pengirim} yang gerak-gerak! Kena ${p.target} kali, lemparan cuma ${p.throws}.`;
     case 'maze': return `Tarik garis dari ${n.pasangan} lewat jalan labirin sampai ketemu ${n.pengirim}! Waktunya ${p.time} detik.`;
     case 'timing': return `Tap pas jarumnya di zona 💖! Kena ${p.target} kali, zonanya makin kecil.`;
-    case 'race': return `Tahan & geser jari buat nyetir, nyampe finish ${p.goal} m sebelum nyawa habis! Salip mepet = bonus 😎`;
+    case 'race': return `Tahan & geser jari buat nyetir, nyampe finish ${p.goal ? p.goal + ' m' : 'sejauh mungkin'} sebelum nyawa habis! Salip mepet = bonus 😎`;
     case 'fight': return `Kalahin ${n.pengirim}! ◀ ▶ jalan, 👊 pukul, 🦶 tendang, 🛡️ tahan buat nangkis, 💖 jurus kalau bar kuning penuh.`;
-    case 'penalty': return `5x nendang + 5x jaga gawang lawan ${n.pengirim}. Kumpulin minimal ${p.goal} gol/tepisan! Geser bola, makin cepat makin tinggi.`;
+    case 'penalty': return `5x nendang + 5x jaga gawang lawan ${n.pengirim}. Kumpulin minimal ${p.goal || 5} gol/tepisan! Geser bola, makin cepat makin tinggi.`;
     case 'pillow': return `Lempar bantal ke ${n.pengirim} & hindarin bantalnya! Sembunyi di balik kasur & sofa.`;
-    case 'cook': return `Sajiin ${p.goal} pesanan sebelum 3 pelanggan kabur! Ambil bahan → potong / masak → piring → antar ke SAJI.`;
-    case 'bomb': return `Taruh bom 💣 terus kabur! Kalahin ${p.bots} lawan, ledakin peti buat power-up.`;
+    case 'cook': return `Sajiin ${p.goal || 'sebanyak-banyaknya'} pesanan sebelum 3 pelanggan kabur! Ambil bahan → potong / masak → piring → antar ke SAJI.`;
+    case 'bomb': return `Taruh bom 💣 terus kabur! Kalahin ${p.bots || 'semua'} lawan, ledakin peti buat power-up.`;
     case 'coop': return `${n.pengirim} 🔥 aman di lava, ${n.pasangan} 💧 aman di air. Pencet Ganti buat gantian gerakin, bawa dua-duanya ke pintu!`;
     default: return 'Jawab pertanyaan dari hatiku 💌 (minimal benar 2)';
   }
@@ -236,7 +236,8 @@ function trackParams(type, k) {
     case 'maze': { const b = G.maze(wi); return { ...b, time: b.time - odd * 5 }; }
     case 'timing': { const b = G.timing(wi); return { ...b, speed: +(b.speed + odd * 0.08).toFixed(2) }; }
     case 'coop': return G.coop(k);
-    case 'race': case 'fight': case 'penalty': case 'pillow': case 'cook': case 'bomb': return { type };
+    // Pilih game: level 1–10 pakai setelan dunia yang sesuai (target, jumlah bot, kepintaran bot)
+    case 'race': case 'fight': case 'penalty': case 'pillow': case 'cook': case 'bomb': return G[type](wi);
     default: return {};
   }
 }
@@ -261,7 +262,8 @@ const SCORE_UNIT = { race: 'poin', fight: 'menang', penalty: 'poin', pillow: 'me
 if (window.__lqTest) window.__startType = (type, k = 2) => startLevel({ id: `t-${type}`, track: type, k, num: k + 1, type, world: 1, params: trackParams(type, k) });
 function endlessLevel(type) {
   const inf = Number.POSITIVE_INFINITY;
-  const params = { ...trackParams(type, 1), endless: true, best: bestScores()[type] || 0, ...(type === 'runner' || type === 'catch' ? { time: inf } : { target: inf }) };
+  const { goal, bots, botLevel, ...base } = trackParams(type, 1); // mode skor: tanpa target, bot mulai dari awal (sama kayak sebelumnya)
+  const params = { ...base, endless: true, best: bestScores()[type] || 0, ...(type === 'runner' || type === 'catch' ? { time: inf } : { target: inf }) };
   return { id: `e-${type}`, track: type, endless: true, num: 0, k: 0, type, world: 0, params };
 }
 const trackOpen = (L) => TEST_MODE || CONFIG.showcase || L.k === 0 || (progress.stars[`s-${L.track}-${L.k - 1}`] || 0) > 0;
