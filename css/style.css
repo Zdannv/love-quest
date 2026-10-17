@@ -1609,3 +1609,36 @@ body.is-demo #screen-home, body.is-demo #app { background: transparent !importan
 .mem-tl li div { background: #fff; border-radius: 16px; padding: 9px 14px; flex: 1; min-width: 0; box-shadow: 0 3px 0 #f1dbe6; }
 .mem-tl b { display: block; font-size: 14.5px; color: var(--ink); } .mem-tl small { font-size: 12.5px; color: var(--ink-soft); }
 .mem-empty, .mem-tip { text-align: center; color: var(--ink-soft); font-size: 13.5px; margin: 4px 0 0; }
+
+/* alur Main: pil streak di peta, tab Berdua, pita contoh */
+.streak-pill { margin-left: 8px; border: 0; font: inherit; font-size: 14px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #fff3e2; color: #c8641a; box-shadow: 0 2px 0 rgba(200,100,26,.2); cursor: pointer; vertical-align: 1px; }
+.streak-pill.lit { background: linear-gradient(135deg, #ffb347, #ff6f3c); color: #fff; }
+.mode-tabs button { white-space: nowrap; }
+#solo-tabs, .play-tabs { overflow-x: auto; scrollbar-width: none; }
+.play-tabs { margin: 4px 16px 10px; }
+.showcase-bar { display: flex; align-items: center; gap: 10px; }
+.showcase-bar .sb-back { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.18); color: #fff; text-decoration: none; font-weight: 700; opacity: 1; }
+.showcase-bar .sb-txt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+.showcase-bar .btn.small { flex: none; }
+.play-tabs { width: auto; }
+.mode-tabs button { font-size: 13.5px; padding: 9px 4px; }
+
+/* jendela paket ringkas */
+.modal-card .pk-head { text-align: center; }
+.modal-card .pk-head h2 { margin-bottom: 4px; }
+.pk-cards { display: grid; gap: 12px; margin: 14px 0 10px; text-align: left; }
+.pk-card { position: relative; border-radius: 20px; padding: 14px 16px; background: #fff; box-shadow: inset 0 0 0 2px var(--pink-soft); }
+.pk-card.hot { background: linear-gradient(160deg, #fff, #fff0f7); box-shadow: inset 0 0 0 3px var(--pink); }
+.pk-badge { position: absolute; top: -11px; right: 14px; font-size: 11.5px; font-weight: 700; color: #fff; background: linear-gradient(90deg, var(--pink), #9a6bff); padding: 3px 10px; border-radius: 999px; }
+.pk-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.pk-top b { font-size: 17px; color: var(--ink); } .pk-top span { font-size: 21px; font-weight: 700; color: var(--pink-deep); }
+.pk-card ul { list-style: none; margin: 8px 0 12px; padding: 0; display: grid; gap: 5px; }
+.pk-card li { position: relative; padding-left: 22px; font-size: 13.5px; line-height: 1.35; color: var(--ink); }
+.pk-card li::before { content: '✓'; position: absolute; left: 0; top: 0; width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; background: #5fd39a; }
+.pk-go { width: 100%; text-align: center; }
+.pk-more { text-align: left; margin-bottom: 8px; }
+.pk-more summary { cursor: pointer; font-size: 14px; font-weight: 700; color: var(--pink-deep); padding: 4px 0; }
+.pk-more h4 { margin: 10px 0 4px; font-size: 15px; } .pk-more ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--ink-soft); }
+.pk-more .pk-note { font-size: 12.5px; color: var(--ink-soft); margin: 6px 0 0; }
+/* tab di dalam layar Berdua: lebih kecil, beda dari tab utama di atas */
+#screen-online .ol-tabs button, #screen-online [data-ol-tab] { font-size: 13px; }

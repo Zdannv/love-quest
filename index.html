@@ -231,6 +231,7 @@
         <div class="star-total">💞 Berdua</div>
         <span class="topbar-gap" aria-hidden="true"></span>
       </header>
+      <div class="mode-tabs play-tabs" role="tablist"><button type="button" role="tab" data-play-tab="adv" aria-selected="false">🗺️ Petualangan</button><button type="button" role="tab" data-play-tab="per" aria-selected="false">🎯 Pilih game</button><button type="button" role="tab" data-play-tab="duo" aria-selected="true">💞 Berdua</button></div>
       <div class="talk-wrap">
         <h2 class="talk-title">Main Berdua</h2>
         <p class="talk-sub">Main barengan dari HP masing-masing, langsung nyambung 💞</p>
@@ -244,13 +245,12 @@
     <section id="screen-map" class="screen">
       <header class="topbar">
         <button class="icon-btn" data-go="home" aria-label="Beranda">🏠</button>
-        <div class="star-total">⭐ <span id="star-count">0</span></div>
+        <div class="star-total">⭐ <span id="star-count">0</span><button type="button" class="streak-pill" id="streak-pill" hidden></button></div>
         <div class="topbar-right">
           <button class="icon-btn" id="btn-music" aria-label="Lagu">🎵</button>
           <button class="icon-btn" id="btn-sound" aria-label="Efek suara">🔊</button>
         </div>
       </header>
-      <div class="streak-slot" id="streak-map" hidden></div>
       <div class="mode-tabs" id="solo-tabs" role="tablist"></div>
       <div id="worlds"></div>
     </section>

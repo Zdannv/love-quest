@@ -142,7 +142,7 @@ function render() {
   // Peta level berdua: tab Petualangan (campur) / Per game / Main bebas
   const stars = duoStars();
   const tabs = `<div class="mode-tabs" role="tablist">
-    ${[['adv', '🗺️ Petualangan'], ['per', '🎯 Per game'], ['free', '🎲 Main bebas']].map(([id, t]) => `<button type="button" role="tab" data-ol-tab="${id}" aria-selected="${olTab === id}">${t}</button>`).join('')}
+    ${[['adv', '🗺️ 30 level berdua'], ['per', '🎯 Per game'], ['free', '🎲 Main bebas']].map(([id, t]) => `<button type="button" role="tab" data-ol-tab="${id}" aria-selected="${olTab === id}">${t}</button>`).join('')}
   </div>`;
   let body = '';
   if (olTab === 'adv') {

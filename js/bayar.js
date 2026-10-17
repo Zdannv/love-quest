@@ -54,6 +54,7 @@ function renderPlans() {
 }
 $('#pay-plans').addEventListener('change', (e) => { plan = e.target.value; renderPlans(); if ($('#pay-code').value.trim()) checkPromo($('#pay-code').value); });
 $('#pay-apply').addEventListener('click', () => checkPromo($('#pay-code').value));
+$('#pay-promo-toggle').addEventListener('click', () => { $('#pay-promo').hidden = false; $('#pay-promo-toggle').hidden = true; $('#pay-code').focus(); });
 $('#pay-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); checkPromo($('#pay-code').value); } });
 $('#pay-wa').href = wa('Halo! Aku mau pesan Love Quest 💖');
 $('#pf-wa').href = wa('Halo! Aku udah coba bayar Love Quest tapi belum berhasil, bisa dibantu? 🙏');
@@ -126,5 +127,5 @@ $('#pay-recheck').addEventListener('click', () => { $('#pay-recheck').hidden = t
 if (params.get('order')) track(params.get('order'));
 else {
   renderPlans(); show('#pay-form'); trackEvent('bayar_view', { once: true });
-  if (params.get('promo')) { $('#pay-code').value = params.get('promo').toUpperCase(); checkPromo(params.get('promo')); }
+  if (params.get('promo')) { $('#pay-promo').hidden = false; $('#pay-promo-toggle').hidden = true; $('#pay-code').value = params.get('promo').toUpperCase(); checkPromo(params.get('promo')); }
 }

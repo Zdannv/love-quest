@@ -48,3 +48,11 @@ body.pay { overflow-x: hidden; }
 .pay-promo-msg.ok { color: #1f8f5a; } .pay-promo-msg.bad { color: #c2304f; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 #pay-amt s { opacity: .65; font-weight: 500; margin-right: 4px; }
+
+.pay-promo-toggle { align-self: flex-start; border: 0; background: none; padding: 2px 0; font: inherit; font-size: 14px; font-weight: 700; color: var(--pink-deep); cursor: pointer; }
+.pay-promo[hidden] { display: none; }
+@media (max-width: 640px) {
+  #pay-form { padding-bottom: 104px; }
+  #pay-go { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 5; box-shadow: 0 6px 0 var(--pink-deep), 0 14px 28px rgba(160,60,120,.3); }
+  #pay-form .pay-wa, #pay-form .pay-note:last-of-type { margin-bottom: 0; }
+}

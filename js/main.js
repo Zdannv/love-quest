@@ -411,8 +411,9 @@ if (CONFIG.showcase) {
   const bar = document.createElement('div');
   bar.className = 'showcase-bar';
   bar.innerHTML = `
-    <span>👀 Contoh versi jadi: <b>${esc(CONFIG.names.pasangan)} & ${esc(CONFIG.names.pengirim)}</b></span>
-    <span class="sb-actions"><a href="/" class="sb-back">← Demo</a><button class="btn small" data-paket>💌 Bikin versi kalian</button></span>`;
+    <a href="/" class="sb-back" aria-label="Balik ke halaman depan">←</a>
+    <span class="sb-txt">Contoh: <b>${esc(CONFIG.names.pasangan)} & ${esc(CONFIG.names.pengirim)}</b></span>
+    <button class="btn small" data-paket>💌 Bikin versi kalian</button>`;
   document.body.prepend(bar);
   document.body.classList.add('has-showcase-bar');
 }
@@ -456,25 +457,25 @@ if (CONFIG.slug) track('game_open', { once: true });
 
 // ---------- Paket ----------
 function showPackages() {
+  const pay = CONFIG.checkout?.enabled;
   modal.querySelector('.modal-card').innerHTML = `
-    <div class="owl-react happy"><span class="owl">${getChars().pasangan.emoji}</span><span class="owl-extra">💌</span></div>
-    <h2>Bikin versi kalian!</h2>
-    <p class="detail">Kamu dapat akun CMS buat ngelola isi game-nya sendiri, jadi semuanya bisa diganti sesuai cerita kalian berdua</p>
-    <div class="packages">
-      ${CONFIG.packages.map((pk) => `
-        <div class="package">
-          <div class="pk-tag">${esc(pk.tag)}</div>
-          <div class="pk-name">${esc(pk.name)}</div>
-          <div class="pk-price">${esc(pk.price)} <small>${esc(pk.per)}</small></div>
-          ${pk.note ? `<div class="pk-note">${esc(pk.note)}</div>` : ''}
-          <ul>${pk.features.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
+    <div class="pk-head"><h2>Bikin versi kalian 💖</h2><p class="detail">Sekali bayar, main selamanya. Akun CMS langsung jadi, isinya kamu yang atur.</p></div>
+    <div class="pk-cards">
+      ${CONFIG.packages.map((pk, i) => `
+        <div class="pk-card ${i ? 'hot' : ''}">
+          ${i ? '<span class="pk-badge">✨ Paling lengkap</span>' : ''}
+          <div class="pk-top"><b>${esc(pk.name)}</b><span>${esc(pk.price)}</span></div>
+          <ul>${(pk.highlights || pk.features.slice(0, 5)).map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
+          ${pay ? `<a class="btn ${i ? '' : 'ghost'} pk-go" href="/bayar?paket=${i ? 'custom' : 'basic'}">Pesan ${esc(pk.price)}</a>` : ''}
         </div>`).join('')}
     </div>
+    <details class="pk-more"><summary>Lihat semua fitur</summary>
+      ${CONFIG.packages.map((pk) => `<h4>${esc(pk.name)}</h4><ul>${pk.features.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>${pk.note ? `<p class="pk-note">${esc(pk.note)}</p>` : ''}`).join('')}
+    </details>
     <div class="modal-actions">
       <button class="btn ghost" data-act="close">Nanti dulu</button>
-      ${CONFIG.checkout?.enabled ? '<a class="btn" href="/bayar">💳 Bayar sekarang</a>' : CONFIG.orderUrl ? `<a class="btn" href="${esc(CONFIG.orderUrl)}" target="_blank" rel="noopener">💌 Pesan sekarang</a>` : ''}
-    </div>
-    ${CONFIG.orderUrl ? '' : '<p class="detail">Info pemesanan segera hadir ✨</p>'}`;
+      ${!pay && CONFIG.orderUrl ? `<a class="btn" href="${esc(CONFIG.orderUrl)}" target="_blank" rel="noopener">💌 Pesan via WhatsApp</a>` : ''}
+    </div>`;
   modal.classList.remove('hidden');
 }
 document.addEventListener('click', (e) => {
@@ -490,6 +491,19 @@ if (CONFIG.demo) $('#btn-play').textContent = '🎮 Coba main gratis';
 $('#btn-play').addEventListener('click', () => {
   sfx('click');
   if (CONFIG.demo) { location.href = '/?lihat=kirana-arga'; return; }
+  show(lastMode() === 'online' ? 'online' : 'map');
+});
+// Layar Main ingat terakhir dibuka di tab mana (Petualangan / Pilih game / Berdua)
+const MODE_KEY = 'lq-last-mode';
+function lastMode() { try { return localStorage.getItem(MODE_KEY) || 'map'; } catch { return 'map'; } }
+function rememberMode(m) { try { localStorage.setItem(MODE_KEY, m); } catch {} }
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-play-tab]'); if (!b) return;
+  sfx('click');
+  if (b.dataset.playTab === 'duo') return;
+  soloTab = b.dataset.playTab; soloTrackType = ''; rememberMode('map'); show('map');
+});
+function legacyModePick() {
   modal.querySelector('.modal-card').innerHTML = `
     <h2>Mau main gimana?</h2>
     <div class="mode-pick">
@@ -498,7 +512,7 @@ $('#btn-play').addEventListener('click', () => {
     </div>
     <button class="link-btn" type="button" data-act="close">batal</button>`;
   modal.classList.remove('hidden');
-});
+}
 modal.addEventListener('click', (e) => {
   const mode = e.target.closest('[data-mode]')?.dataset.mode;
   if (!mode) return;
@@ -534,7 +548,7 @@ const worldsEl = $('#worlds');
 
 let soloTab = 'adv', soloTrackType = '';
 function renderMap() {
-  $('#solo-tabs').innerHTML = [['adv', '🗺️ Petualangan'], ['per', '🎯 Pilih game']].map(([id, t]) => `<button type="button" role="tab" data-solo-tab="${id}" aria-selected="${soloTab === id}">${t}</button>`).join('');
+  $('#solo-tabs').innerHTML = [['adv', '🗺️ Petualangan'], ['per', '🎯 Pilih game'], ['duo', '💞 Berdua']].map(([id, t]) => `<button type="button" role="tab" data-solo-tab="${id}" aria-selected="${soloTab === id}">${t}</button>`).join('');
   if (soloTab === 'per') return renderTracks();
   const total = LEVELS.reduce((a, L) => a + starsOf(L), 0);
   $('#star-count').textContent = TEST_MODE ? '🔓 Mode tes' : `${total}/${MAX_STARS}`;
@@ -624,8 +638,10 @@ $('#solo-tabs').addEventListener('click', (e) => {
   const b = e.target.closest('[data-solo-tab]');
   if (!b) return;
   sfx('click');
+  if (b.dataset.soloTab === 'duo') { rememberMode('online'); show('online'); return; }
   soloTab = b.dataset.soloTab;
   soloTrackType = '';
+  rememberMode('map');
   renderMap();
 });
 
@@ -1119,7 +1135,7 @@ const ICON = {
   get pengirim() { return getChars().pengirim.emoji; },
 };
 // Halaman depan demo nggak pakai contoh streak (udah ada di peta & contoh versi jadi)
-const streakSlots = [CONFIG.demo ? null : $('#streak-home'), $('#streak-map')].filter(Boolean);
+const streakSlots = [CONFIG.demo ? null : $('#streak-home')].filter(Boolean);
 let streakData = null;
 let streakError = false;
 
@@ -1172,7 +1188,14 @@ function renderStreak() {
     slot.hidden = !streakEnabled;
     if (streakEnabled) slot.innerHTML = streakCard();
   }
+  // di peta cukup pil kecil (kartu lengkapnya ada di beranda)
+  const pill = $('#streak-pill');
+  if (pill) {
+    pill.hidden = !streakEnabled || !getPlayer();
+    if (!pill.hidden) { pill.textContent = `🔥 ${streakData?.count ?? '…'}`; pill.classList.toggle('lit', !!streakData?.litToday); pill.title = streakData ? streakMessage(getPlayer(), streakData) : ''; }
+  }
 }
+document.addEventListener('click', (e) => { if (e.target.closest('#streak-pill')) { sfx('click'); show('home'); } });
 
 let toastTimer = 0;
 function toast(text) {

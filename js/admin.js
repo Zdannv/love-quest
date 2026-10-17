@@ -221,7 +221,36 @@ function renderEditor() {
   renderMessages();
   renderQuiz();
   updateProgress();
+  maybeTour();
 }
+
+// ---------- Panduan singkat pas pertama kali masuk CMS ----------
+const TOUR = [
+  ['✍️', 'Isi yang paling penting dulu', 'Nama kalian, tanggal lahir, dan foto. Tap langkah di kartu pink atas buat langsung ke bagiannya.'],
+  ['💌', 'Tulis pesan & surat', 'Pesan muncul tiap level selesai, surat rahasia kebuka pas tamat. Nggak harus semua, yang penting dari hati.'],
+  ['👀', 'Cek, lalu kirim', 'Tap "Lihat sebagai pasangan" buat ngecek hasilnya. Kalau udah pas, tap "Kirim via WA". Semua tersimpan otomatis.'],
+];
+function maybeTour(force = false) {
+  const key = `lq-cms-tour-${couple?.slug || 'contoh'}`;
+  try { if (!force && localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch { if (!force) return; }
+  let i = 0;
+  const el = document.createElement('div');
+  el.className = 'tour';
+  const paint = () => {
+    const [ic, t, d] = TOUR[i];
+    el.innerHTML = `<div class="tour-card"><span class="tour-ic">${ic}</span><small>Langkah ${i + 1} dari ${TOUR.length}</small><h3>${t}</h3><p>${d}</p>
+      <div class="tour-dots">${TOUR.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="tour-act"><button type="button" class="link-btn" data-t="skip">Lewati</button><button type="button" class="btn small-btn" data-t="next">${i === TOUR.length - 1 ? 'Mulai ngisi 💖' : 'Lanjut'}</button></div></div>`;
+  };
+  paint();
+  el.addEventListener('click', (e) => {
+    const a = e.target.closest('[data-t]')?.dataset.t; if (!a) return;
+    if (a === 'next' && i < TOUR.length - 1) { i++; paint(); return; }
+    el.remove();
+  });
+  document.body.appendChild(el);
+}
+document.addEventListener('click', (e) => { if (e.target.closest('#btn-tour')) maybeTour(true); });
 
 // Pesan & kuis ditampilin per dunia (tab), biar halamannya nggak kepanjangan
 const worldOpen = { msg: 0, quiz: 0 };
