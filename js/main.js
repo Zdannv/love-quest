@@ -366,7 +366,7 @@ document.body.classList.remove('booting'); // nama & tema udah kepasang, tampila
 // ---------- Contoh versi jadi ----------
 // Galeri di halaman depan demo
 if (CONFIG.demo) {
-  $('#showcase-list').innerHTML = Object.entries(SHOWCASES).map(([id, s]) => {
+  if ($('#showcase-list')) $('#showcase-list').innerHTML = Object.entries(SHOWCASES).map(([id, s]) => {
     const v = THEMES[s.theme].vars;
     return `
       <a class="showcase-card" href="/?lihat=${id}" style="--c1:${v['--bg1']};--c2:${v['--bg3']};--ink:${v['--ink']};--accent:${v['--pink-deep']}">
