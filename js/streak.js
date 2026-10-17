@@ -64,7 +64,13 @@ function summarize(rows) {
     const day = shiftDay(t, -i);
     week.push({ day, pasangan: !!byDay.get(day)?.has('pasangan'), pengirim: !!byDay.get(day)?.has('pengirim') });
   }
+  // buat halaman Kenangan: total hari dua-duanya main, streak terpanjang, hari pertama main
+  const days = [...byDay.keys()].sort();
+  const bothDays = days.filter(both);
+  let longest = 0, run = 0, prev = null;
+  for (const dd of bothDays) { run = prev && shiftDay(prev, 1) === dd ? run + 1 : 1; longest = Math.max(longest, run); prev = dd; }
   return {
+    bothDays: bothDays.length, longest: Math.max(longest, count), firstDay: days[0] || null,
     count,
     litToday: both(t),
     today: { pasangan: !!byDay.get(t)?.has('pasangan'), pengirim: !!byDay.get(t)?.has('pengirim') },

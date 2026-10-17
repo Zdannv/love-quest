@@ -7,8 +7,9 @@ const TABS = [
   { id: 'play', icon: '🎮', label: 'Main', btn: '#btn-play', screens: ['map', 'online'], main: true },
   { id: 'pet', icon: '🐾', label: 'Peliharaan', btn: '#btn-pet', screens: ['pet'] },
   { id: 'kita', icon: '📮', label: 'Kotak Kita', btn: '#btn-kita', screens: [] },
+  { id: 'memo', icon: '🏆', label: 'Kenangan', btn: '#btn-memo', screens: ['memo'] },
 ];
-const SHOW_ON = ['home', 'talk', 'map', 'online', 'pet'];
+const SHOW_ON = ['home', 'talk', 'map', 'online', 'pet', 'memo'];
 
 export function setupNav() {
   const tabs = TABS.filter((t) => !t.btn || document.querySelector(t.btn));

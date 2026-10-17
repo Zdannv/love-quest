@@ -3,6 +3,9 @@ import { CONFIG } from './config.js';
 import { fxWatch } from './fx.js';
 import { setupNav } from './nav.js';
 import { maybeWelcome } from './welcome.js';
+import { renderMemories } from './memories.js';
+import { bump, playedType } from './stats.js';
+import { DUO_LEVELS, duoStars as duoStarsAll } from './duo-levels.js';
 import { track } from './track.js';
 import { gameTile, gameHead } from './game-look.js';
 import { initPet } from './pet.js';
@@ -299,7 +302,7 @@ const letterOpen = () => TEST_MODE || CONFIG.demo || CONFIG.showcase || cleared(
 
 // ---------- Layar ----------
 const $ = (s) => document.querySelector(s);
-const screens = { home: $('#screen-home'), map: $('#screen-map'), game: $('#screen-game'), letter: $('#screen-letter'), talk: $('#screen-talk'), online: $('#screen-online'), draw: $('#screen-draw'), pet: $('#screen-pet') };
+const screens = { memo: $('#screen-memo'), home: $('#screen-home'), map: $('#screen-map'), game: $('#screen-game'), letter: $('#screen-letter'), talk: $('#screen-talk'), online: $('#screen-online'), draw: $('#screen-draw'), pet: $('#screen-pet') };
 fxWatch(); // emoji di halaman → ikon 3D
 const talk = initTalk({ sfx }); // Kartu Deep Talk
 let drawOpen = false;
@@ -319,6 +322,27 @@ function updateHero() {
   $('#hero-sub').textContent = `⭐ ${total}/${MAX_STARS} bintang · ${doneN}/${main.length} level`;
   $('#hero-bar').style.width = `${Math.max(4, (doneN / main.length) * 100)}%`;
 }
+// ---------- Kenangan (lencana & linimasa, dihitung dari data di HP) ----------
+async function openMemories() {
+  const ctx = () => {
+    const main = LEVELS.filter((L) => !L.bonus);
+    const n = getNames(), c = getChars(), ds = duoStarsAll();
+    return {
+      worlds: WORLDS.map((w, wi) => { const lv = main.filter((L) => L.world === wi); return { name: w.name, icon: w.icon, done: lv.filter(cleared).length, total: lv.length }; }),
+      stars: LEVELS.reduce((a, L) => a + starsOf(L), 0), maxStars: MAX_STARS,
+      levelsDone: main.filter(cleared).length, levelsTotal: main.length,
+      streak: { longest: streakData?.longest || streakData?.count || 0, bothDays: streakData?.bothDays || 0, firstDay: streakData?.firstDay || null },
+      duoDone: DUO_LEVELS.filter((L) => (ds[L.id] || 0) > 0).length, duoTotal: DUO_LEVELS.length,
+      bests: bestScores(),
+      names: { pasangan: n.pasangan, pengirim: n.pengirim, pasanganEmoji: c.pasangan.emoji, pengirimEmoji: c.pengirim.emoji },
+      faces: { pasangan: getFace('pasangan'), pengirim: getFace('pengirim') },
+    };
+  };
+  renderMemories($('#memo-root'), ctx());
+  if (streakEnabled && getPlayer() && !streakData) { try { streakData = await loadStreak(); renderMemories($('#memo-root'), ctx()); } catch {} }
+}
+$('#btn-memo')?.addEventListener('click', () => { sfx('click'); show('memo'); });
+
 function show(name) {
   Object.entries(screens).forEach(([k, el]) => el.classList.toggle('active', k === name));
   document.body.classList.toggle('playing', name === 'game');
@@ -331,6 +355,7 @@ function show(name) {
   if (name === 'online') enterLobby();
   if (name !== 'draw' && drawOpen) draw.close();
   if (name === 'pet') pet.open(); else pet.close();
+  if (name === 'memo') openMemories();
   window.scrollTo(0, 0);
 }
 
@@ -885,6 +910,7 @@ function startOnline(game, seed, levelId = null, extra = {}) {
 function onlineFinish(token, game, r, L) {
   if (current?.token !== token) return;
   if (r.win) { sfx('win'); confetti(); } else sfx('lose');
+  bump('duoGames'); if (r.win) bump('duoWins');
   if (L && r.stars) recordDuo(L.id, r.stars);
   if (L) recordPlay().then((isNew) => { if (isNew) { refreshStreak(true); if (!pendingPlays()) notifyPlayed(); } }).catch(() => {});
   setTimeout(() => {
@@ -937,6 +963,7 @@ const LOSE_LINES = [
 function onFinish(token, r) {
   if (current?.token !== token) return;
   const L = current.L;
+  playedType(L.type);
   if (L.endless) return endlessFinish(token, L, r);
   recordPlay()
     .then((isNew) => { if (isNew) { refreshStreak(true); if (!pendingPlays()) notifyPlayed(); } })

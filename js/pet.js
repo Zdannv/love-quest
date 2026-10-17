@@ -7,6 +7,7 @@ import { whoAmI } from './profile.js';
 import { getNames } from './personal.js';
 import { esc } from './util.js';
 import { createPet3D } from './pet3d.js';
+import { setPet } from './stats.js';
 
 const { url = '', anonKey = '' } = CONFIG.cloud || {};
 const SIM = CONFIG.demo || Boolean(CONFIG.showcase);
@@ -54,6 +55,11 @@ async function rpc(name, body) {
 }
 let local = false;
 async function load() {
+  const s = await loadRaw();
+  if (s?.kind) setPet({ name: s.name, kind: s.kind, m: animalOf(s)?.m, lvl: levelOf(s.xp || 0) });
+  return s;
+}
+async function loadRaw() {
   if (!local) {
     try { const s = await rpc('pet_get', {}); return decay(s || fresh()); } catch { local = true; }
   }
@@ -61,6 +67,7 @@ async function load() {
 }
 async function save(s) {
   try { localStorage.setItem(LOCAL, JSON.stringify(s)); } catch {}
+  if (s?.kind) setPet({ name: s.name, kind: s.kind, m: animalOf(s)?.m, lvl: levelOf(s.xp || 0) });
   if (!local) { try { await rpc('pet_save', { p_state: s }); } catch { local = true; } }
 }
 
