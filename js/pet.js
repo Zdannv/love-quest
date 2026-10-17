@@ -28,6 +28,9 @@ const ANIMALS = [
   { k: 'rusa', m: 'deer', em: '🦌', label: 'Rusa', name: 'Rudi' }, { k: 'landak', m: 'hog', em: '🦔', label: 'Landak', name: 'Duri' },
 ];
 const animalOf = (s) => ANIMALS.find((a) => a.k === s.kind);
+// Paket biasa cuma dapet kucing; Premium (dan versi contoh) bebas pilih semua
+const FREE_PET = 'kucing';
+const isBasic = () => CONFIG.plan === 'basic' && !CONFIG.showcase;
 const OUTFITS = [{ lvl: 2, em: '🎀' }, { lvl: 3, em: '🧢' }, { lvl: 4, em: '🕶️' }, { lvl: 5, em: '🎩' }, { lvl: 7, em: '👑' }];
 const ACT = { makan: 'kasih makan', mandi: 'mandiin', main: 'ngajak main', tidur: 'nidurin', bangun: 'bangunin' };
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
@@ -116,7 +119,8 @@ export function initPet({ sfx, toast }) {
       <div class="pet-choose">
         <h2>${cur ? 'Ganti hewan peliharaan' : 'Pilih hewan peliharaan kalian'} 🐾</h2>
         <p>${cur ? 'Level & XP-nya tetap kebawa kok' : 'Nanti dirawat berdua, dikasih makan, dimandiin, diajak main 💞'}</p>
-        <div class="pet-grid">${ANIMALS.map((a) => `<button data-pick="${a.k}" class="${cur === a.k ? 'on' : ''}"><img class="pet-thumb" src="/img/pets/thumb/${a.m}.webp" alt=""><b>${a.label}</b></button>`).join('')}</div>
+        ${isBasic() ? '<p class="pet-lock-note">✨ Paket Love Quest dapet <b>Kucing</b>. Upgrade ke <b>Premium</b> buat buka semua 16 hewan.</p>' : ''}
+        <div class="pet-grid">${ANIMALS.map((a) => { const lock = isBasic() && a.k !== FREE_PET && a.k !== cur; return `<button data-pick="${a.k}" class="${cur === a.k ? 'on' : ''} ${lock ? 'locked' : ''}" ${lock ? 'data-locked="1"' : ''}><img class="pet-thumb" src="/img/pets/thumb/${a.m}.webp" alt="">${lock ? '<span class="pet-lock">🔒 Premium</span>' : ''}<b>${a.label}</b></button>`; }).join('')}</div>
         ${cur ? '<button class="link-btn" data-pick="batal">batal</button>' : ''}
       </div>`;
   }
@@ -259,6 +263,7 @@ export function initPet({ sfx, toast }) {
     if (pick) {
       sfx('click');
       if (pick.dataset.pick === 'batal') { choosing = false; render(); return; }
+      if (pick.dataset.locked) { sfx('bad'); toast('Hewan ini buat paket Premium ✨ Minta yang ngasih game ini buat upgrade ya!'); return; }
       const a = ANIMALS.find((x) => x.k === pick.dataset.pick);
       choosing = false;
       act('pilih', (s) => { const first = !s.kind; s.kind = a.k; if (first || !s.named) s.name = a.name; return first ? `Halo, ${s.name}! ${a.em} Rawat bareng yaa 💞` : `Sekarang peliharaan kalian ${a.label} ${a.em}`; });

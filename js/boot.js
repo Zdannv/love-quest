@@ -39,6 +39,7 @@ async function loadCouple(slug) {
     try { localStorage.removeItem(CONTENT_CACHE(slug)); } catch {}
     throw new Error(result.status); // 'expired' | 'inactive'
   }
+  if (result.plan) result.content = { ...result.content, _plan: result.plan }; // paket ikut disimpen (buat ngunci hewan peliharaan)
   try { localStorage.setItem(CONTENT_CACHE(slug), JSON.stringify(result.content)); } catch {}
   return result.content;
 }
@@ -99,6 +100,7 @@ if (slug) {
         };
       } else CONFIG[key] = content[key];
     }
+    CONFIG.plan = content._plan || null; // 'basic' | 'custom' (null = belum tahu → nggak dikunci)
     CONFIG.demo = false;
     CONFIG.slug = slug;
     applyAppIcon(slug, CONFIG.photos.icon);
