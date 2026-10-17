@@ -27,16 +27,31 @@
   <main class="lg-main">
     <h1>Kontak</h1>
     <p>Ada pertanyaan, kendala pembayaran, lupa akun, atau mau minta data dihapus? Hubungi kami:</p>
-    <div class="lg-cards">
-      <a class="lg-card" href="https://wa.me/6285136086902?text=Halo%20Love%20Quest%20%F0%9F%92%96" target="_blank" rel="noopener"><span>💬</span><b>WhatsApp</b><small>0851-3608-6902</small></a>
+    <div class="lg-cards" id="kontak-cards">
+      <a class="lg-card" id="k-wa" href="https://wa.me/6285136086902?text=Halo%20Love%20Quest%20%F0%9F%92%96" target="_blank" rel="noopener"><span>💬</span><b>WhatsApp</b><small id="k-wa-num">0851-3608-6902</small></a>
+      <a class="lg-card" id="k-mail" href="mailto:zdannfoo@gmail.com"><span>📧</span><b>Email</b><small id="k-mail-txt">zdannfoo@gmail.com</small></a>
+      <a class="lg-card" id="k-ig" href="#" target="_blank" rel="noopener" hidden><span>📸</span><b>Instagram</b><small id="k-ig-txt"></small></a>
+      <a class="lg-card" id="k-tt" href="#" target="_blank" rel="noopener" hidden><span>🎵</span><b>TikTok</b><small id="k-tt-txt"></small></a>
       <a class="lg-card" href="/bayar"><span>💳</span><b>Pesan Love Quest</b><small>Bayar otomatis, akun langsung jadi</small></a>
     </div>
     <h2>Jam layanan</h2>
-    <p>Setiap hari, pukul 09.00–21.00 WIB. Pesan di luar jam itu kami balas di jam layanan berikutnya.</p>
+    <p id="k-hours">Setiap hari, pukul 09.00–21.00 WIB.</p>
     <h2>Biar cepat dibantu</h2>
     <p>Sertakan email akun CMS dan, kalau soal pembayaran, kode pesanan (contoh: LQ-20261015-ab12cd).</p>
   </main>
   <footer class="lg-foot">© 2026 Love Quest · lovequest.id</footer>
+  <script type="module">
+    import { loadSite } from '/js/site.js';
+    import { CONFIG } from '/js/config.js';
+    await loadSite();
+    const c = CONFIG.contact || {}, $ = (s) => document.querySelector(s);
+    if (c.whatsapp) { const n = String(c.whatsapp).replace(/\D/g, '').replace(/^0/, '62'); $('#k-wa').href = `https://wa.me/${n}?text=${encodeURIComponent('Halo Love Quest 💖')}`; $('#k-wa-num').textContent = '0' + n.slice(2).replace(/(\d{3,4})(\d{4})(\d+)/, '$1-$2-$3'); }
+    if (c.email) { $('#k-mail').href = `mailto:${c.email}`; $('#k-mail-txt').textContent = c.email; }
+    if (c.hours) $('#k-hours').textContent = c.hours;
+    const handle = (v) => String(v).replace(/^https?:\/\/(www\.)?(instagram|tiktok)\.com\//, '').replace(/^@/, '').replace(/\/$/, '');
+    if (c.instagram) { const h = handle(c.instagram); $('#k-ig').hidden = false; $('#k-ig').href = `https://instagram.com/${h}`; $('#k-ig-txt').textContent = '@' + h; }
+    if (c.tiktok) { const h = handle(c.tiktok); $('#k-tt').hidden = false; $('#k-tt').href = `https://tiktok.com/@${h}`; $('#k-tt-txt').textContent = '@' + h; }
+  </script>
   <script>document.querySelectorAll('.lg-nav a').forEach((a) => { if (location.pathname.replace(/\.html$/, '') === a.getAttribute('href')) a.classList.add('on'); });</script>
 </body>
 </html>

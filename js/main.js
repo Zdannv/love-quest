@@ -437,6 +437,23 @@ if (CONFIG.demo && $('#lp-prices')) {
       ${CONFIG.checkout?.enabled ? `<a class="btn ${i ? '' : 'ghost'}" href="/bayar?paket=${i ? 'custom' : 'basic'}">Pesan ${esc(pk.price)}</a><button class="link-btn" type="button" data-paket>lihat detail</button>` : `<button class="btn ${i ? '' : 'ghost'}" type="button" data-paket>Lihat detail paket</button>`}
     </article>`).join('');
 }
+// Pengumuman dari halaman owner (di landing, di game, atau dua-duanya)
+if (CONFIG.announcement) {
+  const a = CONFIG.announcement, here = CONFIG.demo && !CONFIG.showcase ? 'landing' : 'game';
+  if (a.where === 'both' || a.where === here) {
+    const el = document.createElement('div');
+    el.className = 'site-ann'; el.innerHTML = `<span>📢</span><p>${esc(a.text)}</p><button type="button" aria-label="Tutup">✕</button>`;
+    el.querySelector('button').onclick = () => el.remove();
+    (here === 'landing' ? $('.lp') : $('#screen-home .home-wrap'))?.prepend(el);
+  }
+}
+// Testimoni dari halaman owner (bagian ini cuma muncul kalau udah ada isinya)
+if (CONFIG.demo && !CONFIG.showcase && CONFIG.testimonials?.length && $('#lp-testi')) {
+  $('#lp-testi').hidden = false;
+  $('#lp-testi-list').innerHTML = CONFIG.testimonials.map((t) => `
+    <figure class="lp-quote">${t.photo ? `<img src="${esc(t.photo)}" alt="" loading="lazy">` : ''}<blockquote>“${esc(t.text)}”</blockquote>
+      <figcaption><b>${esc(t.name || 'Pembeli Love Quest')}</b>${t.note ? `<small>${esc(t.note)}</small>` : ''}</figcaption></figure>`).join('');
+}
 // Pita promo di halaman depan (kalau owner lagi bikin promo yang ada teks banner-nya)
 if (CONFIG.demo && !CONFIG.showcase && $('.lp')) {
   fetch(`${CONFIG.cloud.url.replace(/\/$/, '')}/rest/v1/rpc/promo_banner`, { method: 'POST', headers: { apikey: CONFIG.cloud.anonKey, 'Content-Type': 'application/json' }, body: '{}' })

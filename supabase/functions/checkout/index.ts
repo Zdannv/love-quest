@@ -10,6 +10,7 @@
 //   MIDTRANS_SERVER_KEY   (Server Key dari dashboard Midtrans; sandbox dulu buat tes)
 //   MIDTRANS_PRODUCTION   ("true" kalau udah pakai key production, selain itu dianggap sandbox)
 //   SITE_URL              (opsional, default https://lovequest.id)
+//   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID  (opsional: notif ke HP owner tiap ada penjualan)
 // Deploy dengan "Verify JWT" DIMATIKAN (Midtrans nggak kirim token Supabase).
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -21,6 +22,18 @@ const PROD = Deno.env.get('MIDTRANS_PRODUCTION') === 'true';
 const SITE = (Deno.env.get('SITE_URL') || 'https://lovequest.id').replace(/\/$/, '');
 const SNAP = PROD ? 'https://app.midtrans.com/snap/v1/transactions' : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
 const API = PROD ? 'https://api.midtrans.com/v2' : 'https://api.sandbox.midtrans.com/v2';
+// Harga diambil dari pengaturan di halaman /owner (tabel site_settings); yang di bawah cadangan aja
+async function prices() {
+  const { data } = await db.from('site_settings').select('value').eq('key', 'prices').maybeSingle();
+  const v = data?.value || {};
+  return { basic: Number(v.basic) || 29000, custom: Number(v.custom) || 49000, upgrade: Number(v.upgrade) || 20000 };
+}
+async function notify(text: string) {
+  const tok = Deno.env.get('TELEGRAM_BOT_TOKEN'), chat = Deno.env.get('TELEGRAM_CHAT_ID');
+  if (!tok || !chat) return;
+  await fetch(`https://api.telegram.org/bot${tok}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chat, text }) }).catch(() => {});
+}
+const rp = (n: number) => `Rp${Number(n).toLocaleString('id-ID')}`;
 const PLANS: Record<string, { amount: number; name: string }> = {
   basic: { amount: 29000, name: 'Love Quest' },
   custom: { amount: 49000, name: 'Love Quest Premium' },
@@ -51,6 +64,13 @@ async function fulfill(orderId: string) {
     if (!lk?.length) return;
     const { error } = await db.from('couples').update({ plan: 'custom' }).eq('id', kind.couple_id);
     await db.from('orders').update(error ? { status: 'need_help', note: `Upgrade gagal: ${error.message}` } : { status: 'paid', paid_at: new Date().toISOString() }).eq('id', orderId);
+    const { data: u } = await db.from('orders').select('email, amount').eq('id', orderId).single();
+    await notify(error ? `⚠️ Upgrade perlu dibantu
+${u?.email}
+${orderId}
+${error.message}` : `✨ Upgrade Premium lunas!
+${u?.email} · ${rp(u?.amount || 0)}
+${orderId}`);
     return;
   }
   // Kunci dulu: notifikasi Midtrans & halaman /bayar bisa manggil barengan, akun cuma boleh dibikin sekali
@@ -61,6 +81,11 @@ async function fulfill(orderId: string) {
   if (userErr || !created.user) {
     // Email ini udah punya akun: jangan otak-atik akun lama, owner yang beresin manual
     await db.from('orders').update({ status: 'need_help', note: `Akun gagal dibuat: ${userErr?.message || '-'}`, paid_at: new Date().toISOString() }).eq('id', orderId);
+    await notify(`⚠️ Pembayaran masuk tapi akun perlu dibantu
+${o.email} · ${rp(o.amount)}
+${orderId}
+${userErr?.message || '-'}
+Beresin di lovequest.id/owner`);
     return;
   }
   const userId = created.user.id;
@@ -74,6 +99,10 @@ async function fulfill(orderId: string) {
   await db.from('couples').update({ plan: o.plan, paid_until: null, active: true, owner_email: o.email, note: `Midtrans ${orderId}` }).eq('id', couple.id);
   await db.from('orders').update({ status: 'paid', couple_id: couple.id, slug: couple.slug, paid_at: new Date().toISOString() }).eq('id', orderId);
   if (o.promo_code) await db.rpc('promo_use', { p_code: o.promo_code });
+  await notify(`🎉 Penjualan baru!
+${o.plan === 'custom' ? 'Love Quest Premium' : 'Love Quest'} · ${rp(o.amount)}${o.promo_code ? ` (promo ${o.promo_code})` : ''}
+${o.email}${o.names?.pengirim ? ` · ${o.names.pengirim} → ${o.names.pasangan || '?'}` : ''}
+${orderId}`);
 }
 
 async function checkOwner(orderId: string, secret: string) {
@@ -116,14 +145,15 @@ Deno.serve(async (req) => {
     if (!c) return json({ error: 'Game-mu nggak ketemu' }, 404);
     if (c.plan === 'custom') return json({ error: 'Game-mu udah Premium 💖' }, 400);
     const id = `LQU-${wib()}-${rand(6)}`, secret = rand(32);
-    const { error } = await db.from('orders').insert({ id, plan: 'upgrade', amount: PLANS.upgrade.amount, email: user.email, token_hash: await sha('SHA-256', secret), couple_id: c.id, slug: c.slug });
+    const upPrice = (await prices()).upgrade;
+    const { error } = await db.from('orders').insert({ id, plan: 'upgrade', amount: upPrice, email: user.email, token_hash: await sha('SHA-256', secret), couple_id: c.id, slug: c.slug });
     if (error) return json({ error: 'Gagal nyimpen pesanan upgrade' }, 500);
     const res = await fetch(SNAP, {
       method: 'POST',
       headers: { Authorization: auth(), 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
-        transaction_details: { order_id: id, gross_amount: PLANS.upgrade.amount },
-        item_details: [{ id: 'upgrade', price: PLANS.upgrade.amount, quantity: 1, name: PLANS.upgrade.name }],
+        transaction_details: { order_id: id, gross_amount: upPrice },
+        item_details: [{ id: 'upgrade', price: upPrice, quantity: 1, name: PLANS.upgrade.name }],
         customer_details: { email: user.email },
         callbacks: { finish: `${SITE}/admin?upgrade=${id}` },
         expiry: { unit: 'hours', duration: 24 },
@@ -161,7 +191,7 @@ Deno.serve(async (req) => {
     const names = { pasangan: String(body.names?.pasangan || '').trim().slice(0, 40), pengirim: String(body.names?.pengirim || '').trim().slice(0, 40) };
     const id = `LQ-${wib()}-${rand(6)}`, secret = rand(32);
     // Kode promo dicek ulang di server (harga dari halaman nggak dipercaya)
-    let amount = PLANS[plan].amount, promo: string | null = null, discount = 0;
+    let amount = (await prices())[plan as 'basic' | 'custom'], promo: string | null = null, discount = 0;
     if (body.promo) {
       const { data: pc } = await db.rpc('promo_check', { p_code: String(body.promo), p_plan: plan });
       if (!pc?.ok) return json({ error: pc?.message || 'Kode promo nggak berlaku' }, 400);

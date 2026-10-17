@@ -116,4 +116,4 @@ if (slug) {
     showError(messages[err.message] || 'Game-nya lagi nggak bisa dimuat. Cek internet terus coba lagi yaa 🥺');
   }
 }
-if (ok) await import('./main.js');
+if (ok) { const { loadSite } = await import('./site.js'); await loadSite(); await import('./main.js'); }

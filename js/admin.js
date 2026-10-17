@@ -6,6 +6,8 @@ import { TRACKS, createPlayer } from './music.js';
 import { THEMES, CHARACTERS, DEFAULT_THEME, DEFAULT_CHARACTERS } from './themes.js';
 import { esc } from './util.js';
 import { track } from './track.js';
+import { loadSite } from './site.js';
+await loadSite();
 
 const $ = (s) => document.querySelector(s);
 const views = { login: $('#view-login'), create: $('#view-create'), editor: $('#view-editor'), forgot: $('#view-forgot'), newpass: $('#view-newpass') };
@@ -335,7 +337,7 @@ $('#music-list').addEventListener('click', (e) => {
 const isCustom = () => couple.plan === 'custom';
 // Tombol upgrade: bayar otomatis (kalau Midtrans aktif), kalau nggak lewat WhatsApp
 function upgradeBtn() {
-  if (CONFIG.checkout?.enabled) return '<button type="button" class="btn small-btn" data-upgrade>✨ Upgrade Rp20.000</button>';
+  if (CONFIG.checkout?.enabled) return `<button type="button" class="btn small-btn" data-upgrade>✨ Upgrade Rp${(CONFIG.prices?.upgrade || 20000).toLocaleString('id-ID')}</button>`;
   const url = CONFIG.whatsapp ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(`Halo! Aku mau upgrade ke Love Quest Premium 💖\nKode game: ${couple.slug}`)}` : '';
   return url ? `<a class="btn small-btn" href="${esc(url)}" target="_blank" rel="noopener">Upgrade via WhatsApp</a>` : '';
 }
@@ -357,7 +359,7 @@ document.addEventListener('click', async (e) => {
     const d = await res.json().catch(() => ({}));
     if (!res.ok || !d.redirect_url) throw new Error(d.error || `Error ${res.status}`);
     location.href = d.redirect_url;
-  } catch (x) { toast(x.message); b.disabled = false; b.textContent = '✨ Upgrade Rp20.000'; }
+  } catch (x) { toast(x.message); b.disabled = false; b.textContent = `✨ Upgrade Rp${(CONFIG.prices?.upgrade || 20000).toLocaleString('id-ID')}`; }
 });
 
 function renderLook() {

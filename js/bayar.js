@@ -2,6 +2,7 @@
 // Kode rahasia pesanan disimpen di HP ini aja, jadi cuma yang bayar yang bisa ambil login-nya.
 import { CONFIG } from './config.js';
 import { esc } from './util.js';
+import { loadSite } from './site.js';
 import { track as trackEvent } from './track.js';
 
 const $ = (s) => document.querySelector(s);
@@ -9,7 +10,8 @@ const { url, anonKey } = CONFIG.cloud;
 const FN = `${url.replace(/\/$/, '')}/functions/v1/${CONFIG.checkout?.fn || 'checkout'}`;
 const KEY = (id) => `lq-order-${id}`;
 const rupiah = (n) => `Rp${n.toLocaleString('id-ID')}`;
-const PRICE = { basic: 29000, custom: 49000 };
+await loadSite();
+const PRICE = { basic: CONFIG.prices?.basic || 29000, custom: CONFIG.prices?.custom || 49000 };
 const wa = (t) => `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(t)}`;
 
 async function call(body) {

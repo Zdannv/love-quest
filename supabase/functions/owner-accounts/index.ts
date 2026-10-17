@@ -3,6 +3,8 @@
 //   { action: "create", email, password, plan, days, names?, note? } → bikin akun + game-nya
 //   { action: "password", couple_id, password }                      → ganti password pembeli
 //   { action: "delete", couple_id }                                  → hapus akun, game, streak & fotonya
+//   { action: "resolve_order", order_id, mode: "link" }              → pesanan "perlu dibantu": sambungin ke akun lama (email sama)
+//   { action: "resolve_order", order_id, mode: "new", email }        → … atau bikinin akun baru pakai email lain
 // Nggak butuh secret tambahan: SUPABASE_URL & SUPABASE_SERVICE_ROLE_KEY sudah otomatis ada.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -114,6 +116,31 @@ Deno.serve(async (req) => {
     const { error } = await db.auth.admin.deleteUser(owner);
     if (error) return json({ error: error.message }, 500);
     return json({ ok: true });
+  }
+
+  if (body.action === 'resolve_order') {
+    const { data: o } = await db.from('orders').select('*').eq('id', String(body.order_id || '')).maybeSingle();
+    if (!o) return json({ error: 'Pesanan nggak ketemu' }, 404);
+    if (o.status === 'paid') return json({ error: 'Pesanan ini udah beres' }, 400);
+    const plan = o.plan === 'custom' ? 'custom' : 'basic';
+    if (body.mode === 'link') {
+      // Pembeli udah punya akun dengan email ini: tambahin paketnya ke game yang lama
+      const { data: c } = await db.from('couples').select('id, slug, plan').eq('owner_email', o.email).maybeSingle();
+      if (!c) return json({ error: `Nggak ada game dengan email ${o.email}` }, 404);
+      if (plan === 'custom' && c.plan !== 'custom') await db.from('couples').update({ plan: 'custom', active: true, paid_until: null }).eq('id', c.id);
+      await db.from('orders').update({ status: 'paid', couple_id: c.id, slug: c.slug, note: `${o.note || ''} · disambungin ke akun lama`.trim() }).eq('id', o.id);
+      return json({ ok: true, slug: c.slug, email: o.email, linked: true });
+    }
+    const email = String(body.email || '').trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(email)) return json({ error: 'Email baru nggak valid' }, 400);
+    const password = Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
+    const { data: created, error: userErr } = await db.auth.admin.createUser({ email, password, email_confirm: true });
+    if (userErr || !created.user) return json({ error: `Gagal bikin akun: ${userErr?.message}` }, 400);
+    const { data: c, error: insErr } = await db.from('couples').insert({ owner: created.user.id, slug: randomSlug(), content: { names: o.names || {} } }).select('id, slug').single();
+    if (insErr || !c) { await db.auth.admin.deleteUser(created.user.id); return json({ error: `Gagal bikin game: ${insErr?.message}` }, 500); }
+    await db.from('couples').update({ plan, paid_until: null, active: true, owner_email: email, note: `Midtrans ${o.id}` }).eq('id', c.id);
+    await db.from('orders').update({ status: 'paid', couple_id: c.id, slug: c.slug, note: `${o.note || ''} · akun baru ${email}`.trim() }).eq('id', o.id);
+    return json({ ok: true, slug: c.slug, email, password });
   }
 
   return json({ error: 'Aksi nggak dikenal' }, 400);

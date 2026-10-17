@@ -121,6 +121,80 @@ function preset(kind) {
     fillPromo({ code: 'GAJIAN', kind: 'amount', value: 7000, plans: ['basic', 'custom'], starts_at: new Date(Date.UTC(py, pm - 1, 25, 0, 0) - 7 * 3600e3).toISOString(), ends_at: new Date(Date.UTC(py, pm - 1, 28, 23, 59) - 7 * 3600e3).toISOString(), banner: 'Promo gajian: hemat Rp7.000!', note: 'promo gajian' });
   }
 }
+// ---------- Pengaturan web (tabel site_settings) ----------
+let settings = null; // null = belum bisa dimuat (migration-13 belum dijalankan)
+const SAMPLE_SETTINGS = { prices: { basic: 29000, custom: 49000, upgrade: 20000 }, contact: { whatsapp: '6285136086902', email: 'zdannfoo@gmail.com', hours: 'Setiap hari, 09.00–21.00 WIB', instagram: '', tiktok: '' }, announcement: { text: '', where: 'both', until: null }, testimonials: [] };
+function renderSettings() {
+  const box = $('#settings-body');
+  if (settings === null) { box.innerHTML = '<p class="muted small">Pengaturan belum bisa dimuat. Jalankan <code>supabase/migration-13.sql</code> di SQL Editor dulu.</p>'; return; }
+  const pr = settings.prices || {}, c = settings.contact || {}, a = settings.announcement || {}, T = settings.testimonials || [];
+  const pk = settings.packages || CONFIG.packages.map((p) => ({ tag: p.tag, highlights: p.highlights || [] }));
+  box.innerHTML = `
+    <form class="set-group" data-set="prices"><h4>💰 Harga</h4>
+      <div class="grid3"><label>Love Quest<input type="number" name="basic" min="1000" step="500" value="${pr.basic || 29000}"></label><label>Premium<input type="number" name="custom" min="1000" step="500" value="${pr.custom || 49000}"></label><label>Upgrade ke Premium<input type="number" name="upgrade" min="1000" step="500" value="${pr.upgrade || 20000}"></label></div>
+      <p class="muted small">Langsung dipakai di landing, halaman bayar, CMS & server pembayaran.</p><button class="btn small-btn">Simpan harga</button></form>
+    <form class="set-group" data-set="packages"><h4>📦 Isi kartu paket</h4>
+      ${[0, 1].map((i) => `<div class="grid2"><label>Label ${i ? 'Premium' : 'Love Quest'}<input name="tag${i}" maxlength="40" value="${esc(pk[i]?.tag || '')}"></label><label>Poin utama (satu per baris)<textarea name="hl${i}" rows="5">${esc((pk[i]?.highlights || []).join('\n'))}</textarea></label></div>`).join('')}
+      <button class="btn small-btn">Simpan isi paket</button></form>
+    <form class="set-group" data-set="contact"><h4>📞 Kontak</h4>
+      <div class="grid2"><label>WhatsApp layanan<input name="whatsapp" value="${esc(c.whatsapp || '')}" placeholder="08xx atau 628xx"></label><label>Email<input type="email" name="email" value="${esc(c.email || '')}"></label></div>
+      <div class="grid3"><label>Jam layanan<input name="hours" value="${esc(c.hours || '')}"></label><label>Instagram<input name="instagram" value="${esc(c.instagram || '')}" placeholder="@lovequest.id"></label><label>TikTok<input name="tiktok" value="${esc(c.tiktok || '')}" placeholder="@lovequest.id"></label></div>
+      <button class="btn small-btn">Simpan kontak</button></form>
+    <form class="set-group" data-set="announcement"><h4>📢 Pengumuman</h4>
+      <label>Teks (kosongin buat matiin)<input name="text" maxlength="140" value="${esc(a.text || '')}" placeholder="contoh: Fitur baru: menu Kenangan! 🏆"></label>
+      <div class="grid2"><label>Tampil di<select name="where"><option value="both" ${a.where === 'both' ? 'selected' : ''}>Landing & game</option><option value="landing" ${a.where === 'landing' ? 'selected' : ''}>Landing aja</option><option value="game" ${a.where === 'game' ? 'selected' : ''}>Game pasangan aja</option></select></label><label>Sampai (opsional, WIB)<input type="datetime-local" name="until" value="${a.until ? wibInput(new Date(a.until)) : ''}"></label></div>
+      <button class="btn small-btn">Simpan pengumuman</button></form>
+    <form class="set-group" data-set="testimonials"><h4>💬 Testimoni</h4>
+      <p class="muted small">Bagian testimoni di landing muncul otomatis kalau ada minimal satu. Pakai testimoni asli & minta izin dulu ya.</p>
+      <div id="testi-list">${T.map((t, i) => testiRow(t, i)).join('')}</div>
+      <div class="row"><button type="button" class="btn ghost small-btn" data-testi-add>+ Tambah testimoni</button><button class="btn small-btn">Simpan testimoni</button></div></form>`;
+}
+const testiRow = (t = {}, i = 0) => `<div class="testi-row"><div class="grid2"><label>Nama<input name="name" maxlength="40" value="${esc(t.name || '')}" placeholder="contoh: Raka, Bandung"></label><label>Keterangan<input name="note" maxlength="60" value="${esc(t.note || '')}" placeholder="contoh: kado anniversary"></label></div>
+  <label>Isi testimoni<textarea name="text" rows="2" maxlength="300">${esc(t.text || '')}</textarea></label><label>Link foto (opsional)<input name="photo" value="${esc(t.photo || '')}" placeholder="https://…"></label><button type="button" class="link-btn danger" data-testi-del>Hapus</button></div>`;
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-testi-add]')) { $('#testi-list').insertAdjacentHTML('beforeend', testiRow()); }
+  if (e.target.closest('[data-testi-del]')) e.target.closest('.testi-row').remove();
+});
+document.addEventListener('submit', async (e) => {
+  const f = e.target.closest('[data-set]'); if (!f) return;
+  e.preventDefault();
+  const key = f.dataset.set, v = Object.fromEntries(new FormData(f));
+  let value;
+  if (key === 'prices') value = { basic: Number(v.basic), custom: Number(v.custom), upgrade: Number(v.upgrade) };
+  else if (key === 'packages') value = [0, 1].map((i) => ({ tag: v[`tag${i}`].trim(), highlights: v[`hl${i}`].split('\n').map((x) => x.trim()).filter(Boolean).slice(0, 8) }));
+  else if (key === 'contact') value = { ...v, whatsapp: String(v.whatsapp).replace(/\D/g, '').replace(/^0/, '62') };
+  else if (key === 'announcement') value = { text: v.text.trim(), where: v.where, until: v.until ? fromWib(v.until) : null };
+  else value = [...f.querySelectorAll('.testi-row')].map((r) => Object.fromEntries(['name', 'note', 'text', 'photo'].map((n) => [n, r.querySelector(`[name="${n}"]`).value.trim()]))).filter((t) => t.text);
+  if (PREVIEW) { settings[key] = value; renderSettings(); toast('Mode contoh: nggak disimpan'); return; }
+  const { error } = await sb.rpc('admin_set_setting', { p_key: key, p_value: value });
+  if (error) { toast(`Gagal: ${error.message}`); return; }
+  settings[key] = value; renderSettings(); toast('Tersimpan ✓ Langsung berlaku di web');
+});
+// Ekspor CSV (dibikin di browser dari data yang udah dimuat)
+function downloadCsv(name, rows) {
+  const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const csv = rows.map((r) => r.map(cell).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' }));
+  a.download = `${name}-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+}
+$('#btn-csv-couples').addEventListener('click', () => downloadCsv('lovequest-pembeli', [['email', 'pengirim', 'pasangan', 'paket', 'aktif sampai', 'status', 'link game', 'catatan', 'dibuat'],
+  ...couples.map((c) => [c.owner_email, c.names?.pengirim, c.names?.pasangan, c.plan === 'custom' ? 'Premium' : 'Love Quest', c.paid_until || 'selamanya', stateOf(c), gameLink(c.slug), c.note, c.created_at?.slice(0, 10)])]));
+$('#btn-csv-orders').addEventListener('click', () => { if (!orders) { toast('Daftar pesanan belum kemuat'); return; } downloadCsv('lovequest-pesanan', [['kode', 'email', 'paket', 'nominal', 'promo', 'status', 'status midtrans', 'dibuat', 'lunas'],
+  ...orders.map((o) => [o.id, o.email, o.plan, o.amount, o.promo_code || '', o.status, o.pay_status || '', o.created_at, o.paid_at || ''])]); });
+$('#btn-report').addEventListener('click', async () => {
+  if (PREVIEW) { toast('Mode contoh'); return; }
+  const b = $('#btn-report'); b.disabled = true; b.textContent = 'Ngirim…';
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch(`${url.replace(/\/$/, '')}/functions/v1/owner-report`, { method: 'POST', headers: { apikey: anonKey, Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' }, body: '{}' });
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 404) throw new Error('Edge function owner-report belum di-deploy');
+    if (!r.ok) throw new Error(d.error || `Error ${r.status}`);
+    $('#report-out').textContent = d.sent?.length ? `Terkirim lewat: ${d.sent.join(', ')} ✓` : 'Laporan jadi, tapi Telegram/email belum diatur (isi secret TELEGRAM_BOT_TOKEN & TELEGRAM_CHAT_ID).';
+  } catch (x) { toast(x.message); }
+  b.disabled = false; b.textContent = '📊 Kirim laporan sekarang';
+});
 const FUNNEL = [['landing_view', 'Buka landing'], ['try_click', 'Coba main gratis'], ['paket_open', 'Lihat paket'], ['bayar_view', 'Buka halaman bayar'], ['bayar_submit', 'Klik bayar'], ['bayar_paid', 'Lunas 🎉']];
 function renderFunnel() {
   const box = $('#funnel');
@@ -160,6 +234,7 @@ function render() {
   renderOrders();
   renderFunnel();
   renderPromos();
+  renderSettings();
 
   const list = couples.filter((c) => {
     const hay = `${c.owner_email} ${c.slug} ${c.names?.pasangan ?? ''} ${c.names?.pengirim ?? ''} ${c.note ?? ''}`.toLowerCase();
@@ -198,7 +273,7 @@ function render() {
           <button class="btn small-btn" data-save>Simpan</button>
         </div>
         <div class="row">
-          <button class="link-btn" data-pass>🔑 Ganti password</button>
+          <button class="link-btn" data-pass>🔑 Kirim ulang login</button>
           <button class="link-btn danger" data-delete>🗑️ Hapus akun</button>
         </div>
         </div></details>
@@ -217,7 +292,8 @@ function renderOrders() {
     return `<div class="order-row ${cls}">
       <span class="or-dot"></span>
       <div class="or-main"><b>${esc(o.email)}</b><small>${esc(o.id)} · ${o.plan === 'custom' ? 'Premium' : 'Love Quest'} · Rp${(o.amount || 0).toLocaleString('id-ID')}</small>${o.note ? `<small class="or-note">${esc(o.note)}</small>` : ''}</div>
-      <div class="or-side"><span class="or-chip ${cls}">${label}</span><small>${timeAgo(o.paid_at || o.created_at)}</small></div>
+      <div class="or-side"><span class="or-chip ${cls}">${label}</span><small>${timeAgo(o.paid_at || o.created_at)}</small>
+        ${o.status === 'need_help' ? `<span class="or-fix"><button type="button" class="link-btn" data-fix="link" data-id="${esc(o.id)}">Sambungin ke akun lama</button><button type="button" class="link-btn" data-fix="new" data-id="${esc(o.id)}">Akun baru (email lain)</button></span>` : ''}</div>
     </div>`;
   }).join('');
 }
@@ -353,16 +429,25 @@ $('#form-new').addEventListener('submit', async (e) => {
   }
 });
 
+// Kirim ulang login: bikin password baru, terus siapin pesan WA buat pembeli
 async function changePassword(c) {
-  const password = prompt(`Password baru buat ${c.owner_email}? (min. 6 karakter)`, randomPassword());
-  if (password == null) return;
-  if (password.length < 6) { toast('Password minimal 6 karakter'); return; }
+  if (!confirm(`Bikin password baru buat ${c.owner_email}? Password lama nggak berlaku lagi.`)) return;
+  const password = randomPassword();
   try {
-    await callOwner({ action: 'password', couple_id: c.id, password });
-    await copyText(`Password Love Quest kamu udah diganti 🔑\n${cmsUrl()}\nEmail: ${c.owner_email}\nPassword: ${password}`);
+    if (!PREVIEW) await callOwner({ action: 'password', couple_id: c.id, password });
+    showLoginMsg(`Halo! Ini login Love Quest kamu yang baru 🔑\n\nCMS: ${cmsUrl()}\nEmail: ${c.owner_email}\nPassword: ${password}\n\nLink game buat pasangan:\n${gameLink(c.slug)}`, `Login baru ${c.owner_email}`);
   } catch (err) {
     toast(`Gagal: ${err.message}`);
   }
+}
+// Jendela kecil berisi pesan siap kirim (salin / buka WhatsApp)
+function showLoginMsg(msg, title) {
+  const el = document.createElement('div');
+  el.className = 'tour';
+  el.innerHTML = `<div class="tour-card" style="text-align:left"><h3>${esc(title)}</h3><p class="small muted">Password cuma kelihatan sekarang. Kirim ke pembeli:</p><pre class="msg-pre">${esc(msg)}</pre>
+    <div class="row"><button type="button" class="btn small-btn" data-m="copy">📋 Salin</button><a class="btn ghost small-btn" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">💬 WhatsApp</a><button type="button" class="link-btn" data-m="close">Tutup</button></div></div>`;
+  el.addEventListener('click', (e) => { const a = e.target.closest('[data-m]')?.dataset.m; if (a === 'copy') copyText(msg); if (a === 'close' || e.target === el) el.remove(); });
+  document.body.appendChild(el);
 }
 
 async function removeAccount(c) {
@@ -408,13 +493,27 @@ $('#promo-list').addEventListener('click', async (e) => {
   if (error) { toast(`Gagal: ${error.message}`); return; }
   await refresh();
 });
+$('#order-list').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-fix]'); if (!b) return;
+  const o = orders.find((x) => x.id === b.dataset.id); if (!o) return;
+  let email = null;
+  if (b.dataset.fix === 'link' && !confirm(`Sambungin pembayaran ${o.id} ke game lama milik ${o.email}?${o.plan === 'custom' ? ' Paketnya jadi Premium.' : ''}`)) return;
+  if (b.dataset.fix === 'new') { email = prompt('Email baru buat akun pembeli ini:'); if (!email) return; }
+  if (PREVIEW) { toast('Mode contoh: nggak dijalanin'); return; }
+  try {
+    const r = await callOwner({ action: 'resolve_order', order_id: o.id, mode: b.dataset.fix, email });
+    if (r.password) showLoginMsg(`Halo! Makasih udah pesan Love Quest 💖\n\nCMS: ${cmsUrl()}\nEmail: ${r.email}\nPassword: ${r.password}\n\nLink game buat pasangan:\n${gameLink(r.slug)}`, 'Akun baru jadi ✅');
+    else toast(`Disambungin ke game ${r.slug} ✓`);
+    await refresh();
+  } catch (err) { toast(`Gagal: ${err.message}`); }
+});
 $('#fn-range').addEventListener('click', (e) => { const b = e.target.closest('[data-days]'); if (!b) return; fnDays = Number(b.dataset.days); $('#fn-range').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); renderFunnel(); });
 $('#filter-chips').addEventListener('click', (e) => { const b = e.target.closest('[data-filter]'); if (!b) return; filterNow = b.dataset.filter; render(); });
 $('#btn-refresh').addEventListener('click', async () => { if (PREVIEW) { toast('Mode contoh'); return; } if (await refresh()) toast('Data terbaru ✓'); });
 
 async function load() {
   if (PREVIEW) {
-    couples = SAMPLE; orders = SAMPLE_ORDERS; events = SAMPLE_EVENTS; promos = SAMPLE_PROMOS;
+    couples = SAMPLE; orders = SAMPLE_ORDERS; events = SAMPLE_EVENTS; promos = SAMPLE_PROMOS; settings = SAMPLE_SETTINGS;
     setStatus('Mode contoh: data bohongan, nggak ada yang disimpan.');
     $('#view-login').hidden = true; $('#view-list').hidden = false; render(); return;
   }
@@ -454,6 +553,8 @@ async function refresh() {
   events = ev.error ? null : ev.data;
   const pr = await sb.rpc('admin_list_promos');
   promos = pr.error ? null : pr.data;
+  const st = await sb.rpc('get_site_settings');
+  settings = st.error ? null : (st.data || {});
   render();
   return true;
 }
