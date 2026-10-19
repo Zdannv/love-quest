@@ -1,5 +1,5 @@
 // 🐥 Peliharaan Kita (ala Pou / Tamagotchi): satu peliharaan bareng, dirawat berdua dari HP masing-masing.
-// Status (kenyang/bersih/senang/energi) turun pelan sesuai waktu nyata. Tiap rawat dapet XP → naik level → buka aksesoris.
+// Status (kenyang/bersih/senang/energi) turun pelan sesuai waktu nyata. Tiap rawat dapet XP & koin 🪙 → beli aksesoris 3D & karpet di toko.
 // Kalau dua-duanya ngerawat di hari yang sama: bonus XP "kompak".
 // Disimpen di Supabase per pasangan (supabase/migration-7.sql). Demo & contoh: disimpen di HP ini aja.
 import { CONFIG } from './config.js';
@@ -7,6 +7,7 @@ import { whoAmI } from './profile.js';
 import { getNames } from './personal.js';
 import { esc } from './util.js';
 import { createPet3D } from './pet3d.js';
+import { SHOP, RUGS, upgradeShop, rugHex, shopHTML } from './pet-shop.js';
 import { setPet } from './stats.js';
 
 const { url = '', anonKey = '' } = CONFIG.cloud || {};
@@ -31,7 +32,7 @@ const animalOf = (s) => ANIMALS.find((a) => a.k === s.kind);
 // Paket biasa cuma dapet kucing; Premium (dan versi contoh) bebas pilih semua
 const FREE_PET = 'kucing';
 const isBasic = () => CONFIG.plan === 'basic' && !CONFIG.showcase;
-const OUTFITS = [{ lvl: 2, em: '🎀' }, { lvl: 3, em: '🧢' }, { lvl: 4, em: '🕶️' }, { lvl: 5, em: '🎩' }, { lvl: 7, em: '👑' }];
+const NM = () => getNames();
 const ACT = { makan: 'kasih makan', mandi: 'mandiin', main: 'ngajak main', tidur: 'nidurin', bangun: 'bangunin' };
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
 const clamp = (v) => Math.max(0, Math.min(100, v));
@@ -45,6 +46,7 @@ function decay(s, now = Date.now()) {
   s.energy = clamp(s.energy + (s.sleep ? 14 : -2) * h);
   if (s.sleep && s.energy >= 100) s.sleep = false; // bangun sendiri kalau udah seger
   s.at = now;
+  upgradeShop(s, levelOf(s.xp || 0));
   if (s.daily?.d !== today()) s.daily = { d: today(), pasangan: false, pengirim: false, bonus: false };
   return s;
 }
@@ -74,9 +76,10 @@ async function save(s) {
   if (!local) { try { await rpc('pet_save', { p_state: s }); } catch { local = true; } }
 }
 
+const WHO = () => whoAmI() || 'pasangan';
 export function initPet({ sfx, toast }) {
   const root = document.querySelector('#pet-root');
-  let st = null, busy = false, poll = 0, mode = null, raf = 0;
+  let st = null, busy = false, poll = 0, chatPoll = 0, mode = null, raf = 0;
 
   // Ambil data terbaru → ubah → simpan (biar perawatan dari HP pasangan nggak ketimpa)
   async function act(kind, apply) {
@@ -91,12 +94,12 @@ export function initPet({ sfx, toast }) {
       let bonus = '';
       if (ACT[kind]) { // ganti nama / aksesoris nggak diitung ngerawat
         s.daily[who] = true;
-        if (s.daily.pasangan && s.daily.pengirim && !s.daily.bonus) { s.daily.bonus = true; s.xp += 30; bonus = ' · Kalian kompak hari ini! +30 XP 💞'; }
+        if (s.daily.pasangan && s.daily.pengirim && !s.daily.bonus) { s.daily.bonus = true; s.xp += 30; s.coins += 15; bonus = ' · Kalian kompak hari ini! +30 XP +15 🪙 💞'; }
         s.log = [{ w: who, a: kind, t: Date.now() }, ...(s.log || [])].slice(0, 6);
       }
       await save(s);
       st = s;
-      if (levelOf(s.xp) > before) { sfx('win'); toast(`${s.name} naik ke level ${levelOf(s.xp)}! 🎉${OUTFITS.find((o) => o.lvl === levelOf(s.xp)) ? ' Ada aksesoris baru!' : ''}`); }
+      if (levelOf(s.xp) > before) { s.coins += 20; await save(s); sfx('win'); toast(`${s.name} naik ke level ${levelOf(s.xp)}! 🎉 +20 🪙`); }
       else if (msg) toast(msg + bonus);
       render();
     } finally { busy = false; }
@@ -128,7 +131,7 @@ export function initPet({ sfx, toast }) {
     if (!st) { root.innerHTML = '<p class="pet-load">Nyiapin peliharaan… 🐾</p>'; return; }
     if (!st.kind || !animalOf(st) || choosing) { renderChooser(); return; }
     const s = st, lvl = levelOf(s.xp), m = mood(s), A = animalOf(s) || ANIMALS[0];
-    const outfit = s.outfit && OUTFITS.find((o) => o.em === s.outfit && o.lvl <= lvl) ? s.outfit : null;
+    const who = WHO(), giftOk = !s.sleep && !s.daily['gift_' + who];
     // meteran bulat: makin penuh makin hijau, di bawah 30 jadi merah & kedip
     const bar = (em, label, v) => `<div class="pet-ring ${v < 30 ? 'low' : ''}" style="--v:${Math.round(v)};--c:${v < 30 ? '#ff4d6d' : v < 60 ? '#ffb020' : '#2fbf71'}"><span class="pr-ic">${em}</span><small>${label}</small><b>${Math.round(v)}</b></div>`;
     const last = s.log?.[0];
@@ -136,6 +139,7 @@ export function initPet({ sfx, toast }) {
       <div class="pet-head">
         <button class="pet-name" data-pet="rename">${esc(s.name)} ✏️</button>
         <span class="pet-lvl">Lv ${lvl}</span>
+        <span class="pet-coins" id="pet-coins">🪙 <b>${s.coins}</b></span>
         <button class="pet-swap" data-pet="swap">${A.em} ganti hewan</button>
         <div class="pet-xp"><b style="width:${Math.round(((s.xp - xpAt(lvl)) / (xpAt(lvl + 1) - xpAt(lvl))) * 100)}%"></b></div>
       </div>
@@ -145,7 +149,7 @@ export function initPet({ sfx, toast }) {
         <div class="pet-3d-slot" id="pet-3d-slot">
           <div class="pet-body pet-fallback ${s.sleep ? 'sleep' : ''}" style="--sz:${Math.min(1.35, 0.85 + lvl * 0.06)}"><span class="pet-em">${A.em}</span></div>
         </div>
-        ${outfit ? `<span class="pet-outfit3d" id="pet-outfit">${outfit}</span>` : ''}
+        ${giftOk ? '<button class="pet-gift" data-pet="gift" aria-label="Buka kado harian">🎁</button>' : ''}
         ${s.sleep ? '<span class="pet-zzz" id="pet-zzz">💤</span>' : ''}
         <div class="pet-floor"></div>
         <div class="pet-layer" id="pet-layer"></div>
@@ -157,32 +161,34 @@ export function initPet({ sfx, toast }) {
         <button data-pet="main" ${s.sleep || s.energy < 10 ? 'disabled' : ''}><span>⚽</span>Main</button>
         <button data-pet="tidur"><span>${s.sleep ? '☀️' : '💤'}</span>${s.sleep ? 'Bangun' : 'Tidur'}</button>
       </div>
-      <div class="pet-sec"><b>👗 Lemari</b><small>aksesoris kebuka tiap naik level</small></div>
-      <div class="pet-outfits">${OUTFITS.map((o) => `<button data-pet="outfit" data-v="${o.em}" class="${s.outfit === o.em ? 'on' : ''}" ${o.lvl > lvl ? `disabled title="Buka di level ${o.lvl}"` : ''}>${o.lvl > lvl ? '🔒' : o.em}<small>Lv${o.lvl}</small></button>`).join('')}</div>
+      ${shopHTML(s, lvl, shopTab)}
       <div class="pet-couple">
         <p>Hari ini: <b>${s.daily.pasangan ? '✅' : '⬜'} ${esc(getNames().pasangan)}</b> · <b>${s.daily.pengirim ? '✅' : '⬜'} ${esc(getNames().pengirim)}</b>${s.daily.bonus ? ' · <span>kompak +30 XP 💞</span>' : ' · rawat berdua buat bonus XP 💞'}</p>
         ${last ? `<small>${esc(getNames()[last.w] || '')} ${ACT[last.a] || last.a} ${esc(s.name)} · ${ago(last.t)}</small>` : ''}
         ${local && !SIM ? '<small class="pet-local">📱 Sementara disimpen di HP ini</small>' : ''}
       </div>`;
-    mount3d(A, lvl, s.sleep);
+    mount3d(A, lvl, s.sleep, s);
+    chatter(true);
   }
 
   // ---- Peliharaan 3D (kalau HP-nya nggak bisa 3D, tetap pakai ikon) ----
   let p3 = null, p3fail = false, p3wait = null, follow = 0, sadT = 0;
   async function ensure3d() {
     if (p3 || p3fail) return p3;
-    p3wait ||= createPet3D().then((x) => { p3 = x; }).catch(() => { p3fail = true; });
+    p3wait ||= createPet3D().then((x) => { p3 = x; if (window.__lqTest) window.__pet3d = x; }).catch(() => { p3fail = true; });
     await p3wait;
     return p3;
   }
-  async function mount3d(A, lvl, sleep) {
+  async function mount3d(A, lvl, sleep, s) {
     const slot = root.querySelector('#pet-3d-slot');
     const P = await ensure3d();
     if (!P || !slot || !root.contains(slot)) return;
     slot.appendChild(P.el);
     P.setSize(Math.min(1.35, 0.85 + lvl * 0.06));
     P.setSleep(!!sleep);
-    P.load(A.m).then(() => slot.classList.add('on')).catch(() => slot.classList.remove('on'));
+    P.setRug(rugHex(s));
+    P.load(A.m).then(() => { slot.classList.add('on'); P.setOutfit(s.outfit); }).catch(() => slot.classList.remove('on'));
+    P.setOutfit(s.outfit);
     P.start();
   }
   // aksesoris & 💤 ngikutin kepala; sesekali sedih kalau lagi laper/kotor/bosen
@@ -190,9 +196,9 @@ export function initPet({ sfx, toast }) {
     follow = requestAnimationFrame(followLoop);
     if (!p3) return;
     const h = p3.headPos(); if (!h) return;
-    const o = root.querySelector('#pet-outfit'), z = root.querySelector('#pet-zzz');
-    if (o) o.style.transform = `translate(${h.x}px, ${h.y}px) translate(-50%, -78%)`;
+    const z = root.querySelector('#pet-zzz');
     if (z) z.style.transform = `translate(${h.x + 30}px, ${h.y - 30}px)`;
+    spawnCoin();
     if (st && !st.sleep && !mode && (st.hunger < 30 || st.clean < 30 || st.fun < 30) && performance.now() - sadT > 9000) { sadT = performance.now(); p3.act('sad'); }
   }
 
@@ -218,7 +224,7 @@ export function initPet({ sfx, toast }) {
       }
       lastPt = [x, y];
       prog.style.width = `${Math.min(100, rubbed / 14)}%`;
-      if (rubbed > 1400 && mode === 'bath') { mode = null; cleanup(); sfx('win'); p3?.act('dance'); act('mandi', (s) => { s.clean = 100; s.fun = clamp(s.fun + 5); s.xp += 10; return `${s.name} wangi & bersih! ✨ +10 XP`; }); }
+      if (rubbed > 1400 && mode === 'bath') { mode = null; cleanup(); sfx('win'); p3?.act('dance'); act('mandi', (s) => { s.clean = 100; s.fun = clamp(s.fun + 5); s.xp += 10; s.coins += 6; return `${s.name} wangi & bersih! ✨ +10 XP · +6 🪙`; }); }
     };
     const down = (e) => { lastPt = null; room.setPointerCapture?.(e.pointerId); mv(e); };
     const up = () => { lastPt = null; };
@@ -244,16 +250,97 @@ export function initPet({ sfx, toast }) {
       ball.style.transform = `translate(${x - 26}px, ${y - 26}px)`;
       const left = 12 - (now - t0) / 1000;
       layer.querySelector('#pet-time').textContent = Math.max(0, Math.ceil(left));
-      if (left <= 0) { mode = null; p3?.act('dance'); act('main', (s) => { s.fun = clamp(s.fun + 10 + score * 3); s.energy = clamp(s.energy - 8); s.xp += 4 + score; return `${s.name} seneng banget! Tap ${score}× ⚽ +${4 + score} XP`; }); return; }
+      if (left <= 0) { mode = null; p3?.act('dance'); act('main', (s) => { s.fun = clamp(s.fun + 10 + score * 3); s.energy = clamp(s.energy - 8); s.xp += 4 + score; const c = 2 + Math.min(8, Math.floor(score / 2)); s.coins += c; return `${s.name} seneng banget! Tap ${score}× ⚽ +${4 + score} XP · +${c} 🪙`; }); return; }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
   }
   let cleanup = () => {};
 
+  // ---- Toko ----
+  let shopTab = 'acc';
+  function shopClick(el) {
+    const lvl = levelOf(st.xp);
+    if (el.dataset.rug) {
+      const r = RUGS.find((x) => x.id === el.dataset.rug);
+      if (st.rugs.includes(r.id) || !r.price) { sfx('click'); act('karpet', (s) => { s.rug = r.id; return ''; }); return; }
+      if (st.coins < r.price) { poor(r.price); return; }
+      act('beli', (s) => { if (s.coins < r.price) return false; s.coins -= r.price; s.rugs.push(r.id); s.rug = r.id; return `Karpet ${r.name} kebeli! 🧶 −${r.price} 🪙`; }).then(cheer);
+      return;
+    }
+    const it = SHOP.find((x) => x.id === el.dataset.shop);
+    if (st.owned.includes(it.id)) { sfx('click'); act('outfit', (s) => { s.outfit = s.outfit === it.id ? null : it.id; return ''; }).then(() => st.outfit && p3?.act('happy')); return; }
+    if (it.lvl && lvl < it.lvl) { sfx('bad'); toast(`${it.name} kebuka di level ${it.lvl} 🔒 Rawat terus ${st.name} ya!`); return; }
+    if (st.coins < it.price) { poor(it.price); return; }
+    act('beli', (s) => { if (s.coins < it.price || s.owned.includes(it.id)) return false; s.coins -= it.price; s.owned.push(it.id); s.outfit = it.id; return `Yay, ${it.name} ${it.em} kebeli & langsung dipakai! −${it.price} 🪙`; }).then(cheer);
+  }
+  function poor(price) { sfx('bad'); const c = root.querySelector('#pet-coins'); c?.classList.remove('shake'); void c?.offsetWidth; c?.classList.add('shake'); toast(`Koinnya kurang ${price - st.coins} 🪙 Rawat ${st.name} dulu biar dapet koin!`); }
+  function cheer() { sfx('win'); p3?.act('dance'); burst('✨', 10); }
+  function burst(em, n, x0, y0) {
+    const room = root.querySelector('#pet-room'); if (!room) return;
+    const r = room.getBoundingClientRect(), h = p3?.headPos();
+    for (let i = 0; i < n; i++) { const b = document.createElement('span'); b.className = 'pet-bub'; b.textContent = em; b.style.left = `${(x0 ?? h?.x ?? r.width / 2) + (Math.random() - 0.5) * 120}px`; b.style.top = `${(y0 ?? h?.y ?? r.height / 2) + (Math.random() - 0.5) * 70}px`; room.append(b); setTimeout(() => b.remove(), 1200); }
+  }
+  // ---- Kado harian (masing-masing sekali sehari) ----
+  function openGift(btn) {
+    btn.classList.add('open'); sfx('gold');
+    setTimeout(() => {
+      const coins = 10 + Math.floor(Math.random() * 16);
+      act('kado', (s) => { const k = 'gift_' + WHO(); if (s.daily[k]) return false; s.daily[k] = true; s.coins += coins; return `Kado harian: +${coins} 🪙 🎁`; }).then(() => { p3?.act('happy'); burst('🪙', 6); });
+    }, 450);
+  }
+  // ---- Koin nyasar di kamar (tap buat ambil, maks 15 sehari) ----
+  let coinAt = performance.now() + 8000;
+  function spawnCoin() {
+    if (!st || st.sleep || mode || choosing || busy || performance.now() < coinAt) return;
+    coinAt = performance.now() + 15000 + Math.random() * 15000;
+    const room = root.querySelector('#pet-room'); if (!room || room.querySelector('.pet-coin') || (st.daily.tap || 0) >= 15) return;
+    const c = document.createElement('button'); c.className = 'pet-coin'; c.textContent = '🪙'; c.setAttribute('aria-label', 'Ambil koin');
+    c.style.left = `${12 + Math.random() * 70}%`; c.style.top = `${58 + Math.random() * 26}%`;
+    c.addEventListener('click', (e) => { e.stopPropagation(); c.remove(); sfx('pop'); act('koin', (s) => { if ((s.daily.tap || 0) >= 15) return false; s.daily.tap = (s.daily.tap || 0) + 1; s.coins += 1; return ''; }); });
+    room.append(c); setTimeout(() => c.remove(), 9000);
+  }
+  // ---- Makanan terbang dari tombol ke mulut ----
+  function flyFood(btn, em, done) {
+    const layer = root.querySelector('#pet-layer'), slot = root.querySelector('#pet-3d-slot');
+    const h = p3?.headPos(true); if (!layer || !slot || !h) { done(); return; }
+    const L = slot.getBoundingClientRect(), b = btn.getBoundingClientRect();
+    const x0 = b.left + b.width / 2 - L.left, y0 = b.top + b.height / 2 - L.top;
+    layer.querySelectorAll('.pet-picker').forEach((p) => p.remove());
+    const f = document.createElement('span'); f.className = 'pet-fly'; f.textContent = em; layer.append(f);
+    const a = f.animate([{ transform: `translate(${x0}px, ${y0}px) translate(-50%,-50%) scale(1)` }, { transform: `translate(${(x0 + h.x) / 2}px, ${Math.min(y0, h.y) - 70}px) translate(-50%,-50%) scale(1.2)`, offset: 0.5 }, { transform: `translate(${h.x}px, ${h.y}px) translate(-50%,-50%) scale(.3)` }], { duration: 620, easing: 'ease-in-out' });
+    a.onfinish = () => { f.remove(); burst('✨', 3, h.x, h.y); done(); };
+  }
+  // ---- Ngobrol: gelembung ganti-ganti tiap beberapa detik ----
+  let chatT = 0, chatI = 0;
+  function chatter(now) {
+    const el = root.querySelector('.pet-bubble'); if (!el || !st || st.sleep) return;
+    if (!now && performance.now() - chatT < 7000) return;
+    chatT = performance.now();
+    const m = mood(st); if (m.em !== '💖') { el.textContent = `${m.em} ${m.t}`; return; }
+    const n = NM(), it = SHOP.find((x) => x.id === st.outfit);
+    const lines = [`💖 ${m.t}`, `🥺 Kangen ${n.pasangan}…`, `👀 ${n.pengirim} mana ya?`, '🎾 Main yuk!', '💞 Aku sayang kalian berdua', '🍓 Laper dikit nih hehe', ...(it ? [`${it.em} Liat ${it.name.toLowerCase()} baruku!`] : ['🛍️ Beliin aku aksesoris dong']), '👆 Elus-elus aku dong'];
+    chatI = now ? 0 : (chatI + 1 + Math.floor(Math.random() * 2)) % lines.length;
+    el.textContent = lines[chatI];
+  }
+  // ---- Elus (geser jari di badannya) & tap lantai buat nyuruh jalan ----
+  let stroke = null, elusT = -1e9;
+  root.addEventListener('pointermove', (e) => {
+    if (!stroke || mode || !p3) return;
+    if (!p3.hit(e.clientX, e.clientY)) return;
+    stroke.d += Math.hypot(e.clientX - stroke.x, e.clientY - stroke.y); stroke.x = e.clientX; stroke.y = e.clientY;
+    if (Math.random() < 0.12) { const r = root.querySelector('#pet-room').getBoundingClientRect(); burst('💗', 1, e.clientX - r.left, e.clientY - r.top - 20); }
+    if (stroke.d > 260 && !stroke.done) {
+      stroke.done = true; p3.act('happy'); sfx('good');
+      if (performance.now() - elusT > 45000) { elusT = performance.now(); act('elus', (s) => { s.fun = clamp(s.fun + 6); s.xp += 2; s.coins += 1; return `${s.name} suka dielus 🥰 +2 XP · +1 🪙`; }); }
+    }
+  });
+  addEventListener('pointerup', () => { stroke = null; });
+
   root.addEventListener('pointerdown', (e) => {
     if (mode || !p3 || !st || st.sleep || !e.target.closest('#pet-room') || e.target.closest('button')) return;
-    if (!p3.hit(e.clientX, e.clientY)) return;
+    if (!p3.hit(e.clientX, e.clientY)) { if (p3.walkTo(e.clientX, e.clientY)) { const r = root.querySelector('#pet-room').getBoundingClientRect(); burst('👣', 1, e.clientX - r.left, e.clientY - r.top); } return; }
+    stroke = { x: e.clientX, y: e.clientY, d: 0 };
     p3.act('happy'); sfx('pop');
     const room = root.querySelector('#pet-room'), r = room.getBoundingClientRect();
     for (let i = 0; i < 3; i++) { const b = document.createElement('span'); b.className = 'pet-bub'; b.textContent = '💖'; b.style.left = `${e.clientX - r.left + (Math.random() - 0.5) * 50}px`; b.style.top = `${e.clientY - r.top - 20 - Math.random() * 30}px`; room.append(b); setTimeout(() => b.remove(), 1200); }
@@ -274,11 +361,18 @@ export function initPet({ sfx, toast }) {
       mode = null;
       if (f.dataset.food === 'x') { render(); return; }
       const food = FOODS[+f.dataset.food];
+      if (st && st.hunger >= 96) { toast(`${st.name} udah kenyang 😋`); p3?.act('sad'); render(); return; }
       sfx('good');
-      if (st && st.hunger < 96) p3?.act('eat');
-      act('makan', (s) => { if (s.hunger >= 96) { toast(`${s.name} udah kenyang 😋`); return false; } s.hunger = clamp(s.hunger + food.h); if (food.f) s.fun = clamp(s.fun + food.f); s.xp += 6; return `${s.name} makan ${food.em} nyam nyam! +6 XP`; });
+      flyFood(f, food.em, () => {
+        p3?.act('eat'); sfx('pop');
+        act('makan', (s) => { if (s.hunger >= 96) { toast(`${s.name} udah kenyang 😋`); return false; } s.hunger = clamp(s.hunger + food.h); if (food.f) s.fun = clamp(s.fun + food.f); s.xp += 6; s.coins += 2; return `${s.name} makan ${food.em} nyam nyam! +6 XP · +2 🪙`; });
+      });
       return;
     }
+    const tb = e.target.closest('[data-shoptab]');
+    if (tb) { sfx('click'); shopTab = tb.dataset.shoptab; render(); return; }
+    const sh = e.target.closest('[data-shop],[data-rug]');
+    if (sh && !busy) { shopClick(sh); return; }
     const b = e.target.closest('[data-pet]');
     if (!b || busy) return;
     sfx('click');
@@ -288,7 +382,7 @@ export function initPet({ sfx, toast }) {
     if (k === 'mandi') bath();
     if (k === 'main') play();
     if (k === 'tidur') act(st.sleep ? 'bangun' : 'tidur', (s) => { s.sleep = !s.sleep; s.xp += 3; return s.sleep ? `${s.name} bobo dulu 💤` : `${s.name} bangun! ☀️`; });
-    if (k === 'outfit') act('outfit', (s) => { s.outfit = s.outfit === b.dataset.v ? null : b.dataset.v; return false; });
+    if (k === 'gift') openGift(b);
     if (k === 'rename') {
       const n = prompt('Kasih nama peliharaan kalian:', st.name);
       if (n && n.trim()) act('nama', (s) => { s.name = n.trim().slice(0, 16); s.named = true; return `Namanya sekarang ${s.name} 💕`; });
@@ -303,8 +397,9 @@ export function initPet({ sfx, toast }) {
       st = null; render();
       st = await load(); render();
       clearInterval(poll);
-      poll = setInterval(async () => { if (mode || busy || choosing || document.hidden) return; st = await load(); render(); }, 20000);
+      clearInterval(chatPoll); chatPoll = setInterval(() => chatter(false), 1000);
+    poll = setInterval(async () => { if (mode || busy || choosing || document.hidden) return; st = await load(); render(); }, 20000);
     },
-    close() { clearInterval(poll); mode = null; cleanup(); cancelAnimationFrame(raf); cancelAnimationFrame(follow); p3?.stop(); },
+    close() { clearInterval(poll); clearInterval(chatPoll); mode = null; cleanup(); cancelAnimationFrame(raf); cancelAnimationFrame(follow); p3?.stop(); },
   };
 }

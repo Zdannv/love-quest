@@ -1667,3 +1667,37 @@ body.is-desktop .fight-pad { display: none !important; }
 body.is-desktop .kb-hint { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; padding: 10px 14px 14px; font-size: 13.5px; font-weight: 600; color: var(--ink-soft); }
 .kb-hint span { white-space: nowrap; }
 .kb-hint kbd { display: inline-block; min-width: 22px; padding: 2px 7px; margin: 0 1px; border-radius: 7px; font: inherit; font-size: 12px; font-weight: 700; text-align: center; color: var(--ink); background: #fff; box-shadow: 0 2px 0 var(--pink-soft), inset 0 0 0 1.5px var(--pink-soft); }
+
+/* Peliharaan: koin, kado harian, koin nyasar, makanan terbang, toko */
+.pet-head { grid-template-columns: 1fr auto auto auto; }
+.pet-head .pet-xp { grid-column: 1 / -1; }
+.pet-coins { background: #fff6d6; color: #9a6a00; font-weight: 700; border-radius: 999px; padding: 4px 11px; font-size: 14px; box-shadow: inset 0 0 0 1.5px #ffe08a; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pet-coins.shake { animation: petShake .45s; }
+@keyframes petShake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+.pet-gift { position: absolute; right: 14px; bottom: 16px; z-index: 5; border: 0; background: none; font-size: 40px; line-height: 1; padding: 0; animation: petGift 1.6s ease-in-out infinite; filter: drop-shadow(0 4px 4px rgba(120,40,90,.25)); }
+.pet-gift::after { content: 'kado!'; position: absolute; left: 50%; top: -14px; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: #fff; background: #ff6f9f; border-radius: 8px; padding: 1px 6px; }
+.pet-gift.open { animation: petGiftOpen .45s forwards; }
+@keyframes petGift { 0%, 100% { transform: rotate(0); } 10% { transform: rotate(-12deg) scale(1.08); } 20% { transform: rotate(10deg); } 30% { transform: rotate(0); } }
+@keyframes petGiftOpen { to { transform: scale(1.6) translateY(-20px); opacity: 0; } }
+.pet-coin { position: absolute; z-index: 5; border: 0; background: none; padding: 6px; font-size: 30px; line-height: 1; transform: translate(-50%, -50%); animation: petCoin 1s ease-in-out infinite alternate, petCoinIn .4s; filter: drop-shadow(0 3px 3px rgba(150,100,0,.3)); }
+@keyframes petCoin { to { transform: translate(-50%, -62%) rotateY(180deg); } }
+@keyframes petCoinIn { from { opacity: 0; transform: translate(-50%, 0) scale(.3); } }
+.pet-fly { position: absolute; left: 0; top: 0; font-size: 38px; line-height: 1; pointer-events: none; z-index: 6; }
+.pet-shop { background: #fff; border-radius: 22px; padding: 10px; box-shadow: 0 5px 0 #f3c3d8; display: grid; gap: 10px; }
+.shop-tabs { display: flex; gap: 6px; background: #fff0f6; border-radius: 14px; padding: 4px; }
+.shop-tabs button { flex: 1; border: 0; background: none; border-radius: 11px; padding: 7px 0; font: inherit; font-size: 13.5px; font-weight: 700; color: #8a6b80; }
+.shop-tabs button.on { background: #fff; color: #c2306f; box-shadow: 0 2px 0 #f3c3d8; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.shop-item { position: relative; border: 2px solid #ffe1ee; background: #fffafc; border-radius: 16px; padding: 8px 4px 7px; display: flex; flex-direction: column; align-items: center; gap: 3px; font: inherit; color: var(--ink); transition: transform .12s; }
+.shop-item:active { transform: scale(.95); }
+.shop-item .si-em { font-size: 32px; line-height: 1.1; }
+.shop-item .si-rug { width: 40px; height: 40px; border-radius: 50%; background: var(--rug); box-shadow: inset 0 0 0 4px rgba(255,255,255,.7), 0 2px 0 rgba(160,60,120,.15); }
+.shop-item b { font-size: 12.5px; line-height: 1.15; text-align: center; }
+.shop-item em { font-style: normal; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 9px; background: #f4eef2; color: #8a6b80; }
+.shop-item em.buy { background: #fff1c2; color: #9a6a00; }
+.shop-item em.poor { background: #f4eef2; color: #b9a3b2; }
+.shop-item em.on { background: #2fbf71; color: #fff; }
+.shop-item.own em:not(.on) { background: #ffe1ee; color: #c2306f; }
+.shop-item.on { border-color: #2fbf71; background: #f2fcf6; }
+.shop-item.lock { opacity: .6; }
+.shop-earn { color: var(--ink-soft); font-size: 11.5px; line-height: 1.4; text-align: center; }
