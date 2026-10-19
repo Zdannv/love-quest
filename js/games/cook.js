@@ -1,10 +1,10 @@
 // Masak Bareng ala Overcooked: dapur dilihat dari atas, koki (kepala foto + topi koki) jalan pakai joystick.
 // ✋ ambil/taruh barang di meja depan koki · 🔪 tahan buat motong di talenan.
-// Alur: ambil bahan dari peti → potong di talenan / masak di kompor → taruh di piring → antar ke jendela saji 🛎️.
+// Alur: ambil bahan dari peti → potong di talenan / masak di kompor → antar satu-satu ke jendela saji 🛎️.
 // Pesanan datang terus & makin cepat; 3 pelanggan kabur = selesai. Skor = pesanan yang kesaji.
 // Berdua (p.duel): dua koki di dapur yang sama. HP "pasangan" yang ngatur isi dapur & pesanan (host),
 // HP satunya ngirim posisi & aksi kokinya, lalu nerima keadaan dapur ±10x per detik.
-import { drawEmoji, drawFace, loadImage } from '../util.js';
+import { drawEmoji, drawFace, loadImage, keyHint } from '../util.js';
 
 const MAP = [
   '#TLDRN#',
@@ -14,7 +14,7 @@ const MAP = [
   '#..#..#',
   '#..#..#',
   '#.....X',
-  'P.....W',
+  '#.....W',
   '#.....#',
   '#######',
 ];
@@ -29,7 +29,8 @@ const RECIPES = {
   steak: { name: 'Steak', em: '🍖', need: ['daging:masak', 'tomat:potong'] },
 };
 const LABEL = { potong: 'potong', masak: 'matang', gosong: 'gosong' };
-const CHOP_N = 6, COOK_T = 5, BURN_T = 7, MAX_MISS = 3, SPEED = 3.3, CR = 0.32;
+// Versi santai: motong 3x, masak 3 detik, nggak bisa gosong, 5 nyawa. Bahan yang udah jadi langsung diantar ke SAJI (tanpa piring).
+const CHOP_N = 3, COOK_T = 3, BURN_T = Infinity, MAX_MISS = 5, SPEED = 3.3, CR = 0.32;
 const seeded = (s) => { let a = s >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
 const final = (it) => it && it.k !== 'plate' && it.s !== 'gosong' && (it.k === 'roti' || (CHOP.includes(it.k) && it.s === 'potong') || (COOK.includes(it.k) && it.s === 'masak'));
 const sameDish = (items, need) => items.length === need.length && items.map((i) => `${i.k}:${i.s}`).sort().join() === [...need].sort().join();
@@ -58,6 +59,7 @@ export function startCook(stage, p, api) {
   pad.className = 'fight-pad pw-pad';
   pad.innerHTML = `<div class="pw-stick"><span></span></div><button data-k="book" data-label="Resep" class="ck-book" aria-label="Buku resep">📖</button><div class="fp-act"><button data-k="chop" data-label="Potong" class="ck-chop" aria-label="Potong">🔪</button><button data-k="use" data-label="Ambil/Taruh" class="ck-use" aria-label="Ambil / taruh">✋</button></div>`;
   wrap.appendChild(pad);
+  keyHint(wrap, [['W A S D / ←↑↓→', 'jalan'], ['Spasi / J', 'ambil & taruh'], ['K', 'tahan buat motong'], ['R', 'buku resep']]);
   const knob = pad.querySelector('.pw-stick span');
 
   let W = 0, H = 0, T = 40, ox = 0, oy = 0;
@@ -97,12 +99,18 @@ export function startCook(stage, p, api) {
     if (kind === 'P') { if (!h) { c.hold = { k: 'plate', items: [] }; api.sfx('click'); } return; }
     if (kind === 'X') { if (h?.k === 'plate') h.items = []; else c.hold = null; api.sfx('bad'); return; }
     if (kind === 'W') {
-      if (h?.k !== 'plate' || !h.items.length) { fb('Antar pakai piring yang udah keisi 🍽️'); return; }
-      const o = [...orders].sort((a, b) => a.left - b.left).find((x) => sameDish(h.items, RECIPES[x.r].need));
-      if (!o) { fb('Nggak ada pesanan kayak gini 🤔'); api.sfx('bad'); return; }
-      orders = orders.filter((x) => x !== o); served++; c.hold = null;
-      api.sfx('win'); api.streak(true);
-      floats.push({ x: tx + 0.5, y: ty, t: `${RECIPES[o.r].em} +1`, color: '#2fbf71', life: 1.6 });
+      // Antar bahan yang udah jadi satu-satu; pesanan kelar begitu semua bahannya udah dianter
+      if (!h || h.k === 'plate') { fb('Bawa bahan yang udah jadi ke sini 🛎️'); return; }
+      if (!final(h)) { fb(CHOP.includes(h.k) ? `${E[h.k]} dipotong dulu di talenan 🔪` : `${E[h.k]} dimasak dulu di kompor 🔥`); api.sfx('bad'); return; }
+      const key = `${h.k}:${h.s}`;
+      const o = [...orders].sort((a, b) => a.left - b.left).find((x) => RECIPES[x.r].need.filter((n) => n === key).length > x.got.filter((n) => n === key).length);
+      if (!o) { fb(`Belum ada yang pesen ${E[h.k]} 🤔`); api.sfx('bad'); return; }
+      o.got.push(key); c.hold = null;
+      if (o.got.length >= RECIPES[o.r].need.length) {
+        orders = orders.filter((x) => x !== o); served++;
+        api.sfx('win'); api.streak(true);
+        floats.push({ x: tx + 0.5, y: ty, t: `${RECIPES[o.r].em} +1`, color: '#2fbf71', life: 1.6 });
+      } else { api.sfx('good'); floats.push({ x: tx + 0.5, y: ty, t: `${E[h.k]} ✓`, color: '#2fbf71', life: 1.2 }); }
       return;
     }
     // meja biasa, talenan (B), kompor (S)
@@ -146,10 +154,11 @@ export function startCook(stage, p, api) {
     const gone = orders.filter((o) => o.left <= 0);
     if (gone.length) { orders = orders.filter((o) => o.left > 0); miss += gone.length; api.sfx('bad'); api.streak(false); floats.push({ x: 3.5, y: 1, t: 'Pelanggan kabur 🥲', color: '#ff4d6d', life: 1.8 }); }
     if (clock >= nextOrder && orders.length < 4) {
-      const keys = Object.keys(RECIPES);
+      // awal-awal cuma menu 2 bahan (salad & steak), baru nambah yang 3 bahan
+      const keys = served < 3 ? ['salad', 'steak'] : Object.keys(RECIPES);
       const r = keys[Math.floor(rng() * keys.length)];
-      orders.push({ id: nextId++, r, left: duel ? 75 : 65, max: duel ? 75 : 65 });
-      nextOrder = clock + Math.max(duel ? 9 : 11, (duel ? 17 : 21) - served * 0.7);
+      orders.push({ id: nextId++, r, left: duel ? 100 : 90, max: duel ? 100 : 90, got: [] });
+      nextOrder = clock + Math.max(duel ? 11 : 14, (duel ? 20 : 24) - served * 0.6);
       api.sfx('msg');
     }
     if (miss >= MAX_MISS && !over) { over = true; setTimeout(end, 1200); }
@@ -160,7 +169,7 @@ export function startCook(stage, p, api) {
   const pack = () => {
     const tl = [];
     tiles.forEach((row, y) => row.forEach((t, x) => { if (t.obj || t.n) tl.push([y * COLS + x, t.obj, +t.n.toFixed(2)]); }));
-    return { tl, hf: chefs.f.hold, hm: chefs.m.hold, o: orders.map((o) => [o.id, o.r, Math.round(o.left), o.max]), sv: served, ms: miss, ov: over ? 1 : 0 };
+    return { tl, hf: chefs.f.hold, hm: chefs.m.hold, o: orders.map((o) => [o.id, o.r, Math.round(o.left), o.max, o.got]), sv: served, ms: miss, ov: over ? 1 : 0 };
   };
   function snap(force) {
     if (!duel || !host) return;
@@ -179,7 +188,7 @@ export function startCook(stage, p, api) {
         chefs.f.hold = d.hf; chefs.m.hold = d.hm;
         if (d.sv > served) { api.sfx('win'); floats.push({ x: 6, y: 7, t: 'Kesaji! +1', color: '#2fbf71', life: 1.6 }); }
         if (d.ms > miss) api.sfx('bad');
-        orders = d.o.map(([id, r, left, max]) => ({ id, r, left, max })); served = d.sv; miss = d.ms;
+        orders = d.o.map(([id, r, left, max, got]) => ({ id, r, left, max, got: got || [] })); served = d.sv; miss = d.ms;
         if (d.ov && !over) { over = true; setTimeout(end, 1200); }
       }));
       offs.push(duel.on('ckmsg', (d) => say(d.m)));
@@ -218,6 +227,7 @@ export function startCook(stage, p, api) {
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'a', 'd', 'w', 's'].includes(e.key)) { e.preventDefault(); keys[e.key] = down; }
     if (down && !e.repeat && (e.key === ' ' || e.key === 'j')) { e.preventDefault(); act('use'); }
     if (e.key === 'k') { chopping = down; if (down && !e.repeat) act('chop'); }
+    if (down && !e.repeat && (e.key === 'r' || e.key === 'R')) { if (bookOpen) book.querySelector('.ck-go').click(); else openBook(); }
   };
   window.addEventListener('keydown', onKey);
   window.addEventListener('keyup', onKey);
@@ -231,9 +241,8 @@ export function startCook(stage, p, api) {
   book.innerHTML = `<div class="ck-bookcard"><h3>📖 Cara Masak</h3>
     <ol class="ck-how">
       <li><b>Ambil bahan</b> dari peti (kotak kayu) pakai ✋</li>
-      <li><b>Olah bahannya:</b> sayur ditaruh di <b>talenan</b> lalu tahan 🔪 <b>Potong</b>. Daging, nasi &amp; telur ditaruh di <b>kompor</b>, tunggu sampai <b>matang</b> (jangan kelamaan, nanti gosong!)</li>
-      <li><b>Ambil piring</b> 🍽️, taruh di meja, terus masukin bahan yang udah jadi satu-satu</li>
-      <li><b>Antar piringnya</b> ke 🛎️ <b>SAJI</b></li>
+      <li><b>Olah bahannya:</b> sayur ditaruh di <b>talenan</b> lalu tahan 🔪 <b>Potong</b>. Daging, nasi &amp; telur ditaruh di <b>kompor</b>, tunggu sebentar sampai <b>matang</b> (tenang, nggak bakal gosong)</li>
+      <li><b>Antar bahan yang udah jadi</b> ke 🛎️ <b>SAJI</b> satu-satu. Kalau semua bahan pesanan udah dianter, pesanannya kelar! 🎉</li>
     </ol>
     <div class="ck-recipes">${Object.values(RECIPES).map((R) => `<div class="ck-rec"><span class="ck-dish">${R.em}</span><div><b>${R.name}</b><div class="ck-ing">${R.need.map((n) => { const [k, st] = n.split(':'); return `<span>${E[k]} ${k} <i class="st-${st}">${STEP[st]}</i></span>`; }).join('')}</div></div></div>`).join('')}</div>
     <p class="ck-tipline">Bingung? Ikutin <b>panah 👇</b> & petunjuk di bawah dapur, nanti dikasih tau langkah berikutnya.</p>
@@ -257,41 +266,37 @@ export function startCook(stage, p, api) {
   }
   const emptyCounter = () => nearest((k, t) => k === '#' && !t.obj);
   const plateTile = () => nearest((k, t) => t.obj?.k === 'plate');
+  // bahan (k:s) yang masih dibutuhin semua pesanan, urut dari pesanan paling mepet
+  function stillNeeded() {
+    const out = [];
+    for (const o of [...orders].sort((a, b) => a.left - b.left)) { const got = [...o.got]; for (const n of RECIPES[o.r].need) { const i = got.indexOf(n); if (i >= 0) got.splice(i, 1); else out.push({ n, o }); } }
+    return out;
+  }
   function guide() {
     const h = me.hold;
-    if (h?.k === 'plate') {
-      if (h.items.length && orders.some((o) => sameDish(h.items, RECIPES[o.r].need))) return { text: 'Piringnya udah lengkap! Antar ke 🛎️ SAJI', tile: nearest((k) => k === 'W') };
-      return { text: 'Taruh piringnya di meja kosong, terus isi bahan yang udah jadi', tile: emptyCounter() };
-    }
-    if (h) {
-      if (h.s === 'gosong') return { text: 'Yahh gosong 🔥 buang ke tempat sampah 🗑️', tile: nearest((k) => k === 'X') };
+    if (h && h.k !== 'plate') {
       if (h.s === 'raw' && CHOP.includes(h.k)) return { text: `Taruh ${E[h.k]} di talenan, lalu tahan 🔪 Potong`, tile: nearest((k, t) => k === 'B' && !t.obj) };
-      if (h.s === 'raw' && COOK.includes(h.k)) return { text: `Taruh ${E[h.k]} di kompor 🔥, tunggu sampai matang`, tile: nearest((k, t) => k === 'S' && !t.obj) };
-      const pl = plateTile();
-      if (pl) return { text: `${E[h.k]} udah siap! Masukin ke piring 🍽️`, tile: pl };
-      return { text: `Taruh ${E[h.k]} di meja dulu, terus ambil piring 🍽️`, tile: emptyCounter() };
+      if (h.s === 'raw' && COOK.includes(h.k)) return { text: `Taruh ${E[h.k]} di kompor 🔥, tunggu sebentar`, tile: nearest((k, t) => k === 'S' && !t.obj) };
+      if (stillNeeded().some((x) => x.n === `${h.k}:${h.s}`)) return { text: `${E[h.k]} udah siap! Antar ke 🛎️ SAJI`, tile: nearest((k) => k === 'W') };
+      return { text: `Belum ada yang pesen ${E[h.k]}, taruh di meja dulu`, tile: emptyCounter() };
     }
     // tangan kosong
     const chopIt = nearest((k, t) => k === 'B' && t.obj && t.obj.s === 'raw');
     if (chopIt) return { text: 'Tahan 🔪 Potong di talenan sampai kepotong', tile: chopIt, chop: true };
-    const burnt = nearest((k, t) => t.obj && t.obj.s === 'gosong');
-    if (burnt) return { text: 'Ada yang gosong 🔥 ambil & buang ke 🗑️', tile: burnt };
     const cooked = nearest((k, t) => k === 'S' && t.obj && t.obj.s === 'masak');
-    if (cooked) return { text: 'Udah matang! Ambil dari kompor sebelum gosong ⚠️', tile: cooked };
+    if (cooked) return { text: 'Udah matang! Ambil dari kompor ✋', tile: cooked };
     if (!orders.length) return { text: 'Tunggu pesanan dateng ya 👀', tile: null };
-    const full = nearest((k, t) => t.obj?.k === 'plate' && t.obj.items.length && orders.some((o) => sameDish(t.obj.items, RECIPES[o.r].need)));
-    if (full) return { text: 'Piringnya lengkap! Ambil lalu antar ke 🛎️', tile: full };
-    // bahan apa yang masih kurang buat pesanan paling mepet?
-    const o = [...orders].sort((a, b) => a.left - b.left)[0], R = RECIPES[o.r];
+    const need = stillNeeded();
+    // bahan yang udah jadi di meja & masih dibutuhin → ambil
+    const ready = nearest((k, t) => t.obj && t.obj.k !== 'plate' && final(t.obj) && k !== 'S' && need.some((x) => x.n === `${t.obj.k}:${t.obj.s}`));
+    if (ready) return { text: `Ambil ${E[tiles[ready[1]][ready[0]].obj.k]} terus antar ke 🛎️ SAJI`, tile: ready };
+    // yang masih kurang & belum ada di dapur (lagi dipotong/dimasak/dipegang pasangan dihitung ada)
     const have = [];
-    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) { const ob = tiles[y][x].obj; if (!ob) continue; if (ob.k === 'plate') have.push(...ob.items.map((i) => i.k)); else if (ob.s !== 'gosong') have.push(ob.k); }
-    if (duel && other.hold) { if (other.hold.k === 'plate') have.push(...other.hold.items.map((i) => i.k)); else have.push(other.hold.k); }
-    const missing = R.need.map((n) => n.split(':')[0]).filter((k) => { const i = have.indexOf(k); if (i < 0) return true; have.splice(i, 1); return false; });
-    if (missing.length) { const k = missing[0], crate = Object.keys(CRATE).find((c) => CRATE[c] === k); return { text: `Buat ${R.em} ${R.name}: ambil ${E[k]} dari peti`, tile: nearest((kk) => kk === crate) }; }
-    if (!plateTile()) return { text: 'Ambil piring 🍽️ terus taruh di meja', tile: nearest((k) => k === 'P') };
-    const ready = nearest((k, t) => t.obj && t.obj.k !== 'plate' && final(t.obj) && k !== 'S');
-    if (ready) return { text: `Ambil ${E[ready && tiles[ready[1]][ready[0]].obj.k]} terus masukin ke piring 🍽️`, tile: ready };
-    return { text: 'Tunggu masakannya matang 🔥 sambil siapin yang lain', tile: null };
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) { const ob = tiles[y][x].obj; if (ob && ob.k !== 'plate') have.push(ob.k); }
+    if (duel && other.hold && other.hold.k !== 'plate') have.push(other.hold.k);
+    const miss = need.find((x) => { const k = x.n.split(':')[0], i = have.indexOf(k); if (i < 0) return true; have.splice(i, 1); return false; });
+    if (miss) { const k = miss.n.split(':')[0], R = RECIPES[miss.o.r], crate = Object.keys(CRATE).find((c) => CRATE[c] === k); return { text: `Buat ${R.em} ${R.name}: ambil ${E[k]} dari peti`, tile: nearest((kk) => kk === crate) }; }
+    return { text: 'Tunggu masakannya matang 🔥 sebentar lagi', tile: null };
   }
   let tip = { text: '', tile: null }, tipT = 0;
 
@@ -412,7 +417,11 @@ export function startCook(stage, p, api) {
       ctx.fillStyle = '#5a2a52'; ctx.font = `700 ${cw < 100 ? 11 : 12}px Fredoka, sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
       ctx.fillText(R.name, x + 34, y + 18, cw - 38);
       // tiap bahan + cara olahnya (🔪 dipotong, 🔥 dimasak)
-      R.need.forEach((n, j) => { const [k, s] = n.split(':'); const ix = x + 12 + j * Math.min(30, (cw - 16) / 3); drawEmoji(ctx, E[k], ix + 6, y + 39, 19); if (s !== 'raw') { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ix + 15, y + 47, 7, 0, Math.PI * 2); ctx.fill(); drawEmoji(ctx, s === 'masak' ? '🔥' : '🔪', ix + 15, y + 47, 11); } });
+      const gotLeft = [...(o.got || [])];
+      R.need.forEach((n, j) => { const [k, s] = n.split(':'); const ix = x + 12 + j * Math.min(30, (cw - 16) / 3); const gi = gotLeft.indexOf(n), done = gi >= 0; if (done) gotLeft.splice(gi, 1);
+        ctx.globalAlpha = done ? 0.35 : 1; drawEmoji(ctx, E[k], ix + 6, y + 39, 19); ctx.globalAlpha = 1;
+        if (done) { ctx.fillStyle = '#2fbf71'; ctx.beginPath(); ctx.arc(ix + 15, y + 47, 7, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = '700 10px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✓', ix + 15, y + 47.5); return; }
+        if (s !== 'raw') { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ix + 15, y + 47, 7, 0, Math.PI * 2); ctx.fill(); drawEmoji(ctx, s === 'masak' ? '🔥' : '🔪', ix + 15, y + 47, 11); } });
       bar(x + 6, y + h - 10, cw - 12, o.left / (o.max || 60), '#ff6f9f', '#ffb020');
     });
   }

@@ -2,7 +2,7 @@
 // 💨 ngehindar cepat. Kasur & sofa bisa dipakai sembunyi. 5 nyawa, siapa yang habis duluan kalah.
 // Sendiri (p.endless): lawan bot yang makin jago tiap ronde, skor = menang beruntun.
 // Berdua (p.duel): tiap HP ngatur dirinya sendiri; HP yang kena lemparan yang mutusin "kena" (biar ngehindar terasa adil).
-import { drawEmoji, drawFace, loadImage } from '../util.js';
+import { drawEmoji, drawFace, loadImage, keyHint } from '../util.js';
 
 const AW = 1000, AH = 1100, R = 56, PR = 30, SPEED = 430, PSPEED = 950, ROUND = 60, LIVES = 5;
 // Rintangan simetris (diputar 180° tetap sama), biar dua HP bisa lihat dirinya di bawah
@@ -33,6 +33,7 @@ export function startPillow(stage, p, api) {
   pad.className = 'fight-pad pw-pad';
   pad.innerHTML = `<div class="pw-stick"><span></span></div><div class="fp-act"><button data-k="dash" data-label="Hindar" aria-label="Hindar">💨</button><button data-k="throw" data-label="Lempar" class="pw-throw" aria-label="Lempar">🛏️</button></div>`;
   wrap.appendChild(pad);
+  keyHint(wrap, [['W A S D / ←↑↓→', 'jalan'], ['Spasi / J', 'lempar bantal'], ['K / Shift', 'ngebut']]);
   const knob = pad.querySelector('.pw-stick span');
 
   let W = 0, H = 0, sc = 1, ox = 0, oy = 0;

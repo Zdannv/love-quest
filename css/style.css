@@ -1660,3 +1660,10 @@ body.is-demo #screen-home, body.is-demo #app { background: transparent !importan
 .lp-quote img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 14px; }
 .lp-quote blockquote { margin: 0; font-size: 15px; line-height: 1.5; color: var(--ink); }
 .lp-quote figcaption b { display: block; font-size: 14px; } .lp-quote figcaption small { font-size: 12.5px; color: var(--ink-soft); }
+
+/* Laptop/PC: tombol layar disembunyiin, ganti petunjuk keyboard */
+.kb-hint { display: none; }
+body.is-desktop .fight-pad { display: none !important; }
+body.is-desktop .kb-hint { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; padding: 10px 14px 14px; font-size: 13.5px; font-weight: 600; color: var(--ink-soft); }
+.kb-hint span { white-space: nowrap; }
+.kb-hint kbd { display: inline-block; min-width: 22px; padding: 2px 7px; margin: 0 1px; border-radius: 7px; font: inherit; font-size: 12px; font-weight: 700; text-align: center; color: var(--ink); background: #fff; box-shadow: 0 2px 0 var(--pink-soft), inset 0 0 0 1.5px var(--pink-soft); }

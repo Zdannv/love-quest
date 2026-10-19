@@ -3,7 +3,7 @@
 // Sendiri (p.endless): lawan 3 bot, tiap ronde botnya makin pinter. Skor = ronde yang dimenangin.
 // Berdua (p.duel): duel. Tiap HP ngatur pemainnya sendiri & mutusin sendiri kalau dia kena ledakan.
 // Peti & power-up diacak pakai seed yang sama, jadi isi arenanya sama di dua HP.
-import { drawEmoji, drawFace, loadImage } from '../util.js';
+import { drawEmoji, drawFace, loadImage, keyHint } from '../util.js';
 import { drawToon, toonLoad } from '../toon.js';
 import { makeFx } from '../scene.js';
 
@@ -20,6 +20,7 @@ export function startBomb(stage, p, api) {
   const pad = document.createElement('div'); pad.className = 'fight-pad pw-pad';
   pad.innerHTML = `<div class="pw-stick"><span></span></div><div class="fp-act"><button data-k="bomb" data-label="Taruh bom" class="bm-btn" aria-label="Taruh bom">💣</button></div>`;
   wrap.appendChild(pad);
+  keyHint(wrap, [['W A S D / ←↑↓→', 'jalan'], ['Spasi / J', 'taruh bom']]);
   const knob = pad.querySelector('.pw-stick span');
 
   let W = 0, H = 0, T = 30, ox = 0, oy = 0;

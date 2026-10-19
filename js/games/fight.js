@@ -5,7 +5,7 @@
 // Sendiri (p.endless): lawan bot yang makin jago tiap ronde, skor = jumlah menang beruntun.
 // Berdua (p.duel): tiap HP ngatur petarungnya sendiri; serangan yang kena dikirim ke HP lawan,
 // HP lawan yang ngitung darahnya sendiri (biar tangkisan tetap kehitung).
-import { drawEmoji, drawFace, loadImage } from '../util.js';
+import { drawEmoji, drawFace, loadImage, keyHint } from '../util.js';
 import { drawToon, toonLoad } from '../toon.js';
 import { drawSky } from '../scene.js';
 
@@ -46,6 +46,7 @@ export function startFight(stage, p, api) {
       <button data-k="punch" data-label="Pukul" class="b-punch" aria-label="Pukul"><span class="b-ic">👊</span></button>
     </div>`;
   wrap.appendChild(pad);
+  keyHint(wrap, [['A D / ← →', 'jalan'], ['W / ↑', 'lompat'], ['J', 'pukul'], ['K', 'tendang'], ['L / ↓', 'tangkis'], ['Spasi', 'jurus']]);
   const spBtn = pad.querySelector('.sp');
   let lastMeter = -1;
 

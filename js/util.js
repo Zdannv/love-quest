@@ -141,3 +141,20 @@ export function setupCanvas(stage) {
   window.addEventListener('resize', resize);
   return { canvas, ctx, size, dispose: () => window.removeEventListener('resize', resize) };
 }
+
+// ---------- Main di laptop/PC: tombol & joystick layar disembunyiin, ganti petunjuk keyboard ----------
+export const isDesktop = () => typeof matchMedia === 'function' && matchMedia('(hover: hover) and (pointer: fine)').matches && !document.body.classList.contains('touched');
+if (typeof window !== 'undefined') {
+  const sync = () => document.body.classList.toggle('is-desktop', isDesktop());
+  if (document.body) sync(); else addEventListener('DOMContentLoaded', sync);
+  // laptop layar sentuh: begitu layarnya disentuh, tombol layar balik lagi
+  addEventListener('touchstart', () => { document.body.classList.add('touched'); sync(); }, { once: true, passive: true });
+}
+// keys: [['WASD', 'jalan'], ['Spasi', 'ambil']] → baris petunjuk di bawah game (cuma tampil di laptop/PC)
+export function keyHint(wrap, keys) {
+  const el = document.createElement('div');
+  el.className = 'kb-hint';
+  el.innerHTML = keys.map(([k, t]) => `<span>${k.split(' / ').map((x) => `<kbd>${x}</kbd>`).join(' / ')} ${t}</span>`).join('');
+  wrap.appendChild(el);
+  return el;
+}

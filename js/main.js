@@ -85,19 +85,19 @@ const WORLDS = [
     memory: ['🍭', '🍬', '🧁', '🍩', '🍰', '🍪', '🍫', '🍦', '🍡', '🍮', '🎂', '🍒'],
     catchGood: ['🍬', '🍭', '🧁'],
     slots: { 0: G.race(1), 1: G.stack(1), 2: G.fight(1), 3: G.penalty(1), 4: G.cook(1) },
-    a: G.coop(1), b: G.odd(8, 6, 50), c: G.throw(1), d: G.bomb(1), e: G.timing(1), f: G.pillow(1),
+    a: G.coop(2), b: G.odd(8, 6, 50), c: G.throw(1), d: G.bomb(1), e: G.timing(1), f: G.pillow(1),
     bonus: PUZZLE(3, 90) },
   { name: 'Pantai Cinta', icon: '🏖️', theme: 'w-beach', player: '🪣',
     memory: ['🐚', '🦀', '🐠', '🐬', '🌴', '🍉', '🍍', '🥥', '🐳', '⛱️', '🦩', '🐙'],
     catchGood: ['🐚', '🍉', '🐠'],
-    slots: { 0: G.penalty(2), 1: G.memory(6, 40), 2: G.bomb(2), 3: G.coop(2), 4: G.pillow(2) },
+    slots: { 0: G.penalty(2), 1: G.memory(6, 40), 2: G.bomb(2), 3: G.coop(3), 4: G.pillow(2) },
     a: G.race(2), b: G.simon(6, 560), c: G.fight(2), d: G.cook(2), e: G.runner(2, ['🦀', '🐚', '🪨']), f: G.maze(2),
     bonus: PUZZLE(4, 150) },
   { name: 'Langit Bintang', icon: '🌙', theme: 'w-night', player: '🧺',
     memory: ['🌙', '⭐', '🪐', '☁️', '🦄', '🌠', '🔭', '🚀', '🌈', '💫', '🛸', '🎈'],
     catchGood: ['⭐', '🌙', '💫'],
     slots: { 0: G.cook(3), 1: G.fight(3), 2: G.race(3), 3: G.bomb(3), 4: G.pillow(3) },
-    a: { type: 'puzzle', ...PUZZLE(3, 150) }, b: G.coop(3), c: G.penalty(3), d: G.catch(3), e: G.fly(10, 195, 165, 220), f: G.stack(3),
+    a: { type: 'puzzle', ...PUZZLE(3, 150) }, b: G.coop(5), c: G.penalty(3), d: G.catch(3), e: G.fly(10, 195, 165, 220), f: G.stack(3),
     bonus: PUZZLE(4, 180) },
   { name: 'Rumah Kita', icon: '🏡', theme: 'w-home', player: '🧺',
     memory: ['🦉', '🐱', '🏡', '☕', '🧸', '🎀', '🍪', '🐾', '🕯️', '🌙', '💌', '🧶'],
@@ -181,7 +181,7 @@ const MAX_STARS = LEVELS.length * 3;
 const MAIN = LEVELS.filter((L) => !L.bonus);
 
 function hintFor(L) {
-  const EH = { race: 'Tahan & geser jari buat nyetir, salip mobil mepet buat bonus! 3 nyawa.', fight: 'Kalahin lawan sebanyak-banyaknya, tiap ronde lawannya makin jago!', penalty: 'Gantian nendang & jaga gawang! Gol / tepisan = +1, gagal = -1 nyawa.', pillow: 'Lempar bantal ke lawan, hindarin bantalnya, sembunyi di balik kasur!', cook: 'Masak sesuai pesanan sebelum pelanggannya kabur! 3 kabur = selesai.', bomb: 'Taruh bom, kabur, ledakin lawan! Tiap ronde lawannya makin pinter.' };
+  const EH = { race: 'Tahan & geser jari buat nyetir, salip mobil mepet buat bonus! 3 nyawa.', fight: 'Kalahin lawan sebanyak-banyaknya, tiap ronde lawannya makin jago!', penalty: 'Gantian nendang & jaga gawang! Gol / tepisan = +1, gagal = -1 nyawa.', pillow: 'Lempar bantal ke lawan, hindarin bantalnya, sembunyi di balik kasur!', cook: 'Masak sesuai pesanan sebelum pelanggannya kabur! 5 kabur = selesai.', bomb: 'Taruh bom, kabur, ledakin lawan! Tiap ronde lawannya makin pinter.' };
   if (L.endless && EH[L.type]) return `${EH[L.type]} Rekor kamu: ${L.params.best || 0} ${SCORE_UNIT[L.type]} 🏆`;
   if (L.endless) return `Main terus sampai nyawa habis, makin lama makin susah! Rekor kamu: ${L.params.best || 0} ${SCORE_UNIT[L.type]} 🏆`;
   const p = levelParams(L); // sudah berisi karakter & nama pilihan
@@ -206,7 +206,7 @@ function hintFor(L) {
     case 'fight': return `Kalahin ${n.pengirim}! ◀ ▶ jalan, 👊 pukul, 🦶 tendang, 🛡️ tahan buat nangkis, 💖 jurus kalau bar kuning penuh.`;
     case 'penalty': return `5x nendang + 5x jaga gawang lawan ${n.pengirim}. Kumpulin minimal ${p.goal || 5} gol/tepisan! Geser bola, makin cepat makin tinggi.`;
     case 'pillow': return `Lempar bantal ke ${n.pengirim} & hindarin bantalnya! Sembunyi di balik kasur & sofa.`;
-    case 'cook': return `Sajiin ${p.goal || 'sebanyak-banyaknya'} pesanan sebelum 3 pelanggan kabur! Ambil bahan → potong / masak → piring → antar ke SAJI.`;
+    case 'cook': return `Sajiin ${p.goal || 'sebanyak-banyaknya'} pesanan! Ambil bahan → potong / masak → antar satu-satu ke 🛎️ SAJI. Ikutin panah 👇 kalau bingung.`;
     case 'bomb': return `Taruh bom 💣 terus kabur! Kalahin ${p.bots || 'semua'} lawan, ledakin peti buat power-up.`;
     case 'coop': return `${n.pengirim} 🔥 aman di lava, ${n.pasangan} 💧 aman di air. Pencet Ganti buat gantian gerakin, bawa dua-duanya ke pintu!`;
     default: return 'Jawab pertanyaan dari hatiku 💌 (minimal benar 2)';

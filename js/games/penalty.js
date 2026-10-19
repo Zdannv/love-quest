@@ -117,10 +117,13 @@ export function startPenalty(stage, p, api) {
   canvas.addEventListener('pointerup', (e) => {
     if (!swipe) return;
     const a = swipe.a, b = pt(e); swipe = null;
-    const dx = b.x - a.x, dy = a.y - b.y, dt = Math.max(30, b.t - a.t);
+    const dx = b.x - a.x, dy = a.y - b.y;
     if (dy < 30 * k) return; // harus ke atas
-    const speed = Math.hypot(dx, dy) / dt; // px/ms
-    choose({ gx: +((dx / dy) * 1.9).toFixed(3), gy: +Math.max(0, Math.min(1.5, (speed - 0.55 * k) / (1.5 * k))).toFixed(3) });
+    // Arah: garis geseran diterusin sampai gawang. Tinggi: makin jauh ditarik ke arah gawang, makin tinggi.
+    // (Nggak pakai kecepatan lagi: di laptop, geser mouse dikit aja kecepatannya kegedean & bola mental ke atas.)
+    const midY = G.b - G.h / 2, xg = a.x + dx * ((a.y - midY) / dy);
+    const reach = dy / Math.max(1, a.y - G.t);
+    choose({ gx: +Math.max(-1.35, Math.min(1.35, (xg - G.cx) / (G.w / 2))).toFixed(3), gy: +Math.max(0, Math.min(1.08, reach * 1.1 - 0.06)).toFixed(3) });
   });
   window.addEventListener('resize', resize);
 
@@ -258,6 +261,14 @@ export function startPenalty(stage, p, api) {
     const kicking = anim && anim.t < 0.35;
     drawToon(ctx, shooter.toon, kicking ? 'kick' : 'idle', W / 2 - (kicking ? 40 : 70) * k, H * 0.9, 150 * k, 1, shooter.img, shooter.emoji, '#fff');
     // arah geseran
+    if (swipe && swipe.a.y - swipe.b.y > 20 * k) { // titik bidik: kelihatan bola bakal ke mana sebelum dilepas
+      const sa = swipe.a, sb = swipe.b, ddy = sa.y - sb.y, midY = G.b - G.h / 2;
+      const gx = Math.max(-1.35, Math.min(1.35, (sa.x + (sb.x - sa.x) * ((sa.y - midY) / ddy) - G.cx) / (G.w / 2)));
+      const gy = Math.max(0, Math.min(1.08, (ddy / Math.max(1, sa.y - G.t)) * 1.1 - 0.06)), tp = toScreen(gx, gy);
+      const ok = Math.abs(gx) <= 1 && gy <= 1;
+      ctx.strokeStyle = ok ? '#fff' : '#ff6b6b'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(tp.x, tp.y, 16 * k, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(tp.x - 24 * k, tp.y); ctx.lineTo(tp.x + 24 * k, tp.y); ctx.moveTo(tp.x, tp.y - 24 * k); ctx.lineTo(tp.x, tp.y + 24 * k); ctx.stroke();
+    }
     if (swipe) { ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 6; ctx.setLineDash([10, 8]); ctx.beginPath(); ctx.moveTo(swipe.a.x, swipe.a.y); ctx.lineTo(swipe.b.x, swipe.b.y); ctx.stroke(); ctx.setLineDash([]); }
     // papan skor
     const row = (arr, y, who) => {
@@ -273,7 +284,7 @@ export function startPenalty(stage, p, api) {
       const left = Math.ceil(AIM_TIME - phaseT);
       if (!mine) big(iShoot(turn) ? `Geser ⚽ ke gawang · ${left}` : `Tap kotak buat lompat · ${left}`, H * 0.62, 19, '#c2306f');
       else if (!theirs) big(`Nunggu ${look.opp.name}… 👀`, H * 0.62, 19, '#8a3f6e');
-      if (iShoot(turn) && !mine) big('cepat = tinggi · pelan = rendah', H * 0.67, 14, '#8a3f6e');
+      if (iShoot(turn) && !mine) big('tarik makin jauh = makin tinggi', H * 0.67, 14, '#8a3f6e');
     }
     if (msg) big(msg, H * 0.58, 38, msg.startsWith('GOO') ? '#ff6f9f' : '#5b3fa8');
     const s = duel ? `⚽ ${look.me.name} ${tally(goals.me)} - ${tally(goals.opp)} ${look.opp.name}` : goalMode ? `⚽ Berhasil ${score} · target ${p.goal} · giliran ${Math.min(10, turn + 1)}/10` : `⚽ Skor ${score} · 🏆 ${Math.max(p.best || 0, score)} · ${'❤️'.repeat(Math.max(0, lives))}${'🤍'.repeat(3 - Math.max(0, lives))}`;
