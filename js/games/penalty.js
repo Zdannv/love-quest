@@ -1,5 +1,5 @@
-// Adu Penalti: gantian nendang & jaga gawang. Penendang geser jari dari bola ke arah gawang
-// (makin cepat geser, makin tinggi bolanya). Kiper tap salah satu dari 6 kotak gawang buat lompat ke situ.
+// Adu Penalti: gantian nendang & jaga gawang. Penendang tarik jari dari bola ke arah gawang
+// (makin jauh tarikannya, makin tinggi bolanya). Kiper tap salah satu dari 6 kotak gawang buat lompat ke situ.
 // Sendiri (p.endless): lawan bot, 3 nyawa (gagal gol / kebobolan = -1), skor = gol + tepisan.
 // Berdua (p.duel): pilihan penendang & kiper dikunci barengan lalu diputar di dua HP, jadi aman walau sinyal lemot.
 import { drawEmoji, drawFace, loadImage } from '../util.js';

@@ -1,4 +1,5 @@
 import { setPaused } from './pause.js';
+import { showHowto, hasHowto, seenHowto } from './howto.js';
 import { CONFIG } from './config.js';
 import { fxWatch } from './fx.js';
 import { setupNav } from './nav.js';
@@ -7,7 +8,7 @@ import { renderMemories } from './memories.js';
 import { bump, playedType } from './stats.js';
 import { DUO_LEVELS, duoStars as duoStarsAll } from './duo-levels.js';
 import { track } from './track.js';
-import { gameTile, gameHead } from './game-look.js';
+import { gameTile, gameHead, gameColor } from './game-look.js';
 import { initPet } from './pet.js';
 import { getNames, setNames, fill, getLook, setLook, getChars, getFace, saveFace, clearFace } from './personal.js';
 import { THEMES, CHARACTERS, applyTheme } from './themes.js';
@@ -204,7 +205,7 @@ function hintFor(L) {
     case 'timing': return `Tap pas jarumnya di zona 💖! Kena ${p.target} kali, zonanya makin kecil.`;
     case 'race': return `Tahan & geser jari buat nyetir, nyampe finish ${p.goal ? p.goal + ' m' : 'sejauh mungkin'} sebelum nyawa habis! Salip mepet = bonus 😎`;
     case 'fight': return `Kalahin ${n.pengirim}! ◀ ▶ jalan, 👊 pukul, 🦶 tendang, 🛡️ tahan buat nangkis, 💖 jurus kalau bar kuning penuh.`;
-    case 'penalty': return `5x nendang + 5x jaga gawang lawan ${n.pengirim}. Kumpulin minimal ${p.goal || 5} gol/tepisan! Geser bola, makin cepat makin tinggi.`;
+    case 'penalty': return `5x nendang + 5x jaga gawang lawan ${n.pengirim}. Kumpulin minimal ${p.goal || 5} gol/tepisan! Tarik dari bola, makin jauh makin tinggi.`;
     case 'pillow': return `Lempar bantal ke ${n.pengirim} & hindarin bantalnya! Sembunyi di balik kasur & sofa.`;
     case 'cook': return `Sajiin ${p.goal || 'sebanyak-banyaknya'} pesanan! Ambil bahan → potong / masak → antar satu-satu ke 🛎️ SAJI. Ikutin panah 👇 kalau bingung.`;
     case 'bomb': return `Taruh bom 💣 terus kabur! Kalahin ${p.bots || 'semua'} lawan, ledakin peti buat power-up.`;
@@ -593,7 +594,7 @@ function renderMap() {
             const s = starsOf(L);
             const ok = unlocked(L);
             const cls = [!ok ? 'locked' : L === next ? 'current' : cleared(L) ? 'done' : '', L.bonus ? 'bonus' : ''].join(' ');
-            return `<button class="lvl ${cls}" data-i="${L.idx}" ${ok ? '' : 'disabled'} aria-label="${levelLabel(L)}">
+            return `<button class="lvl ${cls}" data-i="${L.idx}" style="--g:${gameColor(L.type)}" ${ok ? '' : 'disabled'} aria-label="${levelLabel(L)}">
               <span class="lvl-type">${ok ? (L.type === 'fly' ? getChars().pasangan.emoji : TYPE_ICON[L.type]) : '🔒'}</span>
               <span class="lvl-num">${L.bonus ? 'Bonus' : L.num}</span>
               <span class="lvl-stars">${'★'.repeat(s)}<i>${'★'.repeat(3 - s)}</i></span>
@@ -631,7 +632,7 @@ function renderTracks() {
         </header>
         <div class="levels">${levels.map((L) => {
           const s = st(L.id), ok = trackOpen(L);
-          return `<button class="lvl ${!ok ? 'locked' : L === cur ? 'current' : s ? 'done' : ''}" data-track-lvl="${L.k}" ${ok ? '' : 'disabled'}>
+          return `<button class="lvl ${!ok ? 'locked' : L === cur ? 'current' : s ? 'done' : ''}" data-track-lvl="${L.k}" style="--g:${gameColor(t)}" ${ok ? '' : 'disabled'}>
             <span class="lvl-type">${ok ? TYPE_ICON[t] : '🔒'}</span><span class="lvl-num">${L.num}</span>
             <span class="lvl-stars">${'★'.repeat(s)}<i>${'★'.repeat(3 - s)}</i></span></button>`;
         }).join('')}</div>
@@ -750,14 +751,26 @@ function startLevel(i) {
     owlHint();
     current.game = STARTERS[L.type](stageEl, levelParams(L), api);
   };
-  if (NO_COUNTDOWN.includes(L.type)) {
-    owlHint();
-    begin();
-  } else {
-    owlSay(pick(OWL_START), 'happy', 0);
-    countdown(token, begin);
-  }
+  const go = () => {
+    if (!live()) return;
+    if (NO_COUNTDOWN.includes(L.type)) { owlHint(); begin(); }
+    else { owlSay(pick(OWL_START), 'happy', 0); countdown(token, begin); }
+  };
+  if (hasHowto(L.type) && !seenHowto(L.type)) {
+    owlSay('Baca cara mainnya dulu yaa, gampang kok 👇', 'happy', 0);
+    showHowto(stageEl, L.type, howtoOpts(L.type, hintText)).then(go);
+  } else go();
 }
+const howtoOpts = (type, mission, extra = {}) => ({ name: TYPE_NAME[type.replace(/co$/, '')] || TYPE_NAME[type] || '', icon: TYPE_ICON[type.replace(/co$/, '')] || TYPE_ICON[type] || '🎮', color: gameColor(type.replace(/co$/, '')), mission, ...extra });
+// Tombol ❓ di atas: buka lagi cara main (sendirian: game-nya dijeda dulu)
+$('#btn-help')?.addEventListener('click', () => {
+  if (!current || stageEl.querySelector('.howto')) return;
+  const type = current.online ? (current.L?.type || current.online) : current.L?.type;
+  if (!type || !hasHowto(type)) { sfx('bad'); owlHint(); return; }
+  sfx('click');
+  if (!current.online) setPaused(true);
+  showHowto(stageEl, type, howtoOpts(type, hintText, { duo: !!current.online, cta: current.online ? 'Tutup' : 'Lanjut main ▶' })).then(() => { if (!current?.online) setPaused(false); });
+});
 
 // Foto untuk puzzle/bonus: demo pakai foto upload lokal, game pasangan pakai foto dari CMS
 // Foto yang beneran diupload (bukan foto contoh)
@@ -936,7 +949,34 @@ function startOnline(game, seed, levelId = null, extra = {}) {
     finish: (r) => onlineFinish(token, game, r, L),
   };
   const begin = () => { if (!live()) return; owlHint(); current.game = G.start(stageEl, api, ctx); };
-  if (G.countdown) { owlSay('Siap-siap! 💞', 'happy', 0); countdown(token, begin); }
+  const type = L ? L.type : game;
+  const go = () => { if (!live()) return; owlSay('Siap-siap! 💞', 'happy', 0); countdown(token, begin); };
+  if (G.countdown && hasHowto(type)) {
+    // Jabat tangan "siap": kirim ulang tiap 1,2 detik sampai pasangan bales; maks nunggu 15 detik (kalau HP-nya versi lama)
+    let meReady = false, peerReady = false, done = false, resend = 0, giveUp = 0;
+    const offReady = onNet('hwready', (d) => {
+      if (d.g !== type) return;
+      peerReady = true;
+      if (meReady && !d.ack) sendNet('hwready', { g: type, ack: 1 });
+      finishWait();
+    });
+    let release = null;
+    const finishWait = () => { if (done || !meReady || !peerReady) return; done = true; clearInterval(resend); clearTimeout(giveUp); offReady(); release?.(); };
+    const waitPeer = () => new Promise((res) => {
+      release = res; meReady = true;
+      sendNet('hwready', { g: type });
+      resend = setInterval(() => { if (!live()) { clearInterval(resend); offReady(); return; } sendNet('hwready', { g: type }); }, 1200);
+      giveUp = setTimeout(() => { peerReady = true; finishWait(); }, 15000);
+      finishWait();
+    });
+    if (seenHowto(type)) {
+      owlSay(`Nunggu ${p.name} siap… ⏳`, 'happy', 0);
+      waitPeer().then(go);
+    } else {
+      owlSay('Baca cara mainnya dulu, terus pencet Siap 💞', 'happy', 0);
+      showHowto(stageEl, type, howtoOpts(type, hintText, { duo: true, waitPeer, peerName: p.name })).then(go);
+    }
+  } else if (G.countdown) go();
   else begin();
 }
 
