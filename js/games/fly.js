@@ -51,8 +51,10 @@ export function startFly(stage, p, api) {
   window.addEventListener('keydown', onKey);
   window.addEventListener('resize', resize);
 
+  // Mode skor & balapan berdua: makin lama makin susah, pelan-pelan & ada batasnya (celah maks -55, cepat maks +110)
+  const ramp = Boolean(p.endless || p.race);
   function addPillar(x) {
-    const gap = (p.endless ? Math.max(p.gap - 60, p.gap - passed * 1.5) : p.gap) * k;
+    const gap = (ramp ? Math.max(p.gap - 55, p.gap - passed * 1.3) : p.gap) * k;
     const margin = 60 * k;
     const gy = rnd(margin + gap / 2, floorY() - margin * 0.6 - gap / 2);
     pillars.push({ x, gy, gap, passed: false });
@@ -86,7 +88,7 @@ export function startFly(stage, p, api) {
     if (owl.y < owl.size / 2) { owl.y = owl.size / 2; owl.vy = 0; }
     if (owl.y > floorY() - owl.size / 2) { owl.y = floorY() - owl.size / 2; owl.vy = -330 * k; hit(); }
 
-    const speed = (p.endless ? Math.min(p.speed + 120, p.speed + passed * 2.5) : p.speed) * k;
+    const speed = (ramp ? Math.min(p.speed + 110, p.speed + passed * 2.3) : p.speed) * k;
     scroll += speed * dt;
     spawnX -= speed * dt;
     if (spawnX <= 0) { addPillar(W + 10); spawnX = p.spacing * k; }
@@ -102,6 +104,7 @@ export function startFly(stage, p, api) {
         api.sfx('pop');
         api.streak(true);
         if (passed >= p.target && !done) end(true);
+        else if (ramp && passed % 10 === 0 && passed <= 40) api.say(passed >= 40 ? `${passed} tiang! Ini udah kecepatan maksimal 🔥` : `${passed} tiang! Makin cepet & celahnya makin sempit 😬`, 'happy');
       }
     }
     for (const h of hearts) {

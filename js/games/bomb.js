@@ -3,6 +3,8 @@
 // Sendiri (p.endless): lawan 3 bot, tiap ronde botnya makin pinter. Skor = ronde yang dimenangin.
 // Berdua (p.duel): duel. Tiap HP ngatur pemainnya sendiri & mutusin sendiri kalau dia kena ledakan.
 // Peti & power-up diacak pakai seed yang sama, jadi isi arenanya sama di dua HP.
+// Peti spesial: 🧨 TNT (ledakin satu baris penuh) · ❄️ es (lawan beku 3 detik) · 🛡️ perisai (tahan 1 ledakan) · 🎁 kado (pasti power-up).
+// Pemain boleh jalan nembus bom (biar nggak kejebak di antara dua bom); bot tetap nganggep bom itu tembok.
 import { drawEmoji, drawFace, loadImage, keyHint } from '../util.js';
 import { drawToon, toonLoad } from '../toon.js';
 import { makeFx } from '../scene.js';
@@ -11,6 +13,9 @@ const COLS = 11, ROWS = 13, FUSE = 2.5, FLAME = 0.55, ROUND = 120;
 const CORNERS = [[1, 11], [9, 1], [9, 11], [1, 1]];
 const hash = (a, b, c) => { let n = (a * 374761393 + b * 668265263 + c * 2147483647) >>> 0; n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
 const POWER = { range: '💥', bomb: '💣', speed: '👟' };
+const CRATE = 'BTGIS'; // B biasa · T TNT · G kado · I es · S perisai
+const isCrate = (g) => Boolean(g) && CRATE.includes(g);
+const SPECIAL = { T: { em: '🧨', c1: '#ff6b5a', c2: '#c8352b' }, G: { em: '🎁', c1: '#ffa3c6', c2: '#e05b93' }, I: { em: '❄️', c1: '#a8e2ff', c2: '#4aa8e0' }, S: { em: '🛡️', c1: '#cdb6ff', c2: '#8a6ae6' } };
 
 export function startBomb(stage, p, api) {
   const wrap = document.createElement('div'); wrap.className = 'fight-wrap'; stage.appendChild(wrap);
@@ -49,11 +54,13 @@ export function startBomb(stage, p, api) {
       for (let x = 0; x < COLS; x++) {
         const wall = x === 0 || y === 0 || x === COLS - 1 || y === ROWS - 1 || (x % 2 === 0 && y % 2 === 0);
         const nearSpawn = CORNERS.some(([cx, cy]) => Math.abs(cx - x) + Math.abs(cy - y) <= 2);
-        row.push(wall ? 'W' : !nearSpawn && hash(seed, x, y) < 0.62 ? 'B' : '.');
+        const box = !wall && !nearSpawn && hash(seed, x, y) < 0.62;
+        const sp = hash(seed + 999, x, y); // jenis peti (sama di dua HP)
+        row.push(wall ? 'W' : !box ? '.' : sp < 0.07 ? 'T' : sp < 0.13 ? 'G' : sp < 0.18 ? 'I' : sp < 0.23 ? 'S' : 'B');
       }
       grid.push(row);
     }
-    const mk = (i, look) => ({ x: CORNERS[i][0] + 0.5, y: CORNERS[i][1] + 0.5, alive: true, max: 1, range: 1, speed: 3.2, ...look, ai: { path: [], t: 0 } });
+    const mk = (i, look) => ({ x: CORNERS[i][0] + 0.5, y: CORNERS[i][1] + 0.5, alive: true, max: 1, range: 1, speed: 3.2, frozen: 0, shield: false, inv: 0, ...look, ai: { path: [], t: 0 } });
     if (duel) {
       const A = { img: loadImage(p.face), emoji: p.emoji || '😊', name: p.name || 'Kamu', ring: '#ff8fb7', toon: p.toon || 'f' };
       const B = { img: loadImage(p.oppFace), emoji: p.oppEmoji || '😈', name: p.oppName || 'Lawan', ring: '#9fb4ff', toon: p.oppToon || 'm' };
@@ -72,7 +79,7 @@ export function startBomb(stage, p, api) {
 
   // ---- Bom & ledakan ----
   function place(pl, send = true) {
-    if (state !== 'fight' || !pl.alive) return;
+    if (state !== 'fight' || !pl.alive || pl.frozen > 0) return;
     const [x, y] = cellOf(pl);
     if (bombAt(x, y) || bombs.filter((b) => b.owner === pl).length >= pl.max) return;
     bombs.push({ x, y, t: FUSE, range: pl.range, owner: pl, pass: new Set(players.filter((q) => q.alive && cellOf(q)[0] === x && cellOf(q)[1] === y)) });
@@ -87,13 +94,7 @@ export function startBomb(stage, p, api) {
         const x = b.x + dx * i, y = b.y + dy * i, g = grid[y][x];
         if (g === 'W') break;
         cells.push([x, y]);
-        if (g === 'B') {
-          grid[y][x] = '.';
-          fx.burst(X(x) + T / 2, Y(y) + T / 2, { n: 12, colors: ['#e0a868', '#b97c45', '#fff2d6'], speed: 170, size: 4 });
-          const h = hash(seedBase + round * 7, x, y);
-          if (h < 0.33) fresh.push({ x, y, k: h < 0.12 ? 'range' : h < 0.23 ? 'bomb' : 'speed' });
-          break;
-        }
+        if (isCrate(g)) { breakCrate(x, y, b.owner, cells, fresh); break; }
         const other = bombAt(x, y); if (other) other.t = Math.min(other.t, 0.06);
       }
     }
@@ -103,6 +104,36 @@ export function startBomb(stage, p, api) {
     api.sfx('bad');
   }
   const inFlame = (x, y) => flames.some((f) => f.x === x && f.y === y);
+  // Peti pecah: isi & efeknya (urutan & hasilnya sama di dua HP karena pakai seed)
+  function breakCrate(x, y, owner, cells, fresh) {
+    const g = grid[y][x];
+    grid[y][x] = '.';
+    const col = SPECIAL[g] ? [SPECIAL[g].c1, SPECIAL[g].c2, '#fff'] : ['#e0a868', '#b97c45', '#fff2d6'];
+    fx.burst(X(x) + T / 2, Y(y) + T / 2, { n: g === 'B' ? 12 : 22, colors: col, speed: g === 'B' ? 170 : 240, size: 4 });
+    const h = hash(seedBase + round * 7, x, y), pk = h < 0.36 ? 'range' : h < 0.68 ? 'bomb' : 'speed';
+    const mine = owner === me();
+    if (g === 'B') { if (h < 0.33) fresh.push({ x, y, k: h < 0.12 ? 'range' : h < 0.23 ? 'bomb' : 'speed' }); return; }
+    if (g === 'G') { fresh.push({ x, y, k: pk }); if (mine) api.say('🎁 Peti kado: power-up!', 'happy'); return; }
+    if (g === 'S') { if (owner?.alive) { owner.shield = true; } if (mine) { api.sfx('gold'); api.say('🛡️ Dapet perisai! Kebal 1x ledakan', 'happy'); } return; }
+    if (g === 'I') {
+      for (const pl of players) if (pl !== owner && pl.alive) pl.frozen = 3;
+      if (mine) api.say('❄️ Lawan membeku 3 detik!', 'happy'); else if (me().alive) api.say('❄️ Kamu membeku 3 detik!', 'sad');
+      fx.burst(X(x) + T / 2, Y(y) + T / 2, { n: 18, colors: ['#e8f7ff', '#a8e2ff', '#fff'], speed: 260, size: 3 });
+      return;
+    }
+    if (g === 'T') { // satu baris penuh meledak (tembok batu tetap aman), peti di baris itu ikut pecah
+      shake = 0.45; api.sfx('bad');
+      if (mine) api.say('🧨 TNT! Satu baris meledak!', 'happy');
+      for (let xx = 1; xx < COLS - 1; xx++) {
+        const gg = grid[y][xx];
+        if (gg === 'W') continue;
+        cells.push([xx, y]);
+        if (isCrate(gg)) breakCrate(xx, y, owner, cells, fresh);
+        const other = bombAt(xx, y); if (other) other.t = Math.min(other.t, 0.06);
+      }
+    }
+  }
+  let shake = 0;
 
   // ---- Bahaya (buat bot): sel yang bakal kena ledakan ----
   function dangerMap(extra) {
@@ -110,7 +141,7 @@ export function startBomb(stage, p, api) {
     for (const b of [...bombs, ...(extra ? [extra] : [])]) {
       d.add(`${b.x},${b.y}`);
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (let i = 1; i <= b.range; i++) {
-        const x = b.x + dx * i, y = b.y + dy * i; if (grid[y][x] === 'W') break; d.add(`${x},${y}`); if (grid[y][x] === 'B') break;
+        const x = b.x + dx * i, y = b.y + dy * i; if (grid[y][x] === 'W') break; d.add(`${x},${y}`); if (isCrate(grid[y][x])) break;
       }
     }
     return d;
@@ -130,6 +161,7 @@ export function startBomb(stage, p, api) {
   }
   function botThink(b, dt) {
     const lvl = Math.min(level, 6);
+    if (b.frozen > 0) return;
     b.ai.t -= dt;
     const [x, y] = cellOf(b);
     const danger = dangerMap();
@@ -141,7 +173,7 @@ export function startBomb(stage, p, api) {
     if (b.ai.path.length || b.ai.t > 0) return;
     b.ai.t = Math.max(0.15, 0.6 - lvl * 0.07) * (0.7 + Math.random() * 0.6);
     const target = players.find((q) => q.alive && !q.bot);
-    const nearBlock = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => grid[y + dy][x + dx] === 'B');
+    const nearBlock = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => isCrate(grid[y + dy][x + dx]));
     const lineHit = target && (() => { const [tx, ty] = cellOf(target); if (tx !== x && ty !== y) return false; const d = Math.abs(tx - x) + Math.abs(ty - y); if (d > b.range) return false; const sx = Math.sign(tx - x), sy = Math.sign(ty - y); for (let i = 1; i < d; i++) if (solid(x + sx * i, y + sy * i)) return false; return true; })();
     if ((nearBlock || (lineHit && Math.random() < 0.55 + lvl * 0.07)) && bombs.filter((q) => q.owner === b).length < b.max) {
       const fake = { x, y, range: b.range };
@@ -152,16 +184,16 @@ export function startBomb(stage, p, api) {
     // jalan: deketin pemain (kalau lagi pinter) atau cari peti, hindari bahaya
     const goTo = target && Math.random() < 0.35 + lvl * 0.08
       ? bfs(x, y, (cx, cy) => Math.abs(cx - cellOf(target)[0]) + Math.abs(cy - cellOf(target)[1]) <= 1, danger)
-      : bfs(x, y, (cx, cy) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => grid[cy + dy]?.[cx + dx] === 'B'), danger);
+      : bfs(x, y, (cx, cy) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => isCrate(grid[cy + dy]?.[cx + dx])), danger);
     const pu = bfs(x, y, (cx, cy) => powers.some((q) => q.x === cx && q.y === cy), danger);
     const path = pu && pu.length < 6 ? pu : goTo;
     if (path) b.ai.path = path.slice(0, 3);
   }
 
   // ---- Gerak (nempel ke lorong, ada bantuan belok) ----
-  function canEnter(pl, x, y) { if (solid(x, y)) return false; const b = bombAt(x, y); return !b || b.pass.has(pl); }
+  function canEnter(pl, x, y) { if (solid(x, y)) return false; const b = bombAt(x, y); return !b || b.pass.has(pl) || !pl.bot; }
   function move(pl, mx, my, dt) {
-    if (!pl.alive) return;
+    if (!pl.alive || pl.frozen > 0) return;
     const sp = pl.speed * dt;
     const [cx, cy] = cellOf(pl);
     if (Math.abs(mx) < 0.2 && Math.abs(my) < 0.2) return;
@@ -231,6 +263,8 @@ export function startBomb(stage, p, api) {
     if (state === 'intro') { if (stateT > 1.3) { state = 'fight'; stateT = 0; } return; }
     if (state === 'over') { if (stateT > 2) nextRound(); return; }
     time = Math.max(0, time - dt);
+    shake = Math.max(0, shake - dt);
+    for (const pl of players) { pl.frozen = Math.max(0, pl.frozen - dt); pl.inv = Math.max(0, pl.inv - dt); }
     const m = me();
     const mx = stick.x + ((keys.ArrowRight || keys.d) ? 1 : 0) - ((keys.ArrowLeft || keys.a) ? 1 : 0);
     const my = stick.y + ((keys.ArrowDown || keys.s) ? 1 : 0) - ((keys.ArrowUp || keys.w) ? 1 : 0);
@@ -251,7 +285,8 @@ export function startBomb(stage, p, api) {
     }
     // kena ledakan?
     for (const pl of duel ? [m] : players) {
-      if (pl.alive && inFlame(...cellOf(pl))) { pl.alive = false; api.sfx('bad'); if (pl === m) api.streak(false); if (duel) duel.send('bdead', { r: round }); }
+      if (pl.alive && pl.inv <= 0 && inFlame(...cellOf(pl)) && pl.shield) { pl.shield = false; pl.inv = 1.2; if (pl === m) { api.sfx('gold'); api.say('🛡️ Perisaimu nahan ledakan!', 'happy'); } continue; }
+      if (pl.alive && pl.inv <= 0 && inFlame(...cellOf(pl))) { pl.alive = false; api.sfx('bad'); if (pl === m) api.streak(false); if (duel) duel.send('bdead', { r: round }); }
     }
     if (duel && performance.now() - lastSent > 110) { lastSent = performance.now(); duel.send('bpos', { r: round, x: +m.x.toFixed(2), y: +m.y.toFixed(2), mx: m.max, rg: m.range }); }
     // selesai ronde?
@@ -299,16 +334,26 @@ export function startBomb(stage, p, api) {
     ctx.strokeStyle = 'rgba(110,60,105,.35)'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(px + 3, py + T * 0.5); ctx.lineTo(px + T - 3, py + T * 0.5); ctx.moveTo(px + T * 0.5, py + 3); ctx.lineTo(px + T * 0.5, py + T * 0.5); ctx.moveTo(px + T * 0.28, py + T * 0.5); ctx.lineTo(px + T * 0.28, py + T - 7); ctx.moveTo(px + T * 0.72, py + T * 0.5); ctx.lineTo(px + T * 0.72, py + T - 7); ctx.stroke();
   }
-  function crate(px, py) { // peti kayu
+  function crate(px, py, kind) { // peti kayu (peti spesial: warna & ikon beda)
+    const sp = SPECIAL[kind];
     ctx.fillStyle = '#9a6335'; rr(px + 2, py + 5, T - 4, T - 6, 5); ctx.fill();
     ctx.fillStyle = '#e0a868'; rr(px + 2, py + 2, T - 4, T - 8, 5); ctx.fill();
     ctx.strokeStyle = '#b97c45'; ctx.lineWidth = Math.max(2, T * 0.08);
     rr(px + 5, py + 5, T - 10, T - 14, 3); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(px + 6, py + 6); ctx.lineTo(px + T - 6, py + T - 10); ctx.moveTo(px + T - 6, py + 6); ctx.lineTo(px + 6, py + T - 10); ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,.3)'; rr(px + 5, py + 4, T - 10, 3, 2); ctx.fill();
+    if (!sp) return;
+    ctx.fillStyle = sp.c2; rr(px + 2, py + 5, T - 4, T - 6, 5); ctx.fill();
+    ctx.fillStyle = sp.c1; rr(px + 2, py + 2, T - 4, T - 8, 5); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; rr(px + 5, py + 4, T - 10, 3, 2); ctx.fill();
+    if (kind === 'T') { ctx.fillStyle = '#fff'; ctx.fillRect(px + 3, py + T * 0.36, T - 6, T * 0.2); ctx.fillStyle = '#c8352b'; ctx.font = `800 ${Math.round(T * 0.2)}px Fredoka, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('TNT', px + T / 2, py + T * 0.465); }
+    else drawEmoji(ctx, sp.em, px + T / 2, py + T * 0.44, T * 0.52);
+    const tw = 0.5 + 0.5 * Math.sin(performance.now() / 300 + px); // kilau biar keliatan spesial
+    ctx.fillStyle = `rgba(255,255,255,${0.25 * tw})`; rr(px + 2, py + 2, T - 4, T - 8, 5); ctx.fill();
   }
   function draw() {
     ctx.clearRect(0, 0, W, H);
+    ctx.save(); if (shake > 0) ctx.translate((Math.random() - 0.5) * shake * 18, (Math.random() - 0.5) * shake * 18);
     // taman di sekeliling arena
     const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#bfeaa6'); bg.addColorStop(1, '#9bd985');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
@@ -320,7 +365,7 @@ export function startBomb(stage, p, api) {
       if (g === 'W') { stone(px, py); continue; }
       ctx.fillStyle = (x + y) % 2 ? '#d3f0c4' : '#c5eab4'; ctx.fillRect(px, py, T, T);
       if (y > 0 && grid[y - 1][x] !== '.') { ctx.fillStyle = 'rgba(40,80,40,.16)'; ctx.fillRect(px, py, T, T * 0.16); } // bayangan tembok di atasnya
-      if (g === 'B') crate(px, py);
+      if (isCrate(g)) crate(px, py, g);
     }
     for (const q of powers) if (grid[q.y][q.x] === '.') {
       const cx = X(q.x) + T / 2, cy = Y(q.y) + T / 2, bob = Math.sin(now * 5 + q.x) * 2;
@@ -350,9 +395,14 @@ export function startBomb(stage, p, api) {
       const x = X(pl.x), y = Y(pl.y), r = T * 0.42;
       if (!pl.alive) { ctx.globalAlpha = 0.5; drawEmoji(ctx, '😵', x, y, T * 0.8); ctx.globalAlpha = 1; continue; }
       ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(x, y + r * 0.9, r * 0.8, r * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+      if (pl.inv > 0 && Math.floor(now * 12) % 2) ctx.globalAlpha = 0.45;
       drawToon(ctx, pl.toon || 'f', pl._walk ? `walk${Math.floor(pl._walk) % 8}` : 'idle', x, y + r * 1.02, T * 1.5, pl._dir || 1, pl.img, pl.emoji, pl.ring);
+      ctx.globalAlpha = 1;
+      if (pl.shield) { ctx.strokeStyle = `rgba(150,120,255,${0.6 + 0.3 * Math.sin(now * 6)})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y - r * 0.2, T * 0.62, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(180,160,255,.18)'; ctx.fill(); }
+      if (pl.frozen > 0) { ctx.fillStyle = 'rgba(160,220,255,.45)'; rr(x - T * 0.5, y - T * 0.95, T, T * 1.4, T * 0.25); ctx.fill(); drawEmoji(ctx, '❄️', x, y - T * 1.15, T * 0.5); }
       if (pl === me() && state !== 'over') { ctx.fillStyle = '#ff5c93'; ctx.beginPath(); const ay = y - T * 1.12 + Math.sin(now * 6) * 2; ctx.moveTo(x - 6, ay - 7); ctx.lineTo(x + 6, ay - 7); ctx.lineTo(x, ay + 2); ctx.fill(); }
     }
+    ctx.restore();
     // HUD atas
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = '700 14px Fredoka, sans-serif'; ctx.fillStyle = '#5a2a52';
     const m = me();
@@ -377,7 +427,7 @@ export function startBomb(stage, p, api) {
   newRound();
   if (window.__lqTest) window.__bomb = { get players() { return players; }, get bombs() { return bombs; }, get grid() { return grid; }, get state() { return state; } };
   raf = requestAnimationFrame(loop);
-  api.say('Joystick buat jalan · 💣 taruh bom, terus kabur! Ledakin peti buat dapet power-up 💥💣👟', 'happy');
+  api.say('Taruh 💣 terus kabur! Peti spesial: 🧨 ledakin 1 baris · ❄️ bekuin lawan · 🛡️ perisai · 🎁 power-up', 'happy');
 
   function end() {
     if (done) return;
