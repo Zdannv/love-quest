@@ -199,7 +199,7 @@ export function startBomb(stage, p, api) {
     const r = stickEl.getBoundingClientRect();
     let dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2), dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
     const m = Math.hypot(dx, dy); if (m > 1) { dx /= m; dy /= m; }
-    stick.x = dx; stick.y = dy; knob.style.transform = `translate(${dx * 30}px, ${dy * 30}px)`;
+    stick.x = dx; stick.y = dy; knob.style.transform = `translate(${dx * r.width * 0.3}px, ${dy * r.width * 0.3}px)`;
   }
   stickEl.addEventListener('pointerdown', (e) => { e.preventDefault(); stick.id = e.pointerId; try { stickEl.setPointerCapture(e.pointerId); } catch {} stickAt(e); });
   stickEl.addEventListener('pointermove', (e) => { if (e.pointerId === stick.id) stickAt(e); });

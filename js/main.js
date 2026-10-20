@@ -235,7 +235,8 @@ function trackParams(type, k) {
     case 'simon': return G.simon(4 + Math.ceil(k / 2), Math.round(700 - k * 25));
     case 'fly': return G.fly(5 + k, Math.round(230 - k * 5), 135 + k * 5, Math.round(245 - k * 3));
     case 'stack': return { type: 'stack', target: 6 + Math.floor(k / 2), speed: 160 + k * 14, speedUp: 6, lives: 3 };
-    case 'runner': { const b = worldParams(wi, 'runner'); return { ...b, time: b.time + odd * 2, speed: b.speed + odd * 12 }; }
+    case 'runner': { // runner cuma ada di sebagian dunia peta; kalau dunia ini nggak punya, bikin setelan sendiri (dulu level 1–4 crash)
+      const b = worldParams(wi, 'runner') || G.runner(wi, w.runner || ['🌷', '🍄', '🪨']); return { ...b, time: b.time + odd * 2, speed: b.speed + odd * 12 }; }
     case 'throw': { const b = G.throw(wi); return { ...b, speed: b.speed + odd * 12 }; }
     case 'maze': { const b = G.maze(wi); return { ...b, time: b.time - odd * 5 }; }
     case 'timing': { const b = G.timing(wi); return { ...b, speed: +(b.speed + odd * 0.08).toFixed(2) }; }
@@ -347,6 +348,7 @@ $('#btn-memo')?.addEventListener('click', () => { sfx('click'); show('memo'); })
 function show(name) {
   Object.entries(screens).forEach(([k, el]) => el.classList.toggle('active', k === name));
   document.body.classList.toggle('playing', name === 'game');
+  unzoom();
   if (name === 'map') renderMap();
   if (name === 'home' || name === 'map') refreshStreak();
   if (name === 'home') updateHero();
@@ -375,7 +377,6 @@ function applyLook() {
   const c = getChars();
   const mascots = document.querySelectorAll('.mascots span');
   if (mascots.length === 3) { mascots[0].textContent = c.pasangan.emoji; mascots[2].textContent = c.pengirim.emoji; }
-  $('#guide-owl').textContent = c.pasangan.emoji;
 }
 
 function applyNames() {
@@ -676,8 +677,6 @@ worldsEl.addEventListener('click', (e) => {
 });
 
 // ---------- Owl pemandu ----------
-const owlEl = $('#guide-owl');
-const bubbleEl = $('#hud-hint');
 let hintText = '';
 let sayTimer = 0;
 
@@ -685,20 +684,34 @@ const OWL_START = ['{suara}! Semangat {pasangan}! 💪', '{suara}! {pasangan} pa
 const OWL_WIN = ['{suara}! {pasangan} hebat banget! 🥳', '{karakter} bangga sama {pasangan}! 💖', '{suara}! Keren parah sih ini!'];
 const OWL_LOSE = ['{suara}… nggak papa, coba lagi yuk 🥺', '{karakter} yakin next pasti bisa! 💪', '{suara}… hampir banget tadi!'];
 
+// Layar nge-zoom sendiri di HP (tap dua kali / kecubit): iPhone nggak peduli user-scalable=no.
+// Pas main, cubit-zoom dicegah; kalau sempat ke-zoom, dibalikin normal lagi otomatis.
+function unzoom() {
+  const vv = window.visualViewport, m = document.querySelector('meta[name="viewport"]');
+  if (!vv || !m || vv.scale <= 1.01) return;
+  const c = m.content;
+  m.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
+  setTimeout(() => { m.content = c; }, 400);
+}
+document.addEventListener('gesturestart', (e) => { if (document.body.classList.contains('playing')) e.preventDefault(); }, { passive: false });
+let zoomT = 0;
+window.visualViewport?.addEventListener('resize', () => { clearTimeout(zoomT); zoomT = setTimeout(() => { if (document.body.classList.contains('playing')) unzoom(); }, 500); });
+
+// Pesan singkat selama main: label kecil di atas area game yang hilang sendiri (gantiin maskot burung hantu
+// yang dulu makan tempat). Petunjuk lengkap ada di kartu Cara Main (tombol ?).
+let sayEl = null;
 function owlSay(text, mood = 'happy', ms = 2400) {
   clearTimeout(sayTimer);
-  bubbleEl.textContent = fill(text);
-  bubbleEl.classList.add('talk');
-  owlEl.className = `guide-owl ${mood}`;
-  void owlEl.offsetWidth;
-  owlEl.classList.add('bump');
-  if (ms) sayTimer = setTimeout(() => owlHint(), ms);
+  if (!sayEl || !screens.game.contains(sayEl)) { sayEl = document.createElement('div'); sayEl.className = 'say-pill'; sayEl.setAttribute('aria-live', 'polite'); screens.game.appendChild(sayEl); }
+  sayEl.innerHTML = `<span>${esc(fill(text))}</span>`;
+  sayEl.className = `say-pill ${mood}`;
+  void sayEl.offsetWidth;
+  sayEl.classList.add('show');
+  sayTimer = setTimeout(() => owlHint(), Math.max(1800, Math.min(4200, ms || 3200)));
 }
 function owlHint() {
   clearTimeout(sayTimer);
-  bubbleEl.textContent = hintText;
-  bubbleEl.classList.remove('talk');
-  owlEl.className = 'guide-owl';
+  sayEl?.classList.remove('show');
 }
 
 function showCombo(n) {
@@ -718,6 +731,7 @@ function startLevel(i) {
   const L = typeof i === 'object' ? i : LEVELS[i]; // angka = level peta, objek = level per game / mode skor
   show('game');
   screens.game.dataset.theme = WORLDS[L.world].theme;
+  screens.game.dataset.game = L.type.replace(/co$/, ''); // latar sesuai game
   stageEl.innerHTML = '';
   $('#hud-title').textContent = L.endless ? `${TYPE_NAME[L.type]} · Mode skor 🏆` : L.track ? `${TYPE_NAME[L.type]} · Level ${L.num}` : `${levelLabel(L)} · ${TYPE_NAME[L.type]}`;
   hintText = hintFor(L);
@@ -929,6 +943,7 @@ function startOnline(game, seed, levelId = null, extra = {}) {
   if (!G || !p) { show('online'); return; }
   show('game');
   screens.game.dataset.theme = WORLDS[L ? L.world : 0].theme;
+  screens.game.dataset.game = (L ? L.type : game).replace(/co$/, '');
   stageEl.innerHTML = '';
   $('#hud-title').textContent = L ? `Berdua · ${duoLabel(L)}${L.track ? '' : ' · ' + DUO_NAMES[L.type]}` : `Main Bareng · ${G.name}`;
   $('#hud-stats').textContent = '';

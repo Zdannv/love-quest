@@ -1895,3 +1895,68 @@ body.is-desktop .kb-hint { display: flex; flex-wrap: wrap; justify-content: cent
 .ol-modes button[aria-selected="true"] { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 10%, #fff); box-shadow: 0 4px 0 var(--pink-deep); }
 .ol-modes button[aria-selected="true"] b { color: var(--pink-deep); }
 .ol-map.waiting .world, .ol-map.waiting .gt-grid, .ol-map.waiting .track-card, .ol-games.waiting .gt-grid { opacity: .6; filter: saturate(.7); }
+
+/* ================= Layar main: anti nge-zoom, muat satu layar, kontrol lebih gede ================= */
+/* Tap dua kali cepat nggak bikin layar nge-zoom (iPhone nggak peduli user-scalable=no) */
+html { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body.playing, body.playing #screen-game { touch-action: none; overscroll-behavior: none; }
+body.playing .howto, body.playing .ck-bookcard, body.playing .pause-card { touch-action: pan-y; }
+input, select, textarea { font-size: max(16px, 1em); } /* iPhone nge-zoom otomatis kalau tulisan kolom isian < 16px */
+/* Layar game: jarak bawah buat menu bawah nggak kepake (menunya disembunyiin pas main) → tombol nggak kepotong */
+body.has-tabbar #screen-game.active { padding-bottom: 0; }
+#screen-game .guide { display: none; }
+/* Pesan singkat (pengganti maskot) */
+.say-pill { position: absolute; left: 50%; top: calc(76px + env(safe-area-inset-top, 0px)); z-index: 30; max-width: min(88%, 400px); font-size: 13.5px; transform: translate(-50%, -8px); opacity: 0; pointer-events: none; padding: 8px 14px; border-radius: 16px; background: rgba(255,255,255,.95); color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.35; text-align: center; box-shadow: 0 4px 0 rgba(160,60,120,.14), 0 10px 22px rgba(120,40,90,.16); transition: opacity .25s, transform .25s cubic-bezier(.3,1.4,.5,1); }
+.say-pill.show { opacity: 1; transform: translate(-50%, 0); }
+.say-pill span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.say-pill.sad { background: #fff1f3; color: #b4234d; }
+/* Kontrol layar sentuh: lebih gede & gampang dipencet, ukurannya ngikut lebar layar biar nggak kepotong */
+.fight-pad { padding: 10px 12px max(16px, env(safe-area-inset-bottom)); gap: 8px; }
+.fight-pad > div { gap: 10px; }
+.fight-pad button { width: min(74px, 18.5vw); height: min(74px, 18.5vw); font-size: 30px; }
+.fight-pad .fp-act button { width: min(70px, 17.5vw); height: min(70px, 17.5vw); font-size: 28px; }
+.fight-pad button img.fx { width: 1.05em; height: 1.05em; }
+.pw-stick { width: clamp(124px, 35vw, 156px); height: clamp(124px, 35vw, 156px); }
+.pw-stick span { width: 44%; height: 44%; margin: -22% 0 0 -22%; }
+.pw-pad .fp-act button { width: min(84px, 21vw); height: min(84px, 21vw); font-size: 34px; }
+.fight-pad .ck-book { width: 50px; height: 50px; font-size: 21px; }
+.fight-pad .fp-act .cp-swap { height: min(70px, 17.5vw); min-width: 0; font-size: 13.5px; border-radius: 22px; padding: 0 12px 0 6px; }
+.fight-pad .fp-act .cp-swap img:not(.fx) { width: min(44px, 11vw); height: min(44px, 11vw); }
+.fp2 .b-dir { width: min(70px, 16.5vw); height: min(70px, 16.5vw); border-radius: 22px; }
+.fp2 .fp-move { gap: 8px; }
+.fp2 .fp-act { gap: 22px 9px; }
+.fp2 .fp-act button { width: min(64px, 14.5vw); height: min(64px, 14.5vw); }
+.fp2 .b-punch { width: min(82px, 18.5vw) !important; height: min(82px, 18.5vw) !important; }
+.fp2 button .b-ic { font-size: 28px; } .fp2 button .b-ic img.fx { width: 32px; height: 32px; }
+.fp2 .b-punch .b-ic img.fx { width: 40px; height: 40px; }
+#screen-game { min-height: 0; } /* .screen punya min-height 100dvh yang ngalahin tinggi layar game (kepotong pas ada bar di atas) */
+
+/* ================= Latar layar main per game (bukan pink polos lagi) ================= */
+#screen-game[data-game="race"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cpath d=%22M0 30h40M70 75h50M20 105h30%22 stroke=%22#fff%22 stroke-opacity=%22.55%22 stroke-width=%224%22 stroke-linecap=%22round%22/%3E%3C/svg%3E"), linear-gradient(180deg,#9fdcff 0%,#cfefff 45%,#ffe0b8 100%); }
+#screen-game[data-game="fight"] { background: radial-gradient(60% 40% at 50% 0%,rgba(255,240,180,.55),transparent 70%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath transform='translate(15 15)' d='M0 -4L1.2 -1.2 4 0 1.2 1.2 0 4 -1.2 1.2 -4 0 -1.2 -1.2z' fill='#fff' fill-opacity='0.5'/%3E%3Cpath transform='translate(45 42)' d='M0 -2.5L0.75 -0.75 2.5 0 0.75 0.75 0 2.5 -0.75 0.75 -2.5 0 -0.75 -0.75z' fill='#fff' fill-opacity='0.4'/%3E%3C/svg%3E"), linear-gradient(180deg,#ffb3d0 0%,#c79bff 60%,#8f7bea 100%); }
+#screen-game[data-game="penalty"] { background: repeating-linear-gradient(180deg,transparent 0 46px,rgba(255,255,255,.08) 46px 92px), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='8' cy='8' r='3' fill='#fff' fill-opacity='0.35'/%3E%3Ccircle cx='28' cy='22' r='2.5' fill='#ffd166' fill-opacity='0.55'/%3E%3Ccircle cx='18' cy='34' r='2.5' fill='#ff8fb7' fill-opacity='0.5'/%3E%3C/svg%3E") 0 0/40px 40px, linear-gradient(180deg,#7b6ad8 0%,#a68cf0 38%,#5fc47a 38.2%,#4fb26a 100%); }
+#screen-game[data-game="pillow"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cpath transform='translate(12 12)' d='M0 -4L1.2 -1.2 4 0 1.2 1.2 0 4 -1.2 1.2 -4 0 -1.2 -1.2z' fill='#fff' fill-opacity='0.7'/%3E%3Ccircle cx='36' cy='36' r='3' fill='#fff' fill-opacity='0.6'/%3E%3C/svg%3E"), repeating-linear-gradient(90deg,#ffe3ef 0 24px,#ffd2e4 24px 48px); }
+#screen-game[data-game="cook"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Crect width='28' height='28' fill='#fff' fill-opacity='.55'/%3E%3Crect x='28' y='28' width='28' height='28' fill='#fff' fill-opacity='.55'/%3E%3C/svg%3E"), linear-gradient(180deg,#c9f0e1,#a9e3cf); }
+#screen-game[data-game="bomb"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='32' height='32' fill='#fff' fill-opacity='.12'/%3E%3Crect x='32' y='32' width='32' height='32' fill='#fff' fill-opacity='.12'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='#ffd166' fill-opacity='0.7'/%3E%3C/svg%3E"), linear-gradient(180deg,#bfeaa6,#8fd47a); }
+#screen-game[data-game="coop"] { background: radial-gradient(40% 25% at 80% 8%,rgba(255,248,210,.35),transparent 70%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90' viewBox='0 0 90 90'%3E%3Cpath transform='translate(20 18)' d='M0 -3L0.8999999999999999 -0.8999999999999999 3 0 0.8999999999999999 0.8999999999999999 0 3 -0.8999999999999999 0.8999999999999999 -3 0 -0.8999999999999999 -0.8999999999999999z' fill='#fff' fill-opacity='0.9'/%3E%3Ccircle cx='60' cy='30' r='1.6' fill='#fff' fill-opacity='0.8'/%3E%3Ccircle cx='75' cy='70' r='1.2' fill='#fff' fill-opacity='0.7'/%3E%3Cpath transform='translate(35 65)' d='M0 -2L0.6 -0.6 2 0 0.6 0.6 0 2 -0.6 0.6 -2 0 -0.6 -0.6z' fill='#ffe9a8' fill-opacity='0.8'/%3E%3Ccircle cx='10' cy='50' r='1' fill='#fff' fill-opacity='0.6'/%3E%3C/svg%3E"), linear-gradient(180deg,#2a2456,#51407f 60%,#7a5aa8); }
+#screen-game[data-game="fly"] { background: radial-gradient(30% 12% at 20% 18%,rgba(255,255,255,.9),transparent 70%), radial-gradient(35% 12% at 80% 40%,rgba(255,255,255,.8),transparent 70%), radial-gradient(30% 10% at 30% 75%,rgba(255,255,255,.7),transparent 70%), linear-gradient(180deg,#8fd3ff,#e6f6ff); }
+#screen-game[data-game="runner"] { background: radial-gradient(40% 25% at 50% 30%,rgba(255,240,170,.7),transparent 70%), linear-gradient(180deg,#ffb38a,#ffcfa8 45%,#ffe9c9); }
+#screen-game[data-game="stack"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect x='6' y='8' width='8' height='3' rx='1.5' fill='#ff8fb7' transform='rotate(30 10 9)'/%3E%3Crect x='26' y='24' width='8' height='3' rx='1.5' fill='#8fd3ff' transform='rotate(-40 30 25)'/%3E%3Crect x='14' y='30' width='8' height='3' rx='1.5' fill='#ffd166' transform='rotate(70 18 31)'/%3E%3C/svg%3E"), linear-gradient(180deg,#fff4e3,#ffe1ee); }
+#screen-game[data-game="catch"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 44 44'%3E%3Ccircle cx='11' cy='11' r='4' fill='#fff' fill-opacity='0.6'/%3E%3Ccircle cx='33' cy='33' r='4' fill='#fff' fill-opacity='0.6'/%3E%3C/svg%3E"), linear-gradient(180deg,#9fdcff,#d8f1ff 70%,#ffeaf3); }
+#screen-game[data-game="timing"] { background: repeating-conic-gradient(from 0deg at 50% 45%,rgba(255,255,255,.22) 0 10deg,transparent 10deg 20deg), linear-gradient(180deg,#ffcf6b,#ff9fbf); }
+#screen-game[data-game="simon"] { background: linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px) 0 0/28px 28px, linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px) 0 0/28px 28px, radial-gradient(60% 40% at 50% 40%,#5a3fa8,#241a4d); }
+#screen-game[data-game="memory"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Cpath d='M18 6 30 18 18 30 6 18z' fill='none' stroke='#fff' stroke-opacity='.12' stroke-width='2'/%3E%3C/svg%3E"), radial-gradient(80% 60% at 50% 40%,#3fbf9a,#1f8a73); }
+#screen-game[data-game="pop"] { background: repeating-linear-gradient(90deg,#fff3c4 0 30px,#ffd1e3 30px 60px); }
+#screen-game[data-game="puzzle"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M10 10h16a5 5 0 1 1 8 0h16v16a5 5 0 1 0 0 8v16H34a5 5 0 1 1-8 0H10V34a5 5 0 1 0 0-8z' fill='#fff' fill-opacity='.18'/%3E%3C/svg%3E"), linear-gradient(180deg,#b9e4ff,#d8c9ff); }
+#screen-game[data-game="odd"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 50 50'%3E%3Ccircle cx='20' cy='20' r='8' fill='none' stroke='#fff' stroke-opacity='.35' stroke-width='3'/%3E%3Cpath d='M26 26l8 8' stroke='#fff' stroke-opacity='.35' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E"), linear-gradient(180deg,#b4f0e2,#e2fff6); }
+#screen-game[data-game="throw"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cpath transform='translate(14 10) scale(1)' d='M0 3C-2-1-7 0-7 4c0 3 4 6 7 8 3-2 7-5 7-8 0-4-5-5-7-1z' fill='#fff' fill-opacity='0.55'/%3E%3Cpath transform='translate(42 36) scale(0.7)' d='M0 3C-2-1-7 0-7 4c0 3 4 6 7 8 3-2 7-5 7-8 0-4-5-5-7-1z' fill='#fff' fill-opacity='0.45'/%3E%3C/svg%3E"), linear-gradient(180deg,#ffc2b0,#ffe2ea); }
+#screen-game[data-game="maze"] { background: linear-gradient(rgba(70,120,200,.12) 1px,transparent 1px) 0 0/22px 22px, linear-gradient(90deg,rgba(70,120,200,.12) 1px,transparent 1px) 0 0/22px 22px, linear-gradient(180deg,#f2fbff,#e9f9d8); }
+#screen-game[data-game="quiz"] { background: repeating-linear-gradient(180deg,transparent 0 30px,rgba(232,85,143,.12) 30px 31px), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath transform='translate(30 26) scale(1.1)' d='M0 3C-2-1-7 0-7 4c0 3 4 6 7 8 3-2 7-5 7-8 0-4-5-5-7-1z' fill='#ff8fb7' fill-opacity='0.25'/%3E%3C/svg%3E"), #fff7fb; }
+#screen-game[data-game="tebak"] { background: repeating-linear-gradient(180deg,transparent 0 30px,rgba(232,85,143,.12) 30px 31px), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath transform='translate(30 26) scale(1.1)' d='M0 3C-2-1-7 0-7 4c0 3 4 6 7 8 3-2 7-5 7-8 0-4-5-5-7-1z' fill='#ff8fb7' fill-opacity='0.25'/%3E%3C/svg%3E"), #fff7fb; }
+#screen-game[data-game="samaan"] { background: repeating-linear-gradient(180deg,transparent 0 30px,rgba(232,85,143,.12) 30px 31px), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath transform='translate(30 26) scale(1.1)' d='M0 3C-2-1-7 0-7 4c0 3 4 6 7 8 3-2 7-5 7-8 0-4-5-5-7-1z' fill='#ff8fb7' fill-opacity='0.25'/%3E%3C/svg%3E"), #fff7fb; }
+#screen-game[data-game="pictio"] { background: linear-gradient(rgba(70,120,200,.12) 1px,transparent 1px) 0 0/22px 22px, linear-gradient(90deg,rgba(70,120,200,.12) 1px,transparent 1px) 0 0/22px 22px, linear-gradient(180deg,#f2fbff,#e9f9d8); }
+#screen-game[data-game="draw"] { background: linear-gradient(rgba(70,120,200,.12) 1px,transparent 1px) 0 0/22px 22px, linear-gradient(90deg,rgba(70,120,200,.12) 1px,transparent 1px) 0 0/22px 22px, linear-gradient(180deg,#f2fbff,#e9f9d8); }
+#screen-game[data-game="talk"] { background: repeating-linear-gradient(180deg,transparent 0 30px,rgba(232,85,143,.12) 30px 31px), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath transform='translate(30 26) scale(1.1)' d='M0 3C-2-1-7 0-7 4c0 3 4 6 7 8 3-2 7-5 7-8 0-4-5-5-7-1z' fill='#ff8fb7' fill-opacity='0.25'/%3E%3C/svg%3E"), #fff7fb; }
+#screen-game[data-game] { background-attachment: local; }
+/* Game yang latarnya gelap: label & pesan tetap kebaca */
+#screen-game:is([data-game="simon"],[data-game="fight"],[data-game="memory"],[data-game="coop"]) .kb-hint { color: rgba(255,255,255,.85); }

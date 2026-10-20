@@ -114,8 +114,7 @@ export function startStack(stage, p, api) {
   // Dapur kue: tembok belang, bendera kecil, meja kayu
   function drawRoom() {
     const { W, H, k } = size;
-    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#ffe1ee'); g.addColorStop(1, '#fff4e3');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // latar luar ikut CSS layar game (#screen-game[data-game]), kanvasnya transparan
     ctx.fillStyle = 'rgba(255,255,255,.35)';
     const sw = 44 * k, off = (camera * 0.25) % (sw * 2);
     for (let x = -sw; x < W + sw; x += sw * 2) ctx.fillRect(x, 0, sw, H);

@@ -71,7 +71,7 @@ export function startCoop(stage, p, api) {
     const next = active === 'fire' ? 'water' : 'fire';
     btn.querySelector('img').src = next === 'fire' ? p.fireFace : p.waterFace;
     btn.style.setProperty('--sw', next === 'fire' ? '#ff7a2f' : '#3b9cff');
-    btn.querySelector('span').textContent = `Ganti ke ${next === 'fire' ? '🔥' : '💧'}`;
+    btn.querySelector('span').textContent = `Ganti ${next === 'fire' ? '🔥' : '💧'}`;
   }
   swapFace();
   let chars, gems, liftY, gates, springs = {}, introT = 0, done = false, raf = 0, last = performance.now(), lastStats = '', lastSent = 0, state = 'play', stateT = 0, deaths = 0, msg = null;
