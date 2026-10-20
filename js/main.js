@@ -64,7 +64,7 @@ const G = {
   // Game seru yang baru: makin ke dunia belakang makin susah
   race: (wi) => ({ type: 'race', goal: [500, 700, 900, 1100, 1300][wi], lives: 3 }),
   fight: (wi) => ({ type: 'fight', botLevel: wi }),
-  penalty: (wi) => ({ type: 'penalty', goal: [5, 5, 6, 6, 7][wi], botLevel: wi }),
+  penalty: (wi) => ({ type: 'penalty', goal: [4, 5, 5, 5, 5][wi], botLevel: wi }),
   pillow: (wi) => ({ type: 'pillow', botLevel: wi }),
   cook: (wi) => ({ type: 'cook', goal: [3, 4, 4, 5, 6][wi] }),
   bomb: (wi) => ({ type: 'bomb', bots: [1, 2, 2, 3, 3][wi], botLevel: wi }),

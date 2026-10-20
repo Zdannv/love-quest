@@ -53,23 +53,27 @@ export function startPenalty(stage, p, api) {
   const zoneOf = (gx, gy) => ({ col: gx < -0.33 ? 0 : gx > 0.33 ? 2 : 1, row: gy > 0.5 ? 1 : 0 });
   const inGoal = (s) => Math.abs(s.gx) <= 1 && s.gy <= 1 && s.gy >= 0;
 
+  // Lawan bot di level awal: kiper kita cukup nebak arah kiri/tengah/kanan (atas-bawah nggak harus pas)
+  const easyKeep = () => !duel && level < 4;
   function resolve(shot, dive, i) {
     if (!inGoal(shot)) return { saved: false, goal: false, wide: true };
     const z = zoneOf(shot.gx, shot.gy);
-    let saved = dive.col === z.col && (dive.row === z.row || z.col === 1);
+    const keeperIsMe = !iShoot(i);
+    let saved = dive.col === z.col && (dive.row === z.row || z.col === 1 || (keeperIsMe && easyKeep()));
     // pojok atas susah banget ditepis walau kiper udah nebak arah yang bener
     if (saved && Math.abs(shot.gx) > 0.82 && shot.gy > 0.8) saved = hash01(((p.seed || 7) * 31 + i * 97) >>> 0) < 0.35;
     return { saved, goal: !saved, wide: false };
   }
 
   // ---- Bot ----
+  // Bot dibikin pelan-pelan makin jago: awalnya sering meleset & kipernya jarang nebak bener
   function botShot() {
-    const miss = Math.random() < Math.max(0.04, 0.14 - level * 0.015);
+    const miss = Math.random() < Math.max(0.06, 0.22 - level * 0.025);
     return { gx: (Math.random() * 2 - 1) * (miss ? 1.25 : 0.95), gy: miss ? 1.12 : 0.05 + Math.random() * 0.9 };
   }
   function botDive(shot) {
     const z = zoneOf(shot.gx, shot.gy);
-    const smart = Math.random() < Math.min(0.55, 0.22 + level * 0.04);
+    const smart = Math.random() < Math.min(0.45, 0.06 + level * 0.05);
     return smart ? { col: z.col, row: z.row } : { col: Math.floor(Math.random() * 3), row: Math.random() < 0.5 ? 0 : 1 };
   }
 
@@ -99,7 +103,7 @@ export function startPenalty(stage, p, api) {
     mine = null; theirs = null; anim = null; phase = 'aim'; phaseT = 0; msg = null;
     if (early) { theirs = early; early = null; }
     if (!duel && !iShoot(turn)) pendingBotShot = botShot();
-    api.say(iShoot(turn) ? 'Giliran kamu nendang! Geser bola ke arah gawang ⚽' : 'Giliran kamu jaga gawang! Tap kotak buat lompat 🧤', 'happy');
+    api.say(iShoot(turn) ? 'Giliran kamu nendang! Tarik dari bola ke arah gawang ⚽' : (!duel && level < 7 ? 'Jaga gawang! Liat kotak yang dilirik lawan 👀, terus tap buat lompat ke situ 🧤' : 'Giliran kamu jaga gawang! Tap kotak buat lompat 🧤'), 'happy');
   }
 
   // ---- Input ----
@@ -255,6 +259,14 @@ export function startPenalty(stage, p, api) {
         const x = G.l + (G.w / 3) * c, y = G.t + (r ? 0 : G.h / 2);
         ctx.fillRect(x + 3, y + 3, G.w / 3 - 6, G.h / 2 - 6); ctx.strokeRect(x + 3, y + 3, G.w / 3 - 6, G.h / 2 - 6);
       }
+      // Lawan bot level awal "ngelirik" ke arah tendangannya: kotak tujuannya kedip sebentar
+      const tell = !duel && pendingBotShot && !mine && level < 7 ? Math.max(0, 1 - level * 0.13) * Math.min(1, Math.max(0, 2.4 - phaseT)) : 0;
+      if (tell > 0 && inGoal(pendingBotShot)) {
+        const z = zoneOf(pendingBotShot.gx, pendingBotShot.gy), x = G.l + (G.w / 3) * z.col, y = G.t + (z.row ? 0 : G.h / 2);
+        ctx.globalAlpha = tell * (0.6 + 0.4 * Math.sin(phaseT * 12)); ctx.fillStyle = 'rgba(255,209,102,.45)'; ctx.strokeStyle = '#ffb020'; ctx.lineWidth = 6;
+        ctx.fillRect(x + 4, y + 4, G.w / 3 - 8, G.h / 2 - 8); ctx.strokeRect(x + 4, y + 4, G.w / 3 - 8, G.h / 2 - 8); ctx.globalAlpha = 1;
+        drawEmoji(ctx, '👀', x + G.w / 6, y + G.h / 4, 26 * k);
+      }
     }
     drawBall();
     // penendang (dari belakang), di samping bola
@@ -282,7 +294,7 @@ export function startPenalty(stage, p, api) {
     const big = (t, y, size, color) => { ctx.font = `700 ${Math.round(size * k)}px Fredoka, sans-serif`; ctx.lineWidth = 6; ctx.strokeStyle = '#fff'; ctx.strokeText(t, W / 2, y); ctx.fillStyle = color; ctx.fillText(t, W / 2, y); };
     if (phase === 'aim') {
       const left = Math.ceil(AIM_TIME - phaseT);
-      if (!mine) big(iShoot(turn) ? `Geser ⚽ ke gawang · ${left}` : `Tap kotak buat lompat · ${left}`, H * 0.62, 19, '#c2306f');
+      if (!mine) big(iShoot(turn) ? `Tarik ⚽ ke gawang · ${left}` : `Tap kotak buat lompat · ${left}`, H * 0.62, 19, '#c2306f');
       else if (!theirs) big(`Nunggu ${look.opp.name}… 👀`, H * 0.62, 19, '#8a3f6e');
       if (iShoot(turn) && !mine) big('tarik makin jauh = makin tinggi', H * 0.67, 14, '#8a3f6e');
     }
