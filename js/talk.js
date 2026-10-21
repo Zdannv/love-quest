@@ -36,6 +36,15 @@ export function initTalk({ sfx }) {
     deck = shuffle(cards.filter((x) => cat === 'semua' || x.cat === cat));
     drawn = 0;
   }
+  // Tulisan pertanyaan nyesuaiin ukuran kartu: mulai dari lebar kartu, dikecilin sampai semuanya muat (nggak kepotong)
+  function fitQ() {
+    const p = $('#talk-q'), front = p?.parentElement;
+    if (!p || !front || !front.clientWidth) return;
+    let size = Math.min(28, Math.max(16, front.clientWidth * 0.085));
+    p.style.fontSize = `${size}px`;
+    for (let i = 0; i < 24 && front.scrollHeight > front.clientHeight + 1 && size > 13; i++) { size -= 1; p.style.fontSize = `${size}px`; }
+  }
+  window.addEventListener('resize', () => fitQ());
   function draw() {
     if (busy) return;
     if (!deck.length) newDeck();
@@ -55,6 +64,7 @@ export function initTalk({ sfx }) {
       el.style.setProperty('--talk', info.color);
       $('#talk-cat').textContent = `${info.icon} ${fill(info.name)}`;
       $('#talk-q').textContent = fill(card.q);
+      fitQ();
       // gantian siapa yang jawab duluan + sisa kartu di tumpukan
       $('#talk-turn').textContent = drawn % 2 ? '🎤 Yang megang HP jawab duluan' : '🎤 Kasih HP-nya, dia jawab duluan';
       const total = cards.filter((x) => cat === 'semua' || x.cat === cat).length;
