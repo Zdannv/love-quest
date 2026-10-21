@@ -121,7 +121,7 @@ export function startCoop(stage, p, api) {
     // kolam & pintu & permata
     const fx = Math.floor(c.x + CW / 2), under = tile(fx, Math.floor(c.y + CH + 0.05));
     if (c.ground && under === 'T') { // pegas: mental tinggi
-      c.x = fx + 0.5 - CW / 2; c.vy = -JUMP * SPRING; c.ground = false; // ditengahin dulu biar nggak kebentur pinggiran springs[`${fx},${Math.floor(c.y + CH + 0.05)}`] = performance.now(); api.sfx('flip');
+      c.x = fx + 0.5 - CW / 2; c.vy = -JUMP * SPRING; c.ground = false; // ditengahin dulu biar nggak kebentur pinggiran springs[`${fx},${Math.floor(c.y + CH + 0.05)}`] = performance.now(); api.sfx('boing');
       parts.burst((fx + 0.5) * T + ox, Y(c.y + CH), { n: 6, colors: ['#ff6b8b', '#ffd166', '#fff'], speed: 120, size: 3, life: 0.45 });
     }
     if (c.ground && (under === 'G' || (c.kind === 'fire' && under === 'A') || (c.kind === 'water' && under === 'L'))) return die(c);

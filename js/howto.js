@@ -26,10 +26,15 @@ export const HOWTO = {
   pillow: { goal: 'Lempar bantal ke lawan', steps: [S('stick', 'Geser joystick buat jalan', 'W A S D', 'Jalan pakai W A S D / panah'), S('btn', 'Pencet 🛏️ buat lempar (otomatis ngarah)', 'Spasi', 'Lempar bantal (otomatis ngarah) · K buat ngebut'), S('ok', 'Sembunyi di balik kasur & sofa')] },
   cook: { goal: 'Sajiin pesanan pelanggan', steps: [S('stick', 'Geser joystick buat jalan', 'W A S D', 'Jalan pakai W A S D / panah'), S('btn', 'Pencet ✋ buat ambil / taruh bahan', 'Spasi', 'Ambil / taruh bahan · tahan K buat motong'), S('ok', 'Potong / masak, terus antar ke 🛎️ SAJI. Ikutin panah 👇')] },
   bomb: { goal: 'Ledakin lawan pakai bom', steps: [S('stick', 'Geser joystick buat jalan', 'W A S D', 'Jalan pakai W A S D / panah'), S('btn', 'Pencet 💣 buat taruh bom, terus kabur! Bom bisa kamu lewatin', 'Spasi', 'Taruh bom, terus kabur! Bom bisa kamu lewatin'), S('star', 'Peti spesial: 🧨 ledakin 1 baris · ❄️ bekuin lawan · 🛡️ perisai · 🎁 power-up')] },
+  balloon: { goal: 'Terbangin balon sejauh-jauhnya', steps: [S('hold', 'Tahan 🔥 kiri & kanan bareng = balon naik lurus', 'A + D / Spasi', 'Tahan A & D (atau Spasi) = naik lurus'), S('swap', 'Cuma satu yang nyala = balonnya miring & geser'), S('no', 'Hindari ⛈️ awan petir & 🐦 burung, ambil 💖')] },
+  sumo: { goal: 'Dorong lawan keluar dari matras', steps: [S('stick', 'Geser joystick buat jalan (licin, ada momentumnya!)', 'W A S D', 'Jalan pakai W A S D / panah'), S('btn', 'Pencet 💥 Seruduk buat dorong kenceng', 'Spasi', 'Seruduk buat dorong kenceng'), S('star', 'Matrasnya mengecil! Ambil 🍔 biar berat, 🌶️ biar seruduk tanpa jeda')] },
+  math: { goal: 'Jawab soal hitungan secepatnya', steps: [S('eye', 'Liat soalnya, misal 7 + 5 = ?'), S('tap', 'Tap jawaban yang bener dari 4 pilihan'), S('star', 'Makin lama soalnya makin susah: tambah → kali → bagi → campuran')] },
   coop: { goal: 'Bawa dua-duanya sampai rumah', steps: [S('btn', '◀ ▶ jalan, ⬆️ lompat', 'A D · W / Spasi', 'A D jalan, W / Spasi lompat'), S('swap', 'Pencet Ganti buat gantian gerakin karakter', 'Q', 'Tekan Q buat gantian gerakin karakter'), S('ok', 'Api 🔥 aman di lava, Air 💧 aman di air')] },
 };
 // Versi Main Berdua (beda dikit dari sendirian)
 const DUO = {
+  balloon: { goal: 'Terbang bareng, harus kompak!', steps: [S('hold', 'Kamu pegang SATU pembakar 🔥 (kiri atau kanan)', 'Spasi'), S('heart', 'Nyalain bareng pasanganmu = naik lurus. Sendiri = miring'), S('no', 'Hindari ⛈️ & 🐦, makin jauh makin cepet')] },
+  math: { goal: 'Duluan jawab bener = dapet poin', steps: [S('eye', 'Soalnya sama di HP kalian berdua'), S('tap', 'Tap jawaban yang bener secepetnya'), S('no', 'Salah = nggak bisa jawab soal itu lagi. 10 soal, makin susah!')] },
   coop: { goal: 'Bawa dua-duanya sampai rumah', steps: [S('btn', '◀ ▶ jalan, ⬆️ lompat', 'A D · W / Spasi', 'A D jalan, W / Spasi lompat'), S('heart', 'Kamu gerakin karaktermu, pasanganmu gerakin punyanya'), S('ok', 'Injek tombol buat bukain jalan pasanganmu')] },
   memory: { goal: 'Kumpulin pasangan kartu terbanyak', steps: [S('tap2', 'Giliranmu: tap 2 kartu'), S('ok', 'Kembar = dapet poin & jalan lagi'), S('heart', 'Nggak kembar = gantian pasanganmu')] },
 };
@@ -66,7 +71,7 @@ export function showHowto(stage, type, opts = {}) {
       <small class="hw-wait" hidden></small>
     </div>`;
   stage.appendChild(el);
-  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => el.classList.add('show'), 20); // bukan rAF: pas game dijeda, rAF ditahan
   return new Promise((resolve) => {
     const btn = el.querySelector('.hw-go');
     btn.addEventListener('click', () => {

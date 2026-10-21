@@ -5,6 +5,7 @@ import { TALK_CARDS, TALK_CATS } from './talk-cards.js';
 import { fill } from './personal.js';
 import { esc, shuffle } from './util.js';
 import { bump } from './stats.js';
+import { track as trackDaily } from './daily.js';
 import { on as onNet, send as sendNet, peer as peerNet } from './online.js';
 
 const $ = (s) => document.querySelector(s);
@@ -45,7 +46,7 @@ export function initTalk({ sfx }) {
   function show(card) {
     busy = true;
     drawn++;
-    bump('talkCards');
+    bump('talkCards'); trackDaily('talk');
     const el = $('#talk-card');
     sfx('flip');
     el.classList.remove('flipped');

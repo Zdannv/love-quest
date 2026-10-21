@@ -7,6 +7,7 @@ import { drawToon, toonLoad } from '../toon.js';
 import { makeFx } from '../scene.js';
 
 const AIM_TIME = 6, ROUNDS = 5;
+// Berdua: waktu bidik/jaga makin singkat tiap giliran (6 → 3,5 detik)
 // angka acak 0..1 yang sama di dua HP buat giliran tertentu
 const hash01 = (n) => { n = Math.imul(n ^ (n >>> 15), 0x2c1b3c6d); n = Math.imul(n ^ (n >>> 12), 0x297a2d39); return ((n ^ (n >>> 15)) >>> 0) / 4294967296; };
 
@@ -77,6 +78,7 @@ export function startPenalty(stage, p, api) {
     return smart ? { col: z.col, row: z.row } : { col: Math.floor(Math.random() * 3), row: Math.random() < 0.5 ? 0 : 1 };
   }
 
+  const aimTime = () => (duel ? Math.max(3.5, AIM_TIME - turn * 0.3) : AIM_TIME);
   // ---- Pilihan kita ----
   function choose(c) {
     if (phase !== 'aim' || mine) return;
@@ -94,7 +96,7 @@ export function startPenalty(stage, p, api) {
     const dive = iShoot(turn) ? theirs : mine;
     anim = { shot, dive, ...resolve(shot, dive, turn), t: 0 };
     phase = 'fly'; phaseT = 0;
-    api.sfx('pop');
+    api.sfx('kick');
   }
   if (duel) offs.push(duel.on('pk', (d) => { if (d.i === turn && !theirs) { theirs = d.c; tryStart(); } else if (d.i === turn + 1) early = d.c; }));
   let early = null;
@@ -135,8 +137,8 @@ export function startPenalty(stage, p, api) {
   function update(dt) {
     phaseT += dt;
     if (phase === 'aim') {
-      if (!mine && phaseT > AIM_TIME) choose(iShoot(turn) ? { gx: (Math.random() - 0.5) * 0.6, gy: 0.2 } : { col: 1, row: 0 });
-      if (duel && mine && !theirs && phaseT > AIM_TIME + 8) { theirs = iShoot(turn) ? { col: 1, row: 0 } : { gx: 0, gy: 0.2 }; tryStart(); }
+      if (!mine && phaseT > aimTime()) choose(iShoot(turn) ? { gx: (Math.random() - 0.5) * 0.6, gy: 0.2 } : { col: 1, row: 0 });
+      if (duel && mine && !theirs && phaseT > aimTime() + 8) { theirs = iShoot(turn) ? { col: 1, row: 0 } : { gx: 0, gy: 0.2 }; tryStart(); }
     } else if (phase === 'fly') {
       anim.t += dt;
       if (anim.t > 1.0) {
@@ -145,6 +147,7 @@ export function startPenalty(stage, p, api) {
         (myKick ? goals.me : goals.opp).push(anim.goal);
         msg = anim.wide ? 'Meleset! 😬' : anim.saved ? 'Ditepis! 🧤' : 'GOOOL! ⚽';
         api.sfx(anim.goal === myKick ? 'win' : 'bad');
+        if (anim.goal) setTimeout(() => api.sfx('cheer'), 120);
         if (!duel) {
           const good = myKick ? anim.goal : !anim.goal;
           if (good) { score++; api.streak(true); } else { if (!goalMode) lives--; api.streak(false); }
@@ -293,7 +296,7 @@ export function startPenalty(stage, p, api) {
     // teks tengah
     const big = (t, y, size, color) => { ctx.font = `700 ${Math.round(size * k)}px Fredoka, sans-serif`; ctx.lineWidth = 6; ctx.strokeStyle = '#fff'; ctx.strokeText(t, W / 2, y); ctx.fillStyle = color; ctx.fillText(t, W / 2, y); };
     if (phase === 'aim') {
-      const left = Math.ceil(AIM_TIME - phaseT);
+      const left = Math.ceil(aimTime() - phaseT);
       if (!mine) big(iShoot(turn) ? `Tarik ⚽ ke gawang · ${left}` : `Tap kotak buat lompat · ${left}`, H * 0.62, 19, '#c2306f');
       else if (!theirs) big(`Nunggu ${look.opp.name}… 👀`, H * 0.62, 19, '#8a3f6e');
       if (iShoot(turn) && !mine) big('tarik makin jauh = makin tinggi', H * 0.67, 14, '#8a3f6e');

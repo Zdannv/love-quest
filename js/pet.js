@@ -8,6 +8,7 @@ import { getNames } from './personal.js';
 import { esc } from './util.js';
 import { createPet3D } from './pet3d.js';
 import { SHOP, RUGS, upgradeShop, rugHex, shopHTML } from './pet-shop.js';
+import { track as trackDaily } from './daily.js';
 import { setPet } from './stats.js';
 
 const { url = '', anonKey = '' } = CONFIG.cloud || {};
@@ -77,6 +78,28 @@ async function save(s) {
 }
 
 const WHO = () => whoAmI() || 'pasangan';
+// Koin dari tantangan harian (masuk ke dompet bareng). Sekalian nyatet berapa misi hari ini yang udah beres per orang,
+// biar HP pasangan bisa nampilin "Dia udah 2/3 hari ini".
+export async function grantCoins(n, { done } = {}) {
+  const s = await load();
+  s.coins = (s.coins || 0) + n;
+  if (done != null) { if (s.dq?.d !== today()) s.dq = { d: today() }; s.dq[WHO()] = done; }
+  await save(s);
+}
+// Papan skor berdua (disimpen di data bareng). Yang nulis cuma HP pemenang (seri: HP "pasangan"), biar nggak dobel.
+// nonce = seed pertandingan, biar HP yang kalah tau kemenangan lawan udah kecatat apa belum.
+export async function recordH2H(game, result, nonce) {
+  const s = await load();
+  s.h2h ||= {};
+  const g = (s.h2h[game] ||= { pasangan: 0, pengirim: 0, draw: 0 });
+  if (result === 'draw') g.draw++; else g[WHO()]++;
+  g.last = nonce; g.at = Date.now();
+  await save(s);
+  return s.h2h;
+}
+export async function getH2H() { const s = await load(); return s.h2h || {}; }
+export async function partnerDaily(role) { const s = await load(); return s.dq?.d === today() ? s.dq[role] || 0 : 0; }
+
 export function initPet({ sfx, toast }) {
   const root = document.querySelector('#pet-root');
   let st = null, busy = false, poll = 0, chatPoll = 0, mode = null, raf = 0;
@@ -96,6 +119,7 @@ export function initPet({ sfx, toast }) {
         s.daily[who] = true;
         if (s.daily.pasangan && s.daily.pengirim && !s.daily.bonus) { s.daily.bonus = true; s.xp += 30; s.coins += 15; bonus = ' · Kalian kompak hari ini! +30 XP +15 🪙 💞'; }
         s.log = [{ w: who, a: kind, t: Date.now() }, ...(s.log || [])].slice(0, 6);
+        setTimeout(() => trackDaily('pet'), 0); // misi harian "rawat peliharaan"
       }
       await save(s);
       st = s;
@@ -297,7 +321,7 @@ export function initPet({ sfx, toast }) {
     const room = root.querySelector('#pet-room'); if (!room || room.querySelector('.pet-coin') || (st.daily.tap || 0) >= 15) return;
     const c = document.createElement('button'); c.className = 'pet-coin'; c.textContent = '🪙'; c.setAttribute('aria-label', 'Ambil koin');
     c.style.left = `${12 + Math.random() * 70}%`; c.style.top = `${58 + Math.random() * 26}%`;
-    c.addEventListener('click', (e) => { e.stopPropagation(); c.remove(); sfx('pop'); act('koin', (s) => { if ((s.daily.tap || 0) >= 15) return false; s.daily.tap = (s.daily.tap || 0) + 1; s.coins += 1; return ''; }); });
+    c.addEventListener('click', (e) => { e.stopPropagation(); c.remove(); sfx('coin'); act('koin', (s) => { if ((s.daily.tap || 0) >= 15) return false; s.daily.tap = (s.daily.tap || 0) + 1; s.coins += 1; return ''; }); });
     room.append(c); setTimeout(() => c.remove(), 9000);
   }
   // ---- Makanan terbang dari tombol ke mulut ----

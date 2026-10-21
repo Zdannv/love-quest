@@ -83,6 +83,7 @@ export function startCook(stage, p, api) {
   };
   if (!duel) { chefs.f.x = 3.5; chefs.f.y = 7.5; }
   const me = chefs[myId], other = chefs[otherId];
+  const said = {};
   let orders = [], served = 0, miss = 0, nextId = 1, clock = 0, nextOrder = 2, over = false, done = false;
   let floats = [], lastStats = '', raf = 0, last = performance.now(), lastPos = 0, lastSnap = 0;
   const offs = [];
@@ -108,7 +109,7 @@ export function startCook(stage, p, api) {
       o.got.push(key); c.hold = null;
       if (o.got.length >= RECIPES[o.r].need.length) {
         orders = orders.filter((x) => x !== o); served++;
-        api.sfx('win'); api.streak(true);
+        api.sfx('ding'); setTimeout(() => api.sfx('win'), 180); api.streak(true);
         floats.push({ x: tx + 0.5, y: ty, t: `${RECIPES[o.r].em} +1`, color: '#2fbf71', life: 1.6 });
       } else { api.sfx('good'); floats.push({ x: tx + 0.5, y: ty, t: `${E[h.k]} ✓`, color: '#2fbf71', life: 1.2 }); }
       return;
@@ -138,7 +139,7 @@ export function startCook(stage, p, api) {
     const tl = tiles[ty][tx];
     if (!tl.obj || tl.obj.s !== 'raw' || !CHOP.includes(tl.obj.k) || chefs[id].hold) return;
     tl.n++;
-    api.sfx('flip');
+    api.sfx('chop');
     if (tl.n >= CHOP_N) { tl.obj.s = 'potong'; tl.n = 0; api.sfx('good'); }
   }
   function tickWorld(dt) {
@@ -157,8 +158,10 @@ export function startCook(stage, p, api) {
       // awal-awal cuma menu 2 bahan (salad & steak), baru nambah yang 3 bahan
       const keys = served < 3 ? ['salad', 'steak'] : Object.keys(RECIPES);
       const r = keys[Math.floor(rng() * keys.length)];
-      orders.push({ id: nextId++, r, left: duel ? 100 : 90, max: duel ? 100 : 90, got: [] });
-      nextOrder = clock + Math.max(duel ? 11 : 14, (duel ? 20 : 24) - served * 0.6);
+      const pat = duel ? Math.max(85, 105 - served * 1.2) : 90; // berdua: naiknya pelan banget (gameplay-nya udah cukup ribet)
+      orders.push({ id: nextId++, r, left: pat, max: pat, got: [] });
+      nextOrder = clock + Math.max(duel ? 12 : 14, (duel ? 21 : 24) - served * 0.5);
+      if (duel && served && served % 5 === 0 && !said[served]) { said[served] = true; api.say(`🔥 ${served} pesanan! Pelanggannya makin rame, semangat!`, 'happy'); }
       api.sfx('msg');
     }
     if (miss >= MAX_MISS && !over) { over = true; setTimeout(end, 1200); }

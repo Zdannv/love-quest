@@ -10,6 +10,7 @@ import { whoAmI, askProfile, forget } from './profile.js';
 import { LEVEL_MAP } from './level-map.js';
 import { DUO_LEVELS, DUO_NAMES, DUO_ICONS, DUO_DESC, DUO_TYPES, TRACK_LEN, trackLevel, getDuoLevel, duoLabel, duoStars, duoUnlocked, mergeDuo } from './duo-levels.js';
 import { pickQuestions } from './couple-questions.js';
+import { sendInvite, pushState, enablePush } from './streak.js';
 
 const $ = (s) => document.querySelector(s);
 const ID_KEY = 'lq-online-id';
@@ -124,7 +125,8 @@ function render() {
   const friendRoom = net.code && net.code !== cr;
   const pick = (r) => { const look = playerLook(r, nameOf(r)); return `<button type="button" class="ol-pickme" data-ol="profile"><span class="ol-ava">${look.face ? `<img src="${esc(look.face)}" alt="">` : `<span>${look.emoji}</span>`}</span><b>${esc(nameOf(r))}</b><small>Ini aku</small></button>`; };
   const shareBtn = role && !p && !friendRoom && net.status === 'on'
-    ? `<button type="button" class="btn small-btn ol-invite" data-ol="invite">💌 Ajak ${esc(nameOf(other))} main</button>` : '';
+    ? `<div class="ol-call"><button type="button" class="btn small-btn" data-ol="call">📣 Panggil ${esc(nameOf(other))}</button><button type="button" class="btn ghost small-btn" data-ol="invite">💌 Kirim link</button></div>
+       ${myPush === 'ok' ? `<button type="button" class="ol-pushask" data-ol="push">🔔 Nyalain notifikasi biar kamu tau pas ${esc(nameOf(other))} ngajak main</button>` : myPush === 'ios-install' ? `<p class="ol-pushask">📲 Biar dapet notif ajakan main: tap <b>Share</b> → <b>Add to Home Screen</b>, terus buka dari ikonnya</p>` : ''}` : '';
   $('#ol-room').innerHTML = !role ? `
     <p class="ol-step"><b>Kamu yang mana?</b><small>Pilih sekali aja, habis itu HP ini inget kamu</small></p>
     <div class="ol-pick">${pick('pasangan')}<span class="ol-vs">💞</span>${pick('pengirim')}</div>` : `
@@ -190,11 +192,14 @@ function render() {
   $('#ol-map').classList.toggle('waiting', !ready());
   $('#ol-games').classList.toggle('waiting', !ready());
 
-  const MODE = { bomb: '⚔️ Duel', coop: '🤝 Bareng', race: '⚔️ Duel', fight: '⚔️ Duel', penalty: '⚔️ Duel', pillow: '⚔️ Duel', fly: '⚔️ Duel', cook: '🤝 Bareng', puzzle: '🤝 Bareng', memory: '🎲 Gantian', tebak: '💞 Kenalan', pictio: '🎨 Tebak', talk: '💬 Ngobrol' };
+  const MODE = { balloon: '🤝 Bareng', sumo: '⚔️ Duel', math: '⚡ Adu cepet', bomb: '⚔️ Duel', coop: '🤝 Bareng', race: '⚔️ Duel', fight: '⚔️ Duel', penalty: '⚔️ Duel', pillow: '⚔️ Duel', fly: '⚔️ Duel', cook: '🤝 Bareng', puzzle: '🤝 Bareng', memory: '🎲 Gantian', tebak: '💞 Kenalan', pictio: '🎨 Tebak', talk: '💬 Ngobrol' };
   $('#ol-games').innerHTML = olTab !== 'free' ? '' : gameHead('🎲 Main bebas', 'Tanpa level, langsung main') + '<div class="gt-grid">' + Object.entries(ONLINE_GAMES).map(([id, g]) => gameTile({ id, attr: `data-game="${id}"`, icon: g.icon, name: esc(g.name), tag: MODE[id] || '' })).join('') + '</div>';
 }
 
 let olTab = 'adv', olTrack = '';
+let myPush = 'unsupported'; // status notifikasi HP ini (buat ajakan "nyalain notifikasi")
+if (window.__lqTest) window.__olTest = { net: () => net, render: () => render(), setPush: (v) => { myPush = v; } };
+export function refreshPushState() { pushState().then((v) => { myPush = v; render(); }).catch(() => {}); }
 function lvlBtn(L, stars) {
   const s = stars[L.id] || 0;
   const unlocked = duoUnlocked(L, stars);
@@ -219,6 +224,7 @@ export function inviteGame(game, level = null) {
   const L = getDuoLevel(level);
   const kind = L ? L.type : game;
   const extra = kind === 'tebak' || kind === 'samaan' ? { qs: pickQuestions(kind, L?.params.rounds || 8) } : {};
+  if (!L) extra.tier = duoTier(game); // Main bebas: tiap main lagi makin susah
   pendingInvite = { game, seed, level, extra };
   send('invite', { game, seed, level, extra, name: me().name });
   ui.sfx('click');
@@ -231,8 +237,13 @@ export function inviteGame(game, level = null) {
     <div class="modal-actions"><button class="btn ghost" data-ol-act="cancel">Batal</button></div>`);
 }
 
+// Tingkat main bebas per game (disimpen di HP): 0 = pertama kali, naik tiap selesai mulai main
+const TIER_KEY = (g) => `lq-duo-tier-${g}`;
+function duoTier(g) { try { return Math.min(9, Number(localStorage.getItem(TIER_KEY(g))) || 0); } catch { return 0; } }
+function bumpTier(g, t) { try { localStorage.setItem(TIER_KEY(g), String(Math.min(9, Math.max(duoTier(g), t || 0) + 1))); } catch {} }
 function start(inv) {
   pendingInvite = null;
+  if (inv.level == null && inv.game) bumpTier(inv.game, inv.extra?.tier);
   ui.closeModal();
   if (inv.level != null) ui.startLevel(inv.level, inv.seed, inv.extra || {});
   else if (inv.game === 'talk') ui.openTalk();
@@ -252,6 +263,26 @@ export function mountOnline(opts) {
         if (net.channel && net.status === 'on') net.channel.track(me());
         else if (coupleRoom()) joinRoom(coupleRoom());
       }
+      render();
+      return;
+    }
+    if (act === 'call') {
+      ui.sfx('click');
+      const b = e.target.closest('[data-ol]'); b.disabled = true;
+      const r = await sendInvite();
+      b.disabled = false;
+      const nm = nameOf(myRole() === 'pasangan' ? 'pengirim' : 'pasangan');
+      if (r.sim) ui.toast(`Di game kalian, ${nm} langsung dapet notifikasi "ngajak main" 📣`);
+      else if (r.wait) ui.toast(`Baru aja dipanggil, tunggu bentar ya 😆`);
+      else if (r.ok && r.sent) { ui.sfx('gold'); ui.toast(`📣 ${nm} udah dipanggil! Tunggu dia buka game-nya ya`); }
+      else if (r.ok) ui.toast(`${nm} belum nyalain notifikasi 🥲 Pakai "Kirim link" aja ya`);
+      else ui.toast('Gagal manggil, cek internet terus coba lagi 🥺');
+      return;
+    }
+    if (act === 'push') {
+      ui.sfx('click');
+      try { myPush = await enablePush(); } catch { myPush = 'ok'; }
+      if (myPush === 'on') ui.toast('🔔 Sip! Nanti dikabarin kalau pasanganmu ngajak main');
       render();
       return;
     }
@@ -322,6 +353,7 @@ export function mountOnline(opts) {
 export function openTrack(type) { olTab = 'per'; olTrack = type; render(); }
 export async function enterLobby() {
   render();
+  refreshPushState();
   if (!myRole()) {
     const role = await askProfile({ sfx: ui?.sfx });
     if (!role) { render(); return; }

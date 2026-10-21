@@ -54,6 +54,9 @@ export function startPillow(stage, p, api) {
   const me = player(AW / 2, AH - 120, loadImage(p.face), p.emoji || '😊', p.name || 'Kamu', '#ff8fb7');
   const opp = player(AW / 2, 120, loadImage(p.oppFace), p.oppEmoji || '😈', p.oppName || 'Lawan', '#9fb4ff');
   let pillows = [], feathers = [], floats = [];
+  // Berdua: makin lama lemparan makin kenceng (sampai 1,45x di akhir ronde)
+  const rush = () => (duel ? 1 + 0.45 * Math.min(1, Math.max(0, (ROUND - time) / ROUND)) : 1);
+  let rushSaid = false;
   let time = ROUND, state = p.endless || !duel ? 'intro' : 'fight', stateT = 0, done = false, raf = 0, last = performance.now(), lastStats = '', lastSent = 0;
   let wins = 0, level = p.botLevel || 0, roundResult = null, seq = 0;
   const stick = { x: 0, y: 0, id: null };
@@ -93,9 +96,9 @@ export function startPillow(stage, p, api) {
     a.ammo--;
     const tx = b.x + b.vx * lead, ty = b.y + b.vy * lead;
     const d = Math.hypot(tx - a.x, ty - a.y) || 1;
-    const pl = { id: `${a === me ? 'm' : 'o'}${seq++}`, x: a.x, y: a.y, vx: ((tx - a.x) / d) * PSPEED, vy: ((ty - a.y) / d) * PSPEED, owner: a === me ? 'me' : 'opp', life: 1.4, rot: 0 };
+    const pl = { id: `${a === me ? 'm' : 'o'}${seq++}`, x: a.x, y: a.y, vx: ((tx - a.x) / d) * PSPEED * rush(), vy: ((ty - a.y) / d) * PSPEED * rush(), owner: a === me ? 'me' : 'opp', life: 1.4, rot: 0 };
     pillows.push(pl);
-    api.sfx('flip');
+    api.sfx('whoosh');
     if (duel && a === me) { const [cx, cy] = canon(pl.x, pl.y); duel.send('pthrow', { id: pl.id, x: Math.round(cx), y: Math.round(cy), vx: Math.round(flip ? -pl.vx : pl.vx), vy: Math.round(flip ? -pl.vy : pl.vy) }); }
   }
   function dash(a) {
@@ -110,7 +113,7 @@ export function startPillow(stage, p, api) {
     a.vx += (pl.vx / d) * 500; a.vy += (pl.vy / d) * 500;
     for (let i = 0; i < 6; i++) feathers.push({ x: a.x, y: a.y, vx: (Math.random() - 0.5) * 420, vy: (Math.random() - 0.5) * 420, life: 0.8, r: Math.random() * 6 });
     floats.push({ x: a.x, y: a.y - 70, text: 'Pukk! 🪶', life: 1 });
-    api.sfx('bad');
+    api.sfx('poof');
   }
 
   // ---- Online ----
@@ -178,6 +181,7 @@ export function startPillow(stage, p, api) {
     if (state === 'intro') { if (stateT > 1.4) { state = 'fight'; stateT = 0; } return; }
     if (state === 'over') { if (stateT > 1.8) nextRound(); return; }
     time = Math.max(0, time - dt);
+    if (duel && !rushSaid && time < ROUND / 2) { rushSaid = true; api.say('💨 Setengah ronde! Bantalnya makin kenceng', 'happy'); }
     let mx = stick.x + ((keys.ArrowRight || keys.d) ? 1 : 0) - ((keys.ArrowLeft || keys.a) ? 1 : 0);
     let my = stick.y + ((keys.ArrowDown || keys.s) ? 1 : 0) - ((keys.ArrowUp || keys.w) ? 1 : 0);
     move(me, mx, my, dt);
@@ -211,7 +215,7 @@ export function startPillow(stage, p, api) {
       level++;
       Object.assign(me, player(AW / 2, AH - 120, me.img, me.emoji, me.name, me.ring));
       Object.assign(opp, player(AW / 2, 120, opp.img, opp.emoji, opp.name, opp.ring));
-      pillows = []; time = ROUND; state = 'intro'; stateT = 0;
+      pillows = []; time = ROUND; state = 'intro'; stateT = 0; rushSaid = false;
       api.sfx('go');
       api.say(won ? `Menang! 🛏️ Lawan ke-${wins + 1} lebih lincah, awas {pasangan}!` : 'Seri! Lanjut ronde berikutnya 😤', 'happy');
       return;

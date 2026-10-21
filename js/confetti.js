@@ -15,6 +15,7 @@ function resize() {
 }
 
 export function confetti(amount = 90) {
+  if (document.body.classList.contains('reduce-motion')) return; // Pengaturan: kurangi gerakan
   resize();
   for (let i = 0; i < amount; i++) {
     const heart = Math.random() < 0.35;

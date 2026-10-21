@@ -2,18 +2,22 @@
 //   ctx.seed, ctx.me {role, name, face, emoji}, ctx.peer {role, name, face, emoji},
 //   ctx.send(type, data), ctx.on(type, fn) → fungsi buat berhenti dengerin, ctx.params (isi dari game biasa)
 // Dua HP pakai seed yang sama, jadi urutan soal / kartu / kepingan sama persis.
-import { startFly } from './games/fly.js';
-import { startPop } from './games/pop.js';
-import { startCatch } from './games/catch.js';
-import { startStack } from './games/stack.js';
-import { startThrow } from './games/throw.js';
-import { startRace } from './games/race.js';
-import { startFight } from './games/fight.js';
-import { startPenalty } from './games/penalty.js';
-import { startPillow } from './games/pillow.js';
-import { startCook } from './games/cook.js';
-import { startBomb } from './games/bomb.js';
 import { startCoop, COOP_LEVELS } from './games/coop.js';
+import { lazyStart } from './game-loader.js';
+const startFly = lazyStart('fly');
+const startPop = lazyStart('pop');
+const startCatch = lazyStart('catch');
+const startStack = lazyStart('stack');
+const startThrow = lazyStart('throw');
+const startRace = lazyStart('race');
+const startFight = lazyStart('fight');
+const startPenalty = lazyStart('penalty');
+const startPillow = lazyStart('pillow');
+const startSumo = lazyStart('sumo');
+const startBalloon = lazyStart('balloon');
+const startMath = lazyStart('math');
+const startCook = lazyStart('cook');
+const startBomb = lazyStart('bomb');
 import { TEBAK as TEBAK_Q, SAMAAN as SAMAAN_Q, markQuestions } from './couple-questions.js';
 import { esc } from './util.js';
 
@@ -169,7 +173,9 @@ function startTebak(stage, api, ctx) {
 // ---------- Puzzle Bareng ----------
 function startPuzzleTogether(stage, api, ctx) {
   const lv = ctx.level?.params;
-  const n = lv?.size || 3, total = n * n;
+  const tier = ctx.extra?.tier || 0; // main bebas: kepingannya nambah tiap main lagi
+  const n = lv?.size || [3, 4, 4, 5][Math.min(3, tier)], total = n * n;
+  if (!lv && tier) api.say(`Ronde ${tier + 1}: puzzle ${n}×${n}, makin susah! 🧩`, 'happy');
   const rng = seeded(ctx.seed);
   let order;
   do { order = shuffleWith(rng, [...Array(total).keys()]); } while (order.every((v, i) => v === i));
@@ -266,7 +272,9 @@ function turnBanner(stage, grid) {
 
 // ---------- Kartu Kembar Gantian ----------
 function startMemoryTurns(stage, api, ctx) {
-  const pairs = 6;
+  const tier = ctx.extra?.tier || 0; // main bebas: tiap main lagi kartunya nambah
+  const pairs = Math.min(10, 6 + tier, ctx.params.emojis.length + Math.min(3, (ctx.params.photos || []).length));
+  if (tier) api.say(`Ronde ${tier + 1}: ${pairs} pasang kartu, makin banyak! 🃏`, 'happy');
   const rng = seeded(ctx.seed);
   const photos = (ctx.params.photos || []).slice(0, 3).map((s) => `img:${s}`);
   const icons = [...photos, ...shuffleWith(rng, [...ctx.params.emojis]).slice(0, pairs - photos.length)];
@@ -736,6 +744,29 @@ function startCookDuo(stage, api, ctx) {
   }) });
 }
 
+function startSumoDuo(stage, api, ctx) {
+  return startSumo(stage, { ...duelLook(ctx), seed: ctx.seed }, { ...api, finish: (r) => api.finish({
+    win: r.win, icon: r.win ? '🏆' : '🤼',
+    title: r.win ? 'Kamu juara sumo!' : `${ctx.peer.name} juara sumo!`,
+    detail: `Ronde ${r.myWins} - ${r.oppWins}`,
+  }) });
+}
+function startMathDuo(stage, api, ctx) {
+  return startMath(stage, { ...duelLook(ctx), seed: ctx.seed }, { ...api, finish: (r) => api.finish({
+    win: r.win && !r.draw, draw: r.draw, icon: r.draw ? '🤝' : r.win ? '🧠' : '🧮',
+    title: r.draw ? 'Seri, sama-sama pinter!' : r.win ? 'Kamu paling cepet ngitung!' : `${ctx.peer.name} paling cepet ngitung!`,
+    detail: `Skor ${r.my} - ${r.opp}`,
+  }) });
+}
+function startBalloonDuo(stage, api, ctx) {
+  // kiri = pasangan (tuan rumah), kanan = pengirim; muka di keranjang: pasangan kiri, pengirim kanan
+  const A = ctx.me.role === 'pasangan' ? ctx.me : ctx.peer, Bp = ctx.me.role === 'pasangan' ? ctx.peer : ctx.me;
+  return startBalloon(stage, { ...duelLook(ctx), seed: ctx.seed, waterFace: A.face, waterEmoji: A.emoji, fireFace: Bp.face, fireEmoji: Bp.emoji }, { ...api, finish: (r) => api.finish({
+    win: true, icon: r.dist >= 500 ? '🏆' : '🎈',
+    title: r.dist >= 500 ? 'Kompak banget, terbangnya jauh!' : `Kalian terbang ${r.dist} m bareng`,
+    detail: `Balon Berdua · ${r.dist} m · 💖 ${r.hearts}`,
+  }) });
+}
 function startBombDuo(stage, api, ctx) {
   return startBomb(stage, duelLook(ctx), { ...api, finish: (r) => api.finish({
     win: r.win, icon: r.draw ? '🤝' : r.win ? '🏆' : '💥',
@@ -757,6 +788,9 @@ function startCoopDuo(stage, api, ctx) {
 }
 
 export const ONLINE_GAMES = {
+  balloon: { name: 'Balon Berdua', icon: '🎈', desc: 'Satu pegang 🔥 kiri, satu kanan. Harus kompak!', start: startBalloonDuo, countdown: true },
+  sumo: { name: 'Sumo Gemoy', icon: '🤼', desc: 'Saling seruduk, dorong pasanganmu keluar matras!', start: startSumoDuo, countdown: true },
+  math: { name: 'Adu Hitung', icon: '🧮', desc: 'Soal sama, siapa paling cepet jawab bener', start: startMathDuo, countdown: true },
   coop: { name: 'Jalan Pulang Berdua', icon: '🏠', desc: 'Api & air kerja sama, bawa pulang dua-duanya', start: startCoopDuo, countdown: true },
   bomb: { name: 'Bom Cinta', icon: '💣', desc: 'Taruh bom, kabur, ledakin pasanganmu!', start: startBombDuo, countdown: true },
   penalty: { name: 'Adu Penalti', icon: '⚽', desc: 'Gantian nendang & jaga gawang, 5 tendangan', start: startPenaltyDuo, countdown: true },

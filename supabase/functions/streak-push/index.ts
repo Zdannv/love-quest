@@ -1,6 +1,7 @@
 // Edge function "streak-push" (Love Quest): notifikasi streak untuk SEMUA pasangan.
 //   { type: "reminder" }                        → dipanggil cron jam 19.00 WIB (butuh header x-cron-secret)
 //   { type: "played", slug: "…", player: "…" }  → dipanggil game setelah salah satu main
+//   { type: "invite", slug: "…", player: "…", game: "…" } → "📣 Panggil" dari menu Berdua (maks 1x / 2 menit per orang)
 // Secrets yang dibutuhkan: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, CRON_SECRET
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -71,14 +72,17 @@ async function once(coupleId: string, day: string, kind: string, player: string)
 async function sendTo(c: Couple, player: Player, payload: Record<string, unknown>) {
   const { data } = await db.from('push_subscriptions').select('endpoint, p256dh, auth').eq('couple_id', c.id).eq('player', player);
   const body = JSON.stringify({ url: `/c/${c.slug}`, ...payload });
+  let sent = 0;
   await Promise.all((data ?? []).map(async (s) => {
     try {
       await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, body);
+      sent++;
     } catch (err) {
       const code = (err as { statusCode?: number }).statusCode;
       if (code === 404 || code === 410) await db.from('push_subscriptions').delete().eq('endpoint', s.endpoint);
     }
   }));
+  return sent; // berapa HP yang kekirim (0 = pasangan belum nyalain notifikasi)
 }
 
 async function activeCouples(filter?: { slug?: string; ids?: string[] }) {
@@ -144,6 +148,22 @@ Deno.serve(async (req) => {
       });
     }
     return json({ ok: true });
+  }
+
+  // Ajakan main berdua: kirim ke HP pasangan, maks 1x per 2 menit per orang (biar nggak bisa dispam)
+  if (body.type === 'invite' && typeof body.slug === 'string' && PLAYERS.includes(body.player)) {
+    const [c] = await activeCouples({ slug: body.slug });
+    if (!c) return json({ error: 'game nggak aktif' }, 404);
+    const p = body.player as Player, o = other(p), who = people(c);
+    const now = new Date(), bucket = `invite:${Math.floor(now.getTime() / 120000)}`;
+    if (!(await once(c.id, fmt.format(now), bucket, p))) return json({ ok: false, error: 'tunggu-dulu' }, 429);
+    const game = String(body.game || '').slice(0, 40);
+    const sent = await sendTo(c, o, {
+      title: `🎮 ${who[p].name} ngajak main${game ? ` ${game}` : ''}!`,
+      body: `Buka sekarang yuk, ${who[p].name} udah nunggu di menu Berdua 💞`,
+      tag: 'invite', url: `/c/${c.slug}?duo=1`,
+    });
+    return json({ ok: true, sent });
   }
 
   return json({ error: 'bad request' }, 400);

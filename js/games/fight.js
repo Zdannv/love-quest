@@ -112,6 +112,9 @@ export function startFight(stage, p, api) {
   }
 
   // ---- Kena serangan ----
+  // Berdua: 40 detik terakhir makin panas (serangan x1,5), 20 detik terakhir x2 — biar nggak gitu-gitu aja
+  const heat = () => (!duel ? 1 : time < 20 ? 2 : time < 40 ? 1.5 : 1);
+  let heatSaid = 1;
   function applyHit(f, dmg, kb, fromDir) {
     const blocking = f.act === 'block';
     const real = blocking ? Math.max(1, Math.round(dmg * 0.2)) : dmg;
@@ -133,7 +136,7 @@ export function startFight(stage, p, api) {
     if (air(att) ? def.y > att.y + 60 : def.y > AIR_SAFE) return;
     att.hitDone = true;
     att.meter = Math.min(100, att.meter + m.meter);
-    if (duel && att === me) { duel.send('fhit', { dmg: m.dmg, kb: m.kb, dir: att.dir }); sparks.push({ x: def.x - att.dir * 20, y: 0.55, em: '💢', life: 0.4 }); return; }
+    if (duel && att === me) { duel.send('fhit', { dmg: Math.round(m.dmg * heat()), kb: m.kb, dir: att.dir }); sparks.push({ x: def.x - att.dir * 20, y: 0.55, em: '💢', life: 0.4 }); return; }
     applyHit(def, m.dmg, m.kb, att.dir);
   }
 
@@ -215,6 +218,7 @@ export function startFight(stage, p, api) {
 
     if (state === 'fight') {
       time = Math.max(0, time - dt);
+      if (heat() > heatSaid) { heatSaid = heat(); api.say(heatSaid >= 2 ? '🔥🔥 Detik-detik terakhir! Serangan x2!' : '🔥 Makin panas! Serangan sekarang x1,5', 'happy'); }
       // kita
       if (me.act !== 'ko') {
         if (!busy(me)) {
@@ -236,7 +240,7 @@ export function startFight(stage, p, api) {
         const target = pr.owner === 'me' ? opp : me;
         if (pr.life > 0 && Math.abs(pr.x - target.x) < 60 && target.y < 70) {
           pr.life = 0;
-          if (duel) { if (pr.owner === 'me') duel.send('fhit', { dmg: 18, kb: 160, dir: pr.dir }); }
+          if (duel) { if (pr.owner === 'me') duel.send('fhit', { dmg: Math.round(18 * heat()), kb: 160, dir: pr.dir }); }
           else applyHit(target, 18, 160, pr.dir);
         }
       }
@@ -282,7 +286,7 @@ export function startFight(stage, p, api) {
       level++;
       Object.assign(me, { hp: 100, x: 250, y: 0, vy: 0, jx: 0, dir: 1, kbV: 0 }); setAct(me, 'idle');
       Object.assign(opp, { hp: 100, x: 750, y: 0, vy: 0, jx: 0, dir: -1, kbV: 0, meter: 0 }); setAct(opp, 'idle');
-      projs = []; time = ROUND_TIME; state = 'intro'; stateT = 0;
+      projs = []; time = ROUND_TIME; state = 'intro'; stateT = 0; heatSaid = 1;
       api.sfx('go');
       api.say(won ? `Menang! 💪 Lawan ke-${wins + 1} lebih jago, hati-hati {pasangan}!` : 'Seri! Lanjut ronde berikutnya 😤', 'happy');
       return;

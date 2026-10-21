@@ -6,7 +6,7 @@ import { esc } from './util.js';
 
 const KEY = () => `lq-welcome-${CONFIG.slug || CONFIG.showcase}`;
 
-export function maybeWelcome({ sfx } = {}) {
+export function maybeWelcome({ sfx, onStart } = {}) {
   if (CONFIG.demo || window.__lqTest) return;
   if (!CONFIG.slug && !CONFIG.showcase) return;
   try { if (localStorage.getItem(KEY())) return; } catch { return; }
@@ -54,7 +54,7 @@ export function maybeWelcome({ sfx } = {}) {
     pages.forEach((p, k) => p.classList.toggle('on', k === i + 1));
     foot.hidden = i < 0;
     el.querySelectorAll('.wl-dots i').forEach((d, k) => d.classList.toggle('on', k === i));
-    next.textContent = i === SLIDES.length - 1 ? 'Mulai main 💖' : 'Lanjut ▶';
+    next.textContent = i === SLIDES.length - 1 ? 'Main level 1 sekarang 💖' : 'Lanjut ▶';
   }
   function close() {
     try { localStorage.setItem(KEY(), '1'); } catch {}
@@ -80,6 +80,6 @@ export function maybeWelcome({ sfx } = {}) {
       setTimeout(() => go(0), 1100);
       return;
     }
-    if (a === 'next') { sfx?.('click'); if (step >= SLIDES.length - 1) close(); else go(step + 1); }
+    if (a === 'next') { sfx?.('click'); if (step >= SLIDES.length - 1) { close(); setTimeout(() => onStart?.(), 380); } else go(step + 1); }
   });
 }

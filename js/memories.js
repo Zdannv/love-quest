@@ -32,6 +32,28 @@ function badges(c) {
 
 const fmtDay = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
+// Papan skor berdua: total menang tiap orang + per game (data dari server, diisi belakangan)
+// all = { sumo: { pasangan, pengirim, draw }, ... } · names/faces/icons/gameName dari main.js
+export function renderH2H(el, all, { names, faces, icon, gameName }) {
+  if (!el) return;
+  const games = Object.entries(all).filter(([, g]) => g.pasangan + g.pengirim + g.draw > 0).sort((a, b) => (b[1].pasangan + b[1].pengirim) - (a[1].pasangan + a[1].pengirim));
+  const A = games.reduce((s, [, g]) => s + g.pasangan, 0), Bn = games.reduce((s, [, g]) => s + g.pengirim, 0), D = games.reduce((s, [, g]) => s + g.draw, 0);
+  const ava = (r) => `<span class="h2h-ava ${(r === 'pasangan' ? A > Bn : Bn > A) ? 'lead' : ''}">${faces[r] ? `<img src="${esc(faces[r])}" alt="">` : '💖'}</span>`;
+  el.hidden = false;
+  el.innerHTML = `
+    <h3 class="mem-h">Papan skor berdua 🏆</h3>
+    <div class="h2h-top">
+      <div class="h2h-side">${ava('pasangan')}<b>${esc(names.pasangan)}</b><em>${A}</em></div>
+      <div class="h2h-mid"><small>menang</small><b>VS</b>${D ? `<small>seri ${D}</small>` : ''}</div>
+      <div class="h2h-side">${ava('pengirim')}<b>${esc(names.pengirim)}</b><em>${Bn}</em></div>
+    </div>
+    ${games.length ? `<div class="h2h-list">${games.map(([k, g]) => {
+      const tot = Math.max(1, g.pasangan + g.pengirim);
+      return `<div class="h2h-row"><span class="h2h-gi">${icon(k)}</span><span class="h2h-gn">${esc(gameName(k))}</span>
+        <span class="h2h-bar"><i style="width:${(g.pasangan / tot) * 100}%"></i></span><span class="h2h-sc">${g.pasangan}–${g.pengirim}</span></div>`;
+    }).join('')}</div>` : '<p class="mem-empty">Belum ada duel. Main Sumo, Adu Hitung, atau Bom Cinta berdua, nanti skornya kecatat di sini 😆</p>'}`;
+}
+
 export function renderMemories(root, c) {
   const B = badges(c), got = B.filter((b) => b.ok).length, st = getStats();
   const first = [c.streak.firstDay, st.first].filter(Boolean).sort()[0];
@@ -60,6 +82,7 @@ export function renderMemories(root, c) {
       </div>
     </div>
     <div class="mem-prog"><i style="width:${Math.round((got / B.length) * 100)}%"></i></div>
+    <section class="h2h-board" id="mem-h2h" hidden></section>
     ${groups.map((g) => `
       <h3 class="mem-h">${g}</h3>
       <div class="mem-grid">${B.filter((b) => b.group === g).map((b) => `

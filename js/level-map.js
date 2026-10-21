@@ -10,7 +10,7 @@ export const TYPE_NAME = {
   puzzle: 'Puzzle Foto', odd: 'Cari yang Beda', simon: 'Ingat Urutan', fly: 'Terbang Tinggi',
   stack: 'Susun Kue', runner: 'Lari Lompat', throw: 'Lempar Hati', maze: 'Labirin Cinta', timing: 'Panah Cinta',
   race: 'Ngebut Pulang', fight: 'Gelut Sayang', penalty: 'Adu Penalti', pillow: 'Perang Bantal', cook: 'Masak Bareng',
-  bomb: 'Bom Cinta', coop: 'Jalan Pulang Berdua',
+  bomb: 'Bom Cinta', coop: 'Jalan Pulang Berdua', sumo: 'Sumo Gemoy', math: 'Adu Hitung', balloon: 'Balon Berdua',
 };
 
 // Tiap dunia 12 game beda, nggak ada yang dobel. Game seru yang baru lebih sering muncul.

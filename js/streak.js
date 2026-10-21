@@ -171,6 +171,20 @@ export function notifyPlayed() {
   }).catch(() => {});
 }
 
+// "📣 Panggil" pasangan dari menu Berdua. Balikin { ok, sent } (sent 0 = HP-nya belum nyalain notifikasi),
+// { wait: true } kalau baru aja manggil (maks 1x / 2 menit), { sim: true } di versi contoh.
+export async function sendInvite(game = '') {
+  const player = getPlayer();
+  if (SIM) return { ok: true, sim: true };
+  if (!pushFunction || !player) return { ok: false };
+  try {
+    const res = await fetch(`${base}/functions/v1/${pushFunction}`, { method: 'POST', headers: { apikey: anonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'invite', slug: CONFIG.slug, player, game }) });
+    if (res.status === 429) return { ok: false, wait: true };
+    const j = await res.json().catch(() => ({}));
+    return { ok: res.ok, sent: j.sent ?? 0 };
+  } catch { return { ok: false }; }
+}
+
 // ---------- Notifikasi (web push) ----------
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;

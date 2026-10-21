@@ -38,6 +38,8 @@
         if (!couple && standalone && localStorage.getItem('lq-last-couple')) couple = true;
       } catch (e) {}
       document.body.classList.add(couple ? 'is-couple' : 'is-demo');
+      // video halaman jualan cuma dimuat di halaman jualan
+      if (!couple) document.addEventListener('DOMContentLoaded', function () { document.querySelectorAll('video[data-src]').forEach(function (v) { if (v.dataset.poster) v.poster = v.dataset.poster; v.src = v.dataset.src; }); });
       // Game pasangan: sembunyiin tampilan bawaan sampai nama & tema pasangan kepasang (lihat main.js)
       if (couple) {
         document.body.classList.add('booting');
@@ -45,6 +47,7 @@
       }
     })();
   </script>
+  <div id="splash" aria-hidden="true"><div class="sp-hearts"><i></i><i></i></div><b class="sp-t">Nyiapin game kalian…</b><span class="sp-bar"><i></i></span><small class="sp-s">Love Quest</small></div>
   <div id="bg-hearts" aria-hidden="true"></div>
 
   <main id="app">
@@ -52,7 +55,7 @@
     <section id="screen-home" class="screen active">
       <!-- Bar atas & gambar hero: cuma tampil di layar lebar (desktop) -->
       <header class="desk-nav" data-demo-only>
-        <a class="desk-brand" href="/"><img src="/icons/icon-192.png" alt="">Love Quest</a>
+        <a class="desk-brand" href="/"><img loading="lazy" decoding="async" src="/icons/icon-192.png" alt="">Love Quest</a>
         <nav>
           <a href="#fitur">Fitur</a>
           <a href="#game">Game</a>
@@ -76,7 +79,7 @@
               <ul class="lp-trust"><li>✅ Sekali bayar, selamanya</li><li>⚡ Akun langsung jadi</li><li>📱 Langsung di browser HP</li><li>✍️ Isinya kamu yang atur</li></ul>
             </div>
             <div class="lp-phone">
-              <div class="lp-screen"><video autoplay muted loop playsinline preload="metadata" poster="/video/hero.jpg" src="/video/hero.mp4?v=2"></video></div>
+              <div class="lp-screen"><video autoplay muted loop playsinline preload="metadata" data-poster="/video/hero.jpg" data-src="/video/hero.mp4?v=2"></video></div>
               <span class="lp-float f1">😆 muka jadi karakter</span><span class="lp-float f2">💞 main berdua</span><span class="lp-float f3">🔥 streak berdua</span>
             </div>
           </section>
@@ -101,7 +104,7 @@
           <section class="lp-sec" id="game">
             <h2>20 game, sendiri maupun berdua</h2>
             <p class="lp-lead">Tiap level game-nya beda. Yang ada label <b>berdua</b> bisa dimainin bareng pasangan dari HP masing-masing.</p>
-            <ul class="lp-games"><li class="duo"><img src="/img/lp/g/balapan.webp" alt="" decoding="async" width="320" height="400"><span>Ngebut Pulang</span><em>berdua</em></li><li class="duo"><img src="/img/lp/g/gelut.webp" alt="" decoding="async" width="320" height="400"><span>Gelut Sayang</span><em>berdua</em></li><li class="duo"><img src="/img/lp/g/masak.webp" alt="" decoding="async" width="320" height="400"><span>Masak Bareng</span><em>berdua</em></li><li class="duo"><img src="/img/lp/g/coop.webp" alt="" decoding="async" width="320" height="400"><span>Jalan Pulang Berdua</span><em>berdua</em></li><li class="duo"><img src="/img/lp/g/bom.webp" alt="" decoding="async" width="320" height="400"><span>Bom Cinta</span><em>berdua</em></li><li class="duo"><img src="/img/lp/g/penalti.webp" alt="" decoding="async" width="320" height="400"><span>Adu Penalti</span><em>berdua</em></li><li class="duo"><img src="/img/lp/g/bantal.webp" alt="" decoding="async" width="320" height="400"><span>Perang Bantal</span><em>berdua</em></li><li class="duo"><img src="/img/lp/g/terbang.webp" alt="" decoding="async" width="320" height="400"><span>Terbang Tinggi</span><em>berdua</em></li><li class=""><img src="/img/lp/g/lari.webp" alt="" decoding="async" width="320" height="400"><span>Lari Lompat</span></li><li class=""><img src="/img/lp/g/kue.webp" alt="" decoding="async" width="320" height="400"><span>Susun Kue</span></li><li class=""><img src="/img/lp/g/tangkap.webp" alt="" decoding="async" width="320" height="400"><span>Tangkap Cinta</span></li><li class=""><img src="/img/lp/g/lempar.webp" alt="" decoding="async" width="320" height="400"><span>Lempar Hati</span></li><li class=""><img src="/img/lp/g/panah.webp" alt="" decoding="async" width="320" height="400"><span>Panah Cinta</span></li><li class=""><img src="/img/lp/g/labirin.webp" alt="" decoding="async" width="320" height="400"><span>Labirin Cinta</span></li><li class=""><img src="/img/lp/g/kartu.webp" alt="" decoding="async" width="320" height="400"><span>Kartu Kembar</span></li><li class=""><img src="/img/lp/g/pop.webp" alt="" decoding="async" width="320" height="400"><span>Tap si Imut</span></li><li class=""><img src="/img/lp/g/beda.webp" alt="" decoding="async" width="320" height="400"><span>Cari yang Beda</span></li><li class=""><img src="/img/lp/g/urutan.webp" alt="" decoding="async" width="320" height="400"><span>Ingat Urutan</span></li><li class=""><img src="/img/lp/g/puzzle.webp" alt="" decoding="async" width="320" height="400"><span>Puzzle Foto</span></li><li class=""><img src="/img/lp/g/kuis.webp" alt="" decoding="async" width="320" height="400"><span>Kuis Sayang</span></li></ul>
+            <ul class="lp-games"><li class="duo"><img loading="lazy" decoding="async" src="/img/lp/g/balapan.webp" alt="" decoding="async" width="320" height="400"><span>Ngebut Pulang</span><em>berdua</em></li><li class="duo"><img loading="lazy" decoding="async" src="/img/lp/g/gelut.webp" alt="" decoding="async" width="320" height="400"><span>Gelut Sayang</span><em>berdua</em></li><li class="duo"><img loading="lazy" decoding="async" src="/img/lp/g/masak.webp" alt="" decoding="async" width="320" height="400"><span>Masak Bareng</span><em>berdua</em></li><li class="duo"><img loading="lazy" decoding="async" src="/img/lp/g/coop.webp" alt="" decoding="async" width="320" height="400"><span>Jalan Pulang Berdua</span><em>berdua</em></li><li class="duo"><img loading="lazy" decoding="async" src="/img/lp/g/bom.webp" alt="" decoding="async" width="320" height="400"><span>Bom Cinta</span><em>berdua</em></li><li class="duo"><img loading="lazy" decoding="async" src="/img/lp/g/penalti.webp" alt="" decoding="async" width="320" height="400"><span>Adu Penalti</span><em>berdua</em></li><li class="duo"><img loading="lazy" decoding="async" src="/img/lp/g/bantal.webp" alt="" decoding="async" width="320" height="400"><span>Perang Bantal</span><em>berdua</em></li><li class="duo"><img loading="lazy" decoding="async" src="/img/lp/g/terbang.webp" alt="" decoding="async" width="320" height="400"><span>Terbang Tinggi</span><em>berdua</em></li><li class=""><img loading="lazy" decoding="async" src="/img/lp/g/lari.webp" alt="" decoding="async" width="320" height="400"><span>Lari Lompat</span></li><li class=""><img loading="lazy" decoding="async" src="/img/lp/g/kue.webp" alt="" decoding="async" width="320" height="400"><span>Susun Kue</span></li><li class=""><img loading="lazy" decoding="async" src="/img/lp/g/tangkap.webp" alt="" decoding="async" width="320" height="400"><span>Tangkap Cinta</span></li><li class=""><img loading="lazy" decoding="async" src="/img/lp/g/lempar.webp" alt="" decoding="async" width="320" height="400"><span>Lempar Hati</span></li><li class=""><img loading="lazy" decoding="async" src="/img/lp/g/panah.webp" alt="" decoding="async" width="320" height="400"><span>Panah Cinta</span></li><li class=""><img loading="lazy" decoding="async" src="/img/lp/g/labirin.webp" alt="" decoding="async" width="320" height="400"><span>Labirin Cinta</span></li><li class=""><img loading="lazy" decoding="async" src="/img/lp/g/kartu.webp" alt="" decoding="async" width="320" height="400"><span>Kartu Kembar</span></li><li class=""><img loading="lazy" decoding="async" src="/img/lp/g/pop.webp" alt="" decoding="async" width="320" height="400"><span>Tap si Imut</span></li><li class=""><img loading="lazy" decoding="async" src="/img/lp/g/beda.webp" alt="" decoding="async" width="320" height="400"><span>Cari yang Beda</span></li><li class=""><img loading="lazy" decoding="async" src="/img/lp/g/urutan.webp" alt="" decoding="async" width="320" height="400"><span>Ingat Urutan</span></li><li class=""><img loading="lazy" decoding="async" src="/img/lp/g/puzzle.webp" alt="" decoding="async" width="320" height="400"><span>Puzzle Foto</span></li><li class=""><img loading="lazy" decoding="async" src="/img/lp/g/kuis.webp" alt="" decoding="async" width="320" height="400"><span>Kuis Sayang</span></li></ul>
             <div class="lp-games-cta"><button class="lp-try" type="button" data-try><span class="lp-try-ic"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span class="lp-try-txt"><b>Cobain semua game-nya</b><small>Gratis, langsung di browser</small></span></button></div>
           </section>
 
@@ -120,7 +123,7 @@
             </ol>
             <div class="tutorial" id="tutorial">
               <p class="lp-lead">📺 Video tutorial lengkap, sekitar 2,5 menit</p>
-              <video controls playsinline preload="none" poster="/video/tutorial-poster.jpg?v=3" src="/video/tutorial.mp4?v=7"></video>
+              <video controls playsinline preload="none" data-poster="/video/tutorial-poster.jpg?v=3" data-src="/video/tutorial.mp4?v=7"></video>
             </div>
           </section>
 
@@ -154,6 +157,7 @@
           <span class="hero-go" aria-hidden="true">▶</span>
           <span class="hero-deco" aria-hidden="true"><span>🎮</span><span>⭐</span><span>💖</span></span>
         </button>
+        <section class="daily-card" id="daily-home" hidden></section>
         <div class="home-grid">
           <button class="home-tile t-talk" id="btn-talk"><span class="ht-ic">💬</span><b>Deep Talk</b><small>Kartu obrolan berdua</small></button>
           <button class="home-tile t-pet" id="btn-pet"><span class="ht-ic">🐾</span><b>Peliharaan</b><small>Rawat bareng tiap hari</small></button>
@@ -161,7 +165,7 @@
         </div>
         <div class="streak-slot" id="streak-home" hidden></div>
         <button class="btn ghost install-btn" id="btn-install" hidden>📲 Pasang ke home screen</button>
-        <button class="link-btn" id="btn-reset">reset progress</button>
+        <button class="btn ghost settings-btn" type="button" data-settings>⚙️ Pengaturan</button>
       </div>
     </section>
 
@@ -237,9 +241,8 @@
         <div class="star-total">💞 Berdua</div>
         <span class="topbar-gap" aria-hidden="true"></span>
       </header>
-      <div class="mode-tabs play-tabs" role="tablist"><button type="button" role="tab" data-play-tab="adv" aria-selected="false">🗺️ Petualangan</button><button type="button" role="tab" data-play-tab="per" aria-selected="false">🎯 Pilih game</button><button type="button" role="tab" data-play-tab="duo" aria-selected="true">💞 Berdua</button></div>
+      <div class="pn" id="duo-nav"></div>
       <div class="talk-wrap">
-        <p class="ol-intro">Main bareng dari HP masing-masing, langsung nyambung 💞</p>
         <div class="ol-card" id="ol-room"></div>
         <div class="ol-map" id="ol-map"></div>
         <div class="ol-games" id="ol-games"></div>
@@ -256,7 +259,7 @@
           <button class="icon-btn" id="btn-sound" aria-label="Efek suara">🔊</button>
         </div>
       </header>
-      <div class="mode-tabs" id="solo-tabs" role="tablist"></div>
+      <div class="pn" id="solo-tabs"></div>
       <div id="worlds"></div>
     </section>
 
@@ -278,6 +281,7 @@
           <p id="pause-sub">Santai, game-nya berhenti sampai kamu lanjut</p>
           <button class="btn" id="btn-resume">▶ Lanjut main</button>
           <button class="btn ghost" id="btn-restart">🔁 Ulangi dari awal</button>
+          <button class="btn ghost" type="button" data-settings>⚙️ Pengaturan</button>
           <button class="btn ghost" id="btn-quit">🚪 Keluar</button>
         </div>
       </div>
@@ -290,7 +294,7 @@
         <h2>To <span class="nm">Ayang</span></h2>
         <div class="polaroids">
           <figure class="polaroid single">
-            <img id="letter-photo" src="/img/contoh-foto.jpg" alt="Foto kalian">
+            <img loading="lazy" decoding="async" id="letter-photo" src="/img/contoh-foto.jpg" alt="Foto kalian">
             <figcaption id="letter-caption"></figcaption>
           </figure>
         </div>

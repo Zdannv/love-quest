@@ -52,7 +52,7 @@ export function startRace(stage, p, api) {
     while (nextCar < player.z + DRAW + 40) {
       const lane = [-0.66, 0, 0.66][Math.floor(rng() * 3)];
       cars.push({ z: nextCar, x: lane, ci: Math.floor(rng() * CAR_NAMES.length), v: rnd(6, 13), passed: false, hit: false });
-      const gap = Math.max(14, 34 - (nextCar / 1000) * 4); // makin jauh makin rame
+      const gap = race ? Math.max(12, 34 - (nextCar / 1000) * 9) : Math.max(14, 34 - (nextCar / 1000) * 4); // makin jauh makin rame (berdua: lebih cepet ramenya)
       nextCar += rnd(gap * 0.6, gap * 1.4);
     }
     while (nextHeart < player.z + DRAW) { hearts.push({ z: nextHeart, x: [-0.66, 0, 0.66][Math.floor(rng() * 3)], got: false }); nextHeart += rnd(50, 110); }
@@ -91,7 +91,7 @@ export function startRace(stage, p, api) {
     c.hit = true;
     hurtT = 1.5;
     player.speed *= 0.35;
-    api.sfx('bad');
+    api.sfx('crash');
     api.streak(false);
     addFloat('Brakk! 💥', '#ff4d6d');
     if (race) return; // berdua: cuma melambat

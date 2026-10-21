@@ -70,7 +70,7 @@ export function startBomb(stage, p, api) {
       const bots = [['🤖', 'Robot'], ['🦊', 'Rubah'], ['🐻', 'Beruang']];
       for (let i = 1; i <= (p.bots || 3); i++) players.push(mk(i, { img: null, emoji: bots[i - 1][0], name: bots[i - 1][1], ring: '#c9b6ff', bot: true, toon: i % 2 ? 'm' : 'f' }));
     }
-    bombs = []; flames = []; powers = []; time = ROUND; state = 'intro'; stateT = 0; roundResult = null;
+    bombs = []; flames = []; powers = []; time = ROUND; state = 'intro'; stateT = 0; roundResult = null; rain = { n: 0, next: 50, warn: null };
   }
   const me = () => players[myIdx];
   const cellOf = (pl) => [Math.floor(pl.x), Math.floor(pl.y)];
@@ -88,6 +88,7 @@ export function startBomb(stage, p, api) {
   }
   function explode(b) {
     bombs = bombs.filter((q) => q !== b);
+    api.sfx('boom');
     const cells = [[b.x, b.y]], fresh = [];
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       for (let i = 1; i <= b.range; i++) {
@@ -101,7 +102,6 @@ export function startBomb(stage, p, api) {
     // power-up lama yang kena ledakan hangus; yang baru keluar dari peti aman
     powers = powers.filter((q) => !cells.some(([x, y]) => q.x === x && q.y === y)).concat(fresh);
     for (const [x, y] of cells) flames.push({ x, y, life: FLAME });
-    api.sfx('bad');
   }
   const inFlame = (x, y) => flames.some((f) => f.x === x && f.y === y);
   // Peti pecah: isi & efeknya (urutan & hasilnya sama di dua HP karena pakai seed)
@@ -116,13 +116,14 @@ export function startBomb(stage, p, api) {
     if (g === 'G') { fresh.push({ x, y, k: pk }); if (mine) api.say('🎁 Peti kado: power-up!', 'happy'); return; }
     if (g === 'S') { if (owner?.alive) { owner.shield = true; } if (mine) { api.sfx('gold'); api.say('🛡️ Dapet perisai! Kebal 1x ledakan', 'happy'); } return; }
     if (g === 'I') {
-      for (const pl of players) if (pl !== owner && pl.alive) pl.frozen = 3;
+      if (owner) for (const pl of players) if (pl !== owner && pl.alive) pl.frozen = 3;
+      api.sfx('freeze');
       if (mine) api.say('❄️ Lawan membeku 3 detik!', 'happy'); else if (me().alive) api.say('❄️ Kamu membeku 3 detik!', 'sad');
       fx.burst(X(x) + T / 2, Y(y) + T / 2, { n: 18, colors: ['#e8f7ff', '#a8e2ff', '#fff'], speed: 260, size: 3 });
       return;
     }
     if (g === 'T') { // satu baris penuh meledak (tembok batu tetap aman), peti di baris itu ikut pecah
-      shake = 0.45; api.sfx('bad');
+      shake = 0.45; api.sfx('boom');
       if (mine) api.say('🧨 TNT! Satu baris meledak!', 'happy');
       for (let xx = 1; xx < COLS - 1; xx++) {
         const gg = grid[y][xx];
@@ -134,6 +135,7 @@ export function startBomb(stage, p, api) {
     }
   }
   let shake = 0;
+  let rain = { n: 0, next: 50, warn: null };
 
   // ---- Bahaya (buat bot): sel yang bakal kena ledakan ----
   function dangerMap(extra) {
@@ -264,6 +266,22 @@ export function startBomb(stage, p, api) {
     if (state === 'over') { if (stateT > 2) nextRound(); return; }
     time = Math.max(0, time - dt);
     shake = Math.max(0, shake - dt);
+    // Hujan bom (berdua): mulai detik ke-50, jedanya makin pendek (6 → 2,5 detik). Ditandain 1 detik sebelum jatuh.
+    if (duel) {
+      const el = ROUND - time;
+      if (!rain.warn && el >= rain.next - 1) {
+        for (let tries = 0; tries < 12; tries++) {
+          const h = hash(seedBase + round * 31, rain.n, tries), cx = 1 + Math.floor(h * (COLS - 2)), cy = 1 + Math.floor(hash(seedBase + round * 37, rain.n, tries) * (ROWS - 2));
+          if (grid[cy][cx] === '.' && !bombAt(cx, cy)) { rain.warn = { x: cx, y: cy, at: rain.next }; break; }
+        }
+        if (!rain.warn) rain.next += 1;
+        if (rain.n === 0 && rain.warn) api.say('☄️ Hujan bom dimulai! Liat tanda merah, langsung kabur!', 'happy');
+      }
+      if (rain.warn && el >= rain.warn.at) {
+        if (!bombAt(rain.warn.x, rain.warn.y)) bombs.push({ x: rain.warn.x, y: rain.warn.y, t: 1.4, range: 2, owner: null, pass: new Set(players) });
+        rain.n++; rain.next = rain.warn.at + Math.max(2.5, 6 - rain.n * 0.5); rain.warn = null;
+      }
+    }
     for (const pl of players) { pl.frozen = Math.max(0, pl.frozen - dt); pl.inv = Math.max(0, pl.inv - dt); }
     const m = me();
     const mx = stick.x + ((keys.ArrowRight || keys.d) ? 1 : 0) - ((keys.ArrowLeft || keys.a) ? 1 : 0);
@@ -380,6 +398,12 @@ export function startBomb(stage, p, api) {
       if (hot) { ctx.fillStyle = 'rgba(255,80,60,.28)'; ctx.beginPath(); ctx.arc(cx, cy, T * 0.55 * pulse, 0, Math.PI * 2); ctx.fill(); }
       drawEmoji(ctx, '💣', cx, cy, T * 0.86 * pulse);
       if (Math.random() < 0.5) fx.burst(cx + T * 0.24, cy - T * 0.34, { n: 1, colors: ['#ffd166', '#ff8a3d', '#fff'], speed: 50, size: 2.2, gravity: 120, life: 0.3 });
+    }
+    if (rain.warn) { // tanda bom jatuh
+      const cx = X(rain.warn.x) + T / 2, cy = Y(rain.warn.y) + T / 2, a = 0.5 + 0.5 * Math.sin(now * 20);
+      ctx.strokeStyle = `rgba(255,60,60,${0.5 + a * 0.5})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, T * 0.42, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - T * 0.25, cy); ctx.lineTo(cx + T * 0.25, cy); ctx.moveTo(cx, cy - T * 0.25); ctx.lineTo(cx, cy + T * 0.25); ctx.stroke();
+      drawEmoji(ctx, '☄️', cx, cy - T * (0.6 + a * 0.3), T * 0.55);
     }
     // ledakan: inti putih-kuning + pinggir oranye, mengecil pas habis
     for (const f of flames) {
