@@ -230,7 +230,7 @@ function renderEditor() {
 // ---------- Panduan singkat pas pertama kali masuk CMS ----------
 const TOUR = [
   ['✍️', 'Isi yang paling penting dulu', 'Nama kalian, tanggal lahir, dan foto. Tap langkah di kartu pink atas buat langsung ke bagiannya.'],
-  ['💌', 'Tulis pesan & surat', 'Pesan muncul tiap level selesai, surat rahasia kebuka pas tamat. Nggak harus semua, yang penting dari hati.'],
+  ['💌', 'Tulis pesan & surat', 'Pesan muncul tiap kalian beresin level berdua, surat rahasia kebuka setelah level 60. Nggak harus semua, yang penting dari hati.'],
   ['👀', 'Cek, lalu kirim', 'Tap "Lihat sebagai pasangan" buat ngecek hasilnya. Kalau udah pas, tap "Kirim via WA". Semua tersimpan otomatis.'],
 ];
 function maybeTour(force = false) {
