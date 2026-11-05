@@ -67,7 +67,7 @@ $('#pay-form').addEventListener('submit', async (e) => {
   err.hidden = true; btn.disabled = true; btn.textContent = 'Nyiapin pembayaran…';
   try {
     const r = await call({ action: 'create', plan, promo: promo?.code || undefined, email: $('#pay-email').value, names: { pengirim: $('#pay-pengirim').value, pasangan: $('#pay-pasangan').value } });
-    try { localStorage.setItem(KEY(r.order_id), r.secret); localStorage.setItem('lq-order-last', r.order_id); } catch {}
+    try { localStorage.setItem(KEY(r.order_id), r.secret); localStorage.setItem('lq-order-last', r.order_id); localStorage.setItem('lq-order-last-at', String(Date.now())); } catch {}
     trackEvent('bayar_submit');
     location.href = r.redirect_url;
   } catch (x) {
@@ -100,7 +100,7 @@ async function track(orderId) {
       trackEvent('bayar_paid');
       done(login); return;
     }
-    if (r.status === 'failed') { show('#pay-fail'); return; }
+    if (r.status === 'failed') { forgetLast(orderId); show('#pay-fail'); return; }
     if (r.status === 'need_help') {
       show('#pay-fail'); $('#pf-title').textContent = 'Pembayaran masuk, tapi akunnya perlu dibantu admin';
       $('#pf-txt').textContent = 'Biasanya karena email ini udah pernah dipakai. Tenang, uangmu aman. Chat admin ya, kami beresin.';
@@ -126,8 +126,28 @@ function done(l) {
 }
 $('#pay-recheck').addEventListener('click', () => { $('#pay-recheck').hidden = true; $('#pay-wait-txt').textContent = 'Ngecek lagi…'; track(params.get('order')); });
 
+// Pesanan terakhir di HP ini (misalnya bayar VA di aplikasi bank terus nggak balik ke sini): tawarin lanjutin
+function forgetLast(orderId) { try { if (localStorage.getItem('lq-order-last') === orderId) { localStorage.removeItem('lq-order-last'); localStorage.removeItem('lq-order-last-at'); } } catch {} }
+async function offerLast() {
+  let id = null, secret = null, login = null;
+  try { id = localStorage.getItem('lq-order-last'); secret = id && localStorage.getItem(KEY(id)); login = id && localStorage.getItem(`${KEY(id)}-login`); } catch {}
+  if (!id || !secret) return;
+  let st = login ? 'paid' : null;
+  if (!st) { try { st = (await call({ action: 'status', order_id: id, secret })).status; } catch { return; } }
+  if (st === 'failed') { forgetLast(id); return; }
+  const el = document.createElement('a');
+  el.className = `pay-last ${st === 'paid' ? 'paid' : ''}`;
+  el.href = `/bayar?order=${encodeURIComponent(id)}`;
+  el.innerHTML = st === 'paid'
+    ? `<b>🎉 Pesananmu udah lunas!</b><span>Tap buat lihat login CMS kamu · ${esc(id)}</span>`
+    : st === 'need_help' ? `<b>Pesananmu perlu dibantu admin</b><span>Tap buat lihat detailnya · ${esc(id)}</span>`
+    : `<b>Lanjutin pesanan sebelumnya?</b><span>Udah bayar? Tap buat cek & ambil login · ${esc(id)}</span>`;
+  $('#pay-form').prepend(el);
+}
+
 if (params.get('order')) track(params.get('order'));
 else {
   renderPlans(); show('#pay-form'); trackEvent('bayar_view', { once: true });
+  offerLast();
   if (params.get('promo')) { $('#pay-promo').hidden = false; $('#pay-promo-toggle').hidden = true; $('#pay-code').value = params.get('promo').toUpperCase(); checkPromo(params.get('promo')); }
 }

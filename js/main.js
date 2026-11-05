@@ -504,6 +504,18 @@ if (CONFIG.demo && !CONFIG.showcase && CONFIG.testimonials?.length && $('#lp-tes
     <figure class="lp-quote">${t.photo ? `<img src="${esc(t.photo)}" alt="" loading="lazy">` : ''}<blockquote>“${esc(t.text)}”</blockquote>
       <figcaption><b>${esc(t.name || 'Pembeli Love Quest')}</b>${t.note ? `<small>${esc(t.note)}</small>` : ''}</figcaption></figure>`).join('');
 }
+// Pernah pesan dari HP ini tapi login-nya belum diambil (misalnya bayar VA terus nggak balik ke /bayar): ingetin di landing
+if (CONFIG.demo && !CONFIG.showcase && $('.lp')) {
+  try {
+    const id = localStorage.getItem('lq-order-last'), at = Number(localStorage.getItem('lq-order-last-at')) || 0;
+    if (id && !localStorage.getItem(`lq-order-${id}-login`) && Date.now() - at < 7 * 864e5) {
+      const a = document.createElement('a');
+      a.className = 'promo-strip order-strip'; a.href = `/bayar?order=${encodeURIComponent(id)}`;
+      a.innerHTML = '<span>🧾 Udah bayar pesanan Love Quest-mu?</span><b>Ambil login CMS →</b>';
+      $('.lp').prepend(a);
+    }
+  } catch {}
+}
 // Pita promo di halaman depan (kalau owner lagi bikin promo yang ada teks banner-nya)
 if (CONFIG.demo && !CONFIG.showcase && $('.lp')) {
   fetch(`${CONFIG.cloud.url.replace(/\/$/, '')}/rest/v1/rpc/promo_banner`, { method: 'POST', headers: { apikey: CONFIG.cloud.anonKey, 'Content-Type': 'application/json' }, body: '{}' })
