@@ -39,7 +39,23 @@ Keamanan:
 9. **Authentication → Sign In / Providers**: matikan **Allow new users to sign up**, biar akun cuma bisa dibuat dari `/owner`.
 10. **SQL Editor**: jalankan `supabase/migration-6.sql` (logo aplikasi dari foto cuma buat paket Premium). Manifest per pasangan dilayani `api/manifest.js` (Vercel Function, otomatis ke-deploy).
 
-Alur jualan (sekali bayar, akses selamanya: Love Quest Rp29.000, Premium Rp49.000, upgrade Rp20.000): pembeli bayar lewat WhatsApp → kamu buka `/owner` → **➕ Tambah akun pembeli** (email, password, paket, masa aktif **♾️ Selamanya**) → salin pesan login yang muncul dan kirim ke pembeli. Dari kartu tiap pembeli kamu bisa ganti paket ke Premium, set selamanya / masa aktif tertentu, ganti password, atau hapus akun.
+## Setup Pembayaran Otomatis (Midtrans Production)
+
+1. **Supabase → Edge Functions**:
+   - Buka / deploy fungsi **`checkout`** dari `supabase/functions/checkout/index.ts` (pastikan **Verify JWT** DIMATIKAN).
+2. **Supabase → Edge Functions → Secrets**:
+   - `MIDTRANS_SERVER_KEY`: Server Key Production dari dashboard Midtrans (tempel langsung di Secrets, jangan ditulis di file ini)
+   - `MIDTRANS_PRODUCTION`: `true`
+   - `SITE_URL`: `https://lovequest.id`
+   - (Opsional) `TELEGRAM_BOT_TOKEN` & `TELEGRAM_CHAT_ID` untuk notifikasi bot Telegram saat ada pesanan masuk.
+3. **Midtrans Dashboard (Mode Production)**:
+   - **Settings → Configuration**:
+     - *Payment Notification URL*: `https://paymeqnshhmjqypergji.supabase.co/functions/v1/checkout`
+     - *Finish Redirect URL*: `https://lovequest.id/bayar`
+     - *Unfinish Redirect URL*: `https://lovequest.id/bayar`
+     - *Error Redirect URL*: `https://lovequest.id/bayar`
+
+Alur jualan (sekali bayar, akses selamanya: Love Quest Rp29.000, Premium Rp49.000, upgrade Rp20.000): pembeli bayar otomatis di `/bayar` via Midtrans (QRIS/e-wallet/VA), akun langsung jadi otomatis. Atau pembeli bayar manual lewat WhatsApp → kamu buka `/owner` → **➕ Tambah akun pembeli** (email, password, paket, masa aktif **♾️ Selamanya**) → salin pesan login yang muncul dan kirim ke pembeli. Dari kartu tiap pembeli kamu bisa ganti paket ke Premium, set selamanya / masa aktif tertentu, ganti password, atau hapus akun.
 
 ## Menulis konten
 

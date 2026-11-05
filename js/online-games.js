@@ -20,6 +20,7 @@ const startCook = lazyStart('cook');
 const startBomb = lazyStart('bomb');
 import { TEBAK as TEBAK_Q, SAMAAN as SAMAAN_Q, markQuestions } from './couple-questions.js';
 import { esc } from './util.js';
+import { DUEL_TYPES, SCORE_TYPES } from './duo-levels.js';
 
 export function seeded(seed) {
   let a = seed >>> 0;
@@ -710,7 +711,7 @@ function startFightDuo(stage, api, ctx) {
   }, {
     ...api,
     finish: (r) => api.finish({
-      win: r.win,
+      win: r.win, draw: r.draw,
       icon: r.draw ? '🤝' : r.win ? '🏆' : '😵',
       title: r.draw ? 'Seri, sama kuatnya!' : r.win ? 'Kamu menang!' : `${ctx.peer.name} menang!`,
       detail: `Darah kamu ${r.myHp} · ${ctx.peer.name} ${r.oppHp}`,
@@ -724,21 +725,21 @@ const toonOf = (role) => (role === 'pasangan' ? 'f' : 'm');
 const duelLook = (ctx) => ({ toon: toonOf(ctx.me.role), oppToon: toonOf(ctx.peer.role), face: ctx.me.face, emoji: ctx.me.emoji, name: ctx.me.name, oppFace: ctx.peer.face, oppEmoji: ctx.peer.emoji, oppName: ctx.peer.name, seed: ctx.seed, duel: { role: ctx.me.role, send: ctx.send, on: ctx.on } });
 function startPenaltyDuo(stage, api, ctx) {
   return startPenalty(stage, duelLook(ctx), { ...api, finish: (r) => api.finish({
-    win: r.win, icon: r.draw ? '🤝' : r.win ? '🏆' : '🥈',
+    win: r.win, draw: r.draw, icon: r.draw ? '🤝' : r.win ? '🏆' : '🥈',
     title: r.draw ? 'Seri!' : r.win ? 'Kamu menang adu penalti!' : `${ctx.peer.name} menang adu penalti!`,
     detail: `Gol kamu ${r.myGoals} · ${ctx.peer.name} ${r.oppGoals}`,
   }) });
 }
 function startPillowDuo(stage, api, ctx) {
   return startPillow(stage, duelLook(ctx), { ...api, finish: (r) => api.finish({
-    win: r.win, icon: r.draw ? '🤝' : r.win ? '🏆' : '🪶',
+    win: r.win, draw: r.draw, icon: r.draw ? '🤝' : r.win ? '🏆' : '🪶',
     title: r.draw ? 'Seri, sama-sama jago!' : r.win ? 'Kamu menang perang bantal!' : `${ctx.peer.name} menang perang bantal!`,
     detail: `Nyawa kamu ${r.myHp} · ${ctx.peer.name} ${r.oppHp}`,
   }) });
 }
 function startCookDuo(stage, api, ctx) {
-  return startCook(stage, duelLook(ctx), { ...api, finish: (r) => api.finish({
-    win: r.served > 0, icon: r.served >= 10 ? '👩‍🍳' : '🍳',
+  return startCook(stage, { ...duelLook(ctx), goal: ctx.level?.params.goal }, { ...api, finish: (r) => api.finish({
+    win: r.served > 0, served: r.served, miss: r.miss, icon: r.served >= 10 ? '👩‍🍳' : '🍳',
     title: r.served >= 10 ? 'Chef kompak banget!' : r.served >= 5 ? 'Dapurnya rame, mantap!' : 'Masak bareng seru juga ya 😆',
     detail: `Kalian nyajiin ${r.served} pesanan bareng`,
   }) });
@@ -761,15 +762,15 @@ function startMathDuo(stage, api, ctx) {
 function startBalloonDuo(stage, api, ctx) {
   // kiri = pasangan (tuan rumah), kanan = pengirim; muka di keranjang: pasangan kiri, pengirim kanan
   const A = ctx.me.role === 'pasangan' ? ctx.me : ctx.peer, Bp = ctx.me.role === 'pasangan' ? ctx.peer : ctx.me;
-  return startBalloon(stage, { ...duelLook(ctx), seed: ctx.seed, waterFace: A.face, waterEmoji: A.emoji, fireFace: Bp.face, fireEmoji: Bp.emoji }, { ...api, finish: (r) => api.finish({
-    win: true, icon: r.dist >= 500 ? '🏆' : '🎈',
+  return startBalloon(stage, { ...duelLook(ctx), seed: ctx.seed, goal: ctx.level?.params.goal, waterFace: A.face, waterEmoji: A.emoji, fireFace: Bp.face, fireEmoji: Bp.emoji }, { ...api, finish: (r) => api.finish({
+    win: true, reached: r.reached, lives: r.lives, dist: r.dist, icon: r.dist >= 500 ? '🏆' : '🎈',
     title: r.dist >= 500 ? 'Kompak banget, terbangnya jauh!' : `Kalian terbang ${r.dist} m bareng`,
     detail: `Balon Berdua · ${r.dist} m · 💖 ${r.hearts}`,
   }) });
 }
 function startBombDuo(stage, api, ctx) {
   return startBomb(stage, duelLook(ctx), { ...api, finish: (r) => api.finish({
-    win: r.win, icon: r.draw ? '🤝' : r.win ? '🏆' : '💥',
+    win: r.win, draw: r.draw, icon: r.draw ? '🤝' : r.win ? '🏆' : '💥',
     title: r.draw ? 'Seri, sama-sama kena!' : r.win ? 'Kamu menang Bom Cinta!' : `${ctx.peer.name} menang Bom Cinta!`,
     detail: r.draw ? 'Dua-duanya kena ledakan 😆' : r.win ? `${ctx.peer.name} kena bom kamu 💣` : 'Kamu kena bom duluan 😵',
   }) });
@@ -780,8 +781,9 @@ function startCoopDuo(stage, api, ctx) {
     waterFace: water.face, waterEmoji: water.emoji, waterName: water.name, waterToon: 'f',
     fireFace: fire.face, fireEmoji: fire.emoji, fireName: fire.name, fireToon: 'm',
     duel: { role: ctx.me.role, send: ctx.send, on: ctx.on },
+    level: ctx.level?.params.level || 0, single: !!ctx.level,
   }, { ...api, finish: (r) => api.finish({
-    win: r.win, icon: r.levels >= COOP_LEVELS.length ? '🏠' : '💞',
+    win: r.win, clear: r.clear, gems: r.gems, icon: r.levels >= COOP_LEVELS.length ? '🏠' : '💞',
     title: r.levels >= COOP_LEVELS.length ? 'Kalian sampai rumah bareng!' : `Kalian lewatin ${r.levels} level`,
     detail: `Jalan Pulang Berdua · ${r.levels}/${COOP_LEVELS.length} level`,
   }) });
@@ -805,3 +807,32 @@ export const ONLINE_GAMES = {
   pictio: { name: 'Tebak Gambar', icon: '🎨', desc: 'Pilih kata, gambar pakai jari, pasangan nebak katanya' },
   talk: { name: 'Deep Talk Bareng', icon: '💬', desc: 'Kartu yang ditarik muncul di HP kalian berdua' },
 };
+
+// ---------- Game seru jadi level Petualangan ----------
+// Duel: siapa pun yang menang, levelnya beres buat berdua (yang menang / seri ⭐⭐⭐, yang kalah ⭐⭐).
+// Bareng: harus kejar target levelnya (jarak balon, jumlah pesanan, sampai pintu rumah).
+function levelResult(type, r, ctx) {
+  const lv = ctx.level.params;
+  if (DUEL_TYPES.includes(type)) {
+    const top = r.win || r.draw;
+    return { ...r, win: true, stars: top ? 3 : 2, detail: `${r.detail} · Levelnya beres buat berdua! ${top ? '' : 'Yang kalah tetep dapet ⭐⭐'}`.trim() };
+  }
+  if (type === 'balloon') {
+    if (!r.reached) return { ...r, win: false, stars: 0, icon: '🎈', title: 'Balonnya jatuh duluan', detail: `Baru ${r.dist} m dari target ${lv.goal} m. Kompakan lagi yuk!` };
+    const stars = r.lives >= 3 ? 3 : r.lives === 2 ? 2 : 1;
+    return { ...r, win: true, stars, icon: '🎈', title: `Sampai ${lv.goal} m berdua!`, detail: `Sisa nyawa ${r.lives} · terbang ${r.dist} m bareng` };
+  }
+  if (type === 'cook') {
+    if (r.served < lv.goal) return { ...r, win: false, stars: 0, title: 'Pesanannya belum kekejar', detail: `Baru ${r.served} dari ${lv.goal} pesanan. Bagi tugas biar cepet!` };
+    const stars = [3, 2, 1][Math.min(2, r.miss || 0)];
+    return { ...r, win: true, stars, icon: '👩‍🍳', title: `${r.served} pesanan kesaji!`, detail: r.miss ? `${r.miss} pelanggan sempet kabur` : 'Nggak ada pelanggan yang kabur 🌟' };
+  }
+  if (type === 'coop') {
+    if (!r.clear) return { ...r, win: false, stars: 0 };
+    return { ...r, win: true, stars: Math.min(3, 1 + (r.gems || 0)), icon: '🏠', title: 'Sampai rumah bareng!', detail: `💎 ${r.gems || 0} permata kekumpul` };
+  }
+  return r;
+}
+for (const t of [...DUEL_TYPES, ...SCORE_TYPES]) {
+  LEVEL_GAMES[t] = { countdown: true, start: (stage, api, ctx) => ONLINE_GAMES[t].start(stage, { ...api, finish: (r) => api.finish(levelResult(t, r, ctx)) }, ctx) };
+}

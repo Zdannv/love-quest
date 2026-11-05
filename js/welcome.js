@@ -8,15 +8,15 @@ const KEY = () => `lq-welcome-${CONFIG.slug || CONFIG.showcase}`;
 
 export function maybeWelcome({ sfx, onStart } = {}) {
   if (CONFIG.demo || window.__lqTest) return;
-  if (!CONFIG.slug && !CONFIG.showcase) return;
+  if (!CONFIG.slug || CONFIG.showcase) return; // coba gratis: langsung main, tanpa sambutan
   try { if (localStorage.getItem(KEY())) return; } catch { return; }
   const n = getNames(), c = getChars();
   const fa = getFace('pasangan'), fb = getFace('pengirim');
   const face = (src, emoji) => (src ? `<img src="${esc(src)}" alt="">` : `<span>${emoji}</span>`);
   const fromName = n.raw?.pengirim ? esc(n.pengirim) : 'Seseorang yang sayang kamu';
   const SLIDES = [
-    { ic: '🗺️', t: 'Petualangan 60 level', d: `Tiap level game-nya beda, dan tiap selesai ada pesan dari ${fromName} 💌. Tamatin semuanya buat buka surat rahasia di akhir.` },
-    { ic: '💞', t: 'Main berdua', d: 'Duel, masak bareng, sampai kerja sama dari HP masing-masing. Ada juga kartu Deep Talk & peliharaan yang dirawat berdua.' },
+    { ic: '💞', t: '120 level main berdua', d: `Duel, masak bareng, sampai tebak-tebakan dari HP masing-masing. Tiap level beres ada pesan dari ${fromName} 💌, dan surat rahasia nunggu di level 60.` },
+    { ic: '🤖', t: 'Pasangan belum online?', d: 'Tetep bisa main, latihan lawan bot dulu. Ada juga kartu Deep Talk & peliharaan yang dirawat berdua.' },
     { ic: '🔥', t: 'Main tiap hari', d: 'Jaga streak berdua biar apinya nggak padam. Pasang game ini di home screen biar gampang dibuka.' },
   ];
   const el = document.createElement('div');
@@ -54,7 +54,7 @@ export function maybeWelcome({ sfx, onStart } = {}) {
     pages.forEach((p, k) => p.classList.toggle('on', k === i + 1));
     foot.hidden = i < 0;
     el.querySelectorAll('.wl-dots i').forEach((d, k) => d.classList.toggle('on', k === i));
-    next.textContent = i === SLIDES.length - 1 ? 'Main level 1 sekarang 💖' : 'Lanjut ▶';
+    next.textContent = i === SLIDES.length - 1 ? 'Main berdua sekarang 💖' : 'Lanjut ▶';
   }
   function close() {
     try { localStorage.setItem(KEY(), '1'); } catch {}

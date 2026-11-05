@@ -17,9 +17,9 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
-const SERVER_KEY = Deno.env.get('MIDTRANS_SERVER_KEY') || '';
-const PROD = Deno.env.get('MIDTRANS_PRODUCTION') === 'true';
-const SITE = (Deno.env.get('SITE_URL') || 'https://lovequest.id').replace(/\/$/, '');
+const SERVER_KEY = (Deno.env.get('MIDTRANS_SERVER_KEY') || '').trim();
+const PROD = (Deno.env.get('MIDTRANS_PRODUCTION') || '').trim() === 'true' || (!SERVER_KEY.startsWith('SB-') && SERVER_KEY.startsWith('Mid-server-'));
+const SITE = (Deno.env.get('SITE_URL') || 'https://lovequest.id').trim().replace(/[\r\n\t]/g, '').replace(/\/+$/, '');
 const SNAP = PROD ? 'https://app.midtrans.com/snap/v1/transactions' : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
 const API = PROD ? 'https://api.midtrans.com/v2' : 'https://api.sandbox.midtrans.com/v2';
 // Harga diambil dari pengaturan di halaman /owner (tabel site_settings); yang di bawah cadangan aja
@@ -160,7 +160,11 @@ Deno.serve(async (req) => {
       }),
     });
     const snap = await res.json().catch(() => ({}));
-    if (!res.ok || !snap.redirect_url) return json({ error: 'Midtrans lagi nggak bisa dihubungi, coba sebentar lagi ya' }, 502);
+    if (!res.ok || !snap.redirect_url) {
+      console.error('Midtrans Snap error (upgrade):', res.status, snap);
+      const detail = Array.isArray(snap.error_messages) ? snap.error_messages.join(', ') : (snap.error || snap.message || '');
+      return json({ error: detail ? `Midtrans: ${detail}` : 'Midtrans lagi nggak bisa dihubungi, coba sebentar lagi ya' }, 502);
+    }
     return json({ ok: true, order_id: id, redirect_url: snap.redirect_url });
   }
 
@@ -211,7 +215,11 @@ Deno.serve(async (req) => {
       }),
     });
     const snap = await res.json().catch(() => ({}));
-    if (!res.ok || !snap.redirect_url) return json({ error: 'Midtrans lagi nggak bisa dihubungi, coba sebentar lagi ya' }, 502);
+    if (!res.ok || !snap.redirect_url) {
+      console.error('Midtrans Snap error (create):', res.status, snap);
+      const detail = Array.isArray(snap.error_messages) ? snap.error_messages.join(', ') : (snap.error || snap.message || '');
+      return json({ error: detail ? `Midtrans: ${detail}` : 'Midtrans lagi nggak bisa dihubungi, coba sebentar lagi ya' }, 502);
+    }
     return json({ ok: true, order_id: id, secret, redirect_url: snap.redirect_url });
   }
 

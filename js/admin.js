@@ -1,7 +1,8 @@
 // CMS Love Quest: pembeli login, lalu mengedit isi game miliknya (tabel `couples`).
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { CONFIG } from './config.js';
-import { LEVEL_MAP, TYPE_NAME, levelList } from './level-map.js';
+import { LEVEL_MAP, levelList } from './level-map.js';
+import { DUO_LEVELS, DUO_NAMES, PER_WORLD, LETTER_AFTER } from './duo-levels.js';
 import { TRACKS, createPlayer } from './music.js';
 import { THEMES, CHARACTERS, DEFAULT_THEME, DEFAULT_CHARACTERS } from './themes.js';
 import { esc } from './util.js';
@@ -268,15 +269,19 @@ document.addEventListener('click', (e) => {
   box.parentElement.querySelectorAll('.world-block').forEach((b) => { b.hidden = +b.dataset.world !== wi; });
 });
 
+// Pesan muncul tiap level Main Berdua selesai: dunia 1–5 = level berdua 1–60 (urutan isinya sama kayak dulu)
 function renderMessages() {
-  const items = levelList();
-  $('#message-list').innerHTML = worldTabs('msg') + LEVEL_MAP.map((w, wi) => `
+  const items = levelList().filter((it) => !it.bonus);
+  $('#message-list').innerHTML = `<p class="hint">Muncul tiap kalian beresin level berdua (level 1–${LETTER_AFTER}). Surat rahasia kebuka setelah level ${LETTER_AFTER}. Yang dikosongin / nggak diubah pakai pesan bawaan.</p>` + worldTabs('msg') + LEVEL_MAP.map((w, wi) => `
     <div class="world-block" data-world="${wi}" ${wi === worldOpen.msg ? '' : 'hidden'}>
       <h3>Dunia ${wi + 1} · ${esc(w.name)}</h3>
-      ${items.filter((it) => it.world === wi).map((it) => `
-        <label class="msg-item">${it.bonus ? '<span>Bonus · Puzzle Foto</span>' : `<span><em>Level ${it.num}</em> · ${TYPE_NAME[it.type]}</span>`}
+      ${items.filter((it) => it.world === wi).map((it, k) => {
+        const D = DUO_LEVELS[wi * PER_WORLD + k];
+        return `
+        <label class="msg-item"><span><em>Level ${D.num}</em> · ${esc(DUO_NAMES[D.type])}</span>
           <textarea rows="2" data-path="${it.field}.${it.index}">${esc(content[it.field][it.index] ?? '')}</textarea>
-        </label>`).join('')}
+        </label>`;
+      }).join('')}
     </div>`).join('');
 }
 

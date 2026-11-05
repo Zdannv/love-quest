@@ -10,10 +10,10 @@ export const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ja
 const hash = (str) => { let h = 2166136261; for (const c of str) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
 export const TASK_COIN = 5, BONUS_COIN = 15;
 
-let opts = { types: [], name: (t) => t, icon: () => '🎮', onDone: null, partner: null };
+let opts = { types: [], name: (t) => t, icon: () => '🎮', onDone: null, partner: null, duoOnly: false };
 export function initDaily(o) { opts = { ...opts, ...o }; }
 
-// Pilih 3 misi hari ini: 1 berdua · 1 petualangan/rekor · 1 santai (deep talk / peliharaan / game hari ini)
+// Pilih 3 misi hari ini: 1 berdua · 1 petualangan/rekor (duoOnly: semuanya berdua) · 1 santai (deep talk / peliharaan / game hari ini)
 export function todays(d = today()) {
   let seed = hash(`${d}|${scope()}`);
   const rnd = () => { seed = (Math.imul(seed ^ (seed >>> 15), 2246822507) + 0x9e3779b9) >>> 0; return seed / 4294967296; };
@@ -25,7 +25,11 @@ export function todays(d = today()) {
     { id: 'duo', ic: '💞', t: 'Main 1 game Berdua', ev: 'duo', need: 1, go: 'duo' },
     { id: 'duoWin', ic: '🏆', t: 'Menang 1x lawan pasanganmu', ev: 'duoWin', need: 1, go: 'duo' },
   ];
-  const B = [
+  const B = opts.duoOnly ? [
+    { id: 'duoLevel', ic: '🗺️', t: 'Beresin 1 level Petualangan berdua', ev: 'duoLevel', need: 1, go: 'duo' },
+    { id: 'stars3', ic: '⭐', t: 'Dapet ⭐⭐⭐ di 1 level berdua', ev: 'stars3', need: 1, go: 'duo' },
+    { id: 'duoFree', ic: '🎲', t: 'Main 2 game bebas berdua', ev: 'duoFree', need: 2, go: 'free' },
+  ] : [
     { id: 'level', ic: '🗺️', t: 'Selesaiin 1 level Petualangan', ev: 'level', need: 1, go: 'map' },
     { id: 'stars3', ic: '⭐', t: 'Dapet ⭐⭐⭐ di 1 level', ev: 'stars3', need: 1, go: 'map' },
     { id: 'endless', ic: '🏅', t: 'Main mode skor 2x', ev: 'endless', need: 2, go: 'per' },

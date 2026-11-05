@@ -213,7 +213,7 @@ export function startBalloon(stage, p, api) {
     if (duel && host) duel.send('bend', { win: !!win, ds: Math.floor(dist), h: hearts });
     const m = Math.floor(dist);
     if (p.endless) { api.finish({ win: true, score: m, detail: `Terbang ${m} m bareng, dapet ${hearts} 💖` }); return; }
-    if (duel) { api.finish({ win: !!win || m > 0, dist: m, hearts }); return; }
+    if (duel) { api.finish({ win: !!win || m > 0, reached: !!win, lives, dist: m, hearts }); return; }
     api.finish({ win: !!win, stars: win ? (lives === 3 ? 3 : lives === 2 ? 2 : 1) : 0, detail: win ? `Sampai ${p.goal} m! Sisa nyawa ${lives}, dapet ${hearts} 💖` : `Jatuh di ${m} m dari ${p.goal} m 🎈` });
   }
   return {

@@ -16,9 +16,9 @@ import { THEMES, CHARACTERS, applyTheme } from './themes.js';
 import { SHOWCASES } from './showcase.js';
 import { initTalk } from './talk.js';
 import { initDraw } from './draw.js';
-import { mountOnline, enterLobby, refreshLobby, inviteGame, on as onNet, send as sendNet, me as meNet, peer as peerNet, playerLook } from './online.js';
+import { mountOnline, enterLobby, refreshLobby, inviteGame, openTrack, openFree, on as onNet, send as sendNet, me as meNet, peer as peerNet, playerLook } from './online.js';
 import { ONLINE_GAMES, LEVEL_GAMES } from './online-games.js';
-import { DUO_NAMES, DUO_ICONS, recordDuo, duoUnlocked, getDuoLevel, nextDuoLevel, duoLabel } from './duo-levels.js';
+import { DUO_NAMES, DUO_ICONS, DUO_WORLDS, recordDuo, duoUnlocked, getDuoLevel, nextDuoLevel, duoLabel, duoMsg, duoCleared, openAllDuo, isAction, LETTER_AFTER } from './duo-levels.js';
 import { askProfile, forget as forgetProfile, whoAmI } from './profile.js';
 import { LEVEL_MAP, PATTERN, EXTRA_SLOTS, TYPE_NAME, typeOf } from './level-map.js';
 import { sfx, toggleMute, isMuted, toggleMusic, isMusicOff, holdMusic } from './audio.js';
@@ -294,7 +294,12 @@ function unlocked(L) {
   return L.num === 1 || cleared(MAIN[L.num - 2]);
 }
 // Demo: surat selalu kebuka. Versi pasangan: kebuka setelah tamat sekali.
-const letterOpen = () => TEST_MODE || CONFIG.demo || CONFIG.showcase || cleared(LEVELS.find((L) => L.id === LETTER_LEVEL));
+// Surat kebuka setelah level berdua ke-60 (atau dulu udah namatin petualangan sendiri)
+const letterOpen = () => TEST_MODE || CONFIG.demo || CONFIG.showcase || duoCleared(LETTER_AFTER) || cleared(LEVELS.find((L) => L.id === LETTER_LEVEL));
+if (TEST_MODE) openAllDuo();
+// Love Quest sekarang fokus ke game couple yang dimainin berdua: menu Main sendiri disembunyiin (kodenya tetep ada,
+// game sendirian dipakai buat "Latihan lawan bot" pas pasangan belum online). Ganti ke true buat munculin lagi.
+const SOLO_ON = false;
 
 // ---------- Layar ----------
 const $ = (s) => document.querySelector(s);
@@ -308,7 +313,9 @@ const modal = $('#modal');
 const pet = initPet({ sfx, toast: (t) => toast(t) }); // Peliharaan Kita
 // Tantangan harian: tiap misi selesai → koin ke dompet peliharaan bareng + kabar kecil
 initDaily({
-  types: SOLO_TYPES.filter((t) => t !== 'quiz' && t !== 'coop'), name: (t) => TYPE_NAME[t] || t, icon: (t) => TYPE_ICON[t] || '🎮',
+  types: SOLO_ON ? SOLO_TYPES.filter((t) => t !== 'quiz' && t !== 'coop') : Object.keys(ONLINE_GAMES).filter((t) => !['talk', 'pictio', 'tebak', 'puzzle', 'memory'].includes(t)),
+  duoOnly: !SOLO_ON,
+  name: (t) => TYPE_NAME[t] || ONLINE_GAMES[t]?.name || t, icon: (t) => ONLINE_GAMES[t]?.icon || TYPE_ICON[t] || '🎮',
   onDone: ({ tasks, coins, bonus, count }) => {
     grantCoins(coins, { done: count }).catch(() => {});
     setTimeout(() => {
@@ -330,12 +337,24 @@ document.addEventListener('click', (e) => {
   else if (go === 'map' || go === 'per') { soloTab = go === 'map' ? 'adv' : 'per'; soloTrackType = ''; rememberMode('map'); show('map'); }
   else if (go === 'talk') $('#btn-talk').click();
   else if (go === 'pet') $('#btn-pet').click();
+  else if (go === 'free' || (go.startsWith('game:') && !SOLO_ON)) { rememberMode('online'); show('online'); openFree(); }
   else if (go.startsWith('game:')) { soloTab = 'per'; soloTrackType = go.slice(5); rememberMode('map'); show('map'); }
 });
 
 // Kartu besar di beranda: nunjukin level berikutnya & progres bintang
 function updateHero() {
   const el = $('#hero-title'); if (!el) return;
+  if (!SOLO_ON) {
+    const ds = duoStarsAll(), total = DUO_LEVELS.reduce((a, L) => a + (ds[L.id] || 0), 0);
+    const doneN = DUO_LEVELS.filter((L) => ds[L.id]).length;
+    const next = DUO_LEVELS.find((L) => !ds[L.id]);
+    const peer = peerNet();
+    $('#hero-kicker').textContent = peer ? `💞 ${peer.name} lagi online!` : doneN ? 'Lanjut main berdua' : 'Mulai main berdua';
+    el.textContent = next ? `Level ${next.num} · ${DUO_NAMES[next.type]}` : 'Semua level tamat berdua! 🎉';
+    $('#hero-sub').textContent = `⭐ ${total}/${DUO_LEVELS.length * 3} bintang · ${doneN}/${DUO_LEVELS.length} level berdua`;
+    $('#hero-bar').style.width = `${Math.max(4, (doneN / DUO_LEVELS.length) * 100)}%`;
+    return;
+  }
   const total = LEVELS.reduce((a, L) => a + starsOf(L), 0);
   const main = LEVELS.filter((L) => !L.bonus), doneN = main.filter(cleared).length;
   const next = main.find((L) => unlocked(L) && !cleared(L));
@@ -355,6 +374,12 @@ async function openMemories() {
       levelsDone: main.filter(cleared).length, levelsTotal: main.length,
       streak: { longest: streakData?.longest || streakData?.count || 0, bothDays: streakData?.bothDays || 0, firstDay: streakData?.firstDay || null },
       duoDone: DUO_LEVELS.filter((L) => (ds[L.id] || 0) > 0).length, duoTotal: DUO_LEVELS.length,
+      ...(SOLO_ON ? {} : { // fokus berdua: petualangan = petualangan berdua
+        duoOnly: true, letterAt: LETTER_AFTER,
+        worlds: DUO_WORLDS.map((w, wi) => { const lv = DUO_LEVELS.filter((L) => L.world === wi); return { name: w.name, icon: w.icon, done: lv.filter((L) => ds[L.id]).length, total: lv.length }; }),
+        stars: DUO_LEVELS.reduce((a, L) => a + (ds[L.id] || 0), 0), maxStars: DUO_LEVELS.length * 3,
+        levelsDone: DUO_LEVELS.filter((L) => ds[L.id]).length, levelsTotal: DUO_LEVELS.length,
+      }),
       bests: bestScores(),
       names: { pasangan: n.pasangan, pengirim: n.pengirim, pasanganEmoji: c.pasangan.emoji, pengirimEmoji: c.pengirim.emoji },
       faces: { pasangan: getFace('pasangan'), pengirim: getFace('pengirim') },
@@ -368,6 +393,7 @@ async function openMemories() {
 $('#btn-memo')?.addEventListener('click', () => { sfx('click'); show('memo'); });
 
 function show(name) {
+  if (name === 'map' && !SOLO_ON) name = 'online';
   Object.entries(screens).forEach(([k, el]) => el.classList.toggle('active', k === name));
   document.body.classList.toggle('playing', name === 'game');
   unzoom();
@@ -492,7 +518,17 @@ if (CONFIG.demo && !CONFIG.showcase && $('.lp')) {
       document.querySelectorAll('.lp-price a[href^="/bayar"]').forEach((x) => { x.href += `${x.href.includes('?') ? '&' : '?'}promo=${encodeURIComponent(p.code)}`; });
     }).catch(() => {});
 }
-document.addEventListener('click', (e) => { if (e.target.closest('[data-try]')) { track('try_click'); $('#btn-play').click(); } });
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-try]')) { track('try_click'); $('#btn-play').click(); return; }
+  const g = e.target.closest('[data-try-game]'); if (g) track('try_click'); // link-nya langsung buka game itu
+});
+// Tombol "Coba main gratis" nempel di bawah (HP): muncul setelah lewat tombol di hero, ilang pas sampai ajakan terakhir
+if (CONFIG.demo && !CONFIG.showcase && $('#lp-sticky') && 'IntersectionObserver' in window) {
+  const bar = $('#lp-sticky'), seen = { hero: true, final: false };
+  const sync = () => { const on = !seen.hero && !seen.final; bar.classList.toggle('show', on); bar.setAttribute('aria-hidden', String(!on)); bar.querySelector('button').tabIndex = on ? 0 : -1; };
+  const io = new IntersectionObserver((es) => { es.forEach((en) => { seen[en.target.matches('.lp-final') ? 'final' : 'hero'] = en.isIntersecting; }); sync(); });
+  [$('.lp-cta-hero'), $('.lp-final')].filter(Boolean).forEach((el) => io.observe(el));
+}
 if (CONFIG.demo && !CONFIG.showcase) track('landing_view', { once: true });
 if (CONFIG.slug) track('game_open', { once: true });
 
@@ -531,8 +567,8 @@ if (CONFIG.demo) $('#btn-play').textContent = '🎮 Coba main gratis';
 // Main yuk → pilih mode: sendiri (peta level) atau berdua (online)
 $('#btn-play').addEventListener('click', () => {
   sfx('click');
-  if (CONFIG.demo) { location.href = '/?lihat=kirana-arga'; return; }
-  show(lastMode() === 'online' ? 'online' : 'map');
+  if (CONFIG.demo) { location.href = '/?lihat=kirana-arga&main=duo'; return; }
+  show(!SOLO_ON || lastMode() === 'online' ? 'online' : 'map');
 });
 // Layar Main ingat terakhir dibuka di tab mana (Petualangan / Pilih game / Berdua)
 const MODE_KEY = 'lq-last-mode';
@@ -587,8 +623,8 @@ musicBtn.addEventListener('click', () => { toggleMusic(); syncMusicBtn(); sfx('c
 
 // ---------- Peta ----------
 function letterText() {
-  if (CONFIG.demo || CONFIG.showcase) return 'Di versi kalian, surat kebuka setelah game-nya tamat. Di sini boleh langsung dibaca 🥰';
-  return letterOpen() ? 'Udah kebuka karena game-nya udah tamat 🥰' : '🔒 Bisa dibuka kalau udah namatin game-nya';
+  if (CONFIG.demo || CONFIG.showcase) return `Di versi kalian, surat kebuka setelah level ${LETTER_AFTER} berdua. Di sini boleh langsung dibaca 🥰`;
+  return letterOpen() ? 'Udah kebuka, baca lagi kapan aja 🥰' : `🔒 Kebuka setelah kalian namatin level ${LETTER_AFTER} berdua`;
 }
 
 const worldsEl = $('#worlds');
@@ -597,6 +633,7 @@ let soloTab = 'adv', soloTrackType = '';
 // Menu atas layar Main: "Main sendiri" (Petualangan / Pilih game) + kartu "Main Berdua" yang beda gaya biar gampang ketemu.
 // attr = atribut yang dibaca handler di layar itu (peta: data-solo-tab, layar berdua: data-play-tab)
 function playNav(active, attr) {
+  if (!SOLO_ON) return ''; // cuma ada Main Berdua, nggak perlu menu pilih mode
   const done = LEVELS.filter((L) => cleared(L)).length, c = getChars();
   const ava = (r) => { const f = getFace(r); return `<i>${f ? `<img src="${esc(f)}" alt="">` : c[r].emoji}</i>`; };
   const peerOn = Boolean(peerNet());
@@ -775,10 +812,10 @@ function startLevel(i) {
   const L = typeof i === 'object' ? i : LEVELS[i]; // angka = level peta, objek = level per game / mode skor
   prefetchGame(L.type)?.catch(() => {});
   show('game');
-  screens.game.dataset.theme = WORLDS[L.world].theme;
+  screens.game.dataset.theme = L.theme || WORLDS[L.world].theme;
   screens.game.dataset.game = L.type.replace(/co$/, ''); // latar sesuai game
   stageEl.innerHTML = '';
-  $('#hud-title').textContent = L.endless ? `${TYPE_NAME[L.type]} · Mode skor 🏆` : L.track ? `${TYPE_NAME[L.type]} · Level ${L.num}` : `${levelLabel(L)} · ${TYPE_NAME[L.type]}`;
+  $('#hud-title').textContent = L.bot ? `🤖 Latihan · ${L.bot.free ? ONLINE_GAMES[L.bot.free]?.name || TYPE_NAME[L.type] : duoLabel(L.bot)}` : L.endless ? `${TYPE_NAME[L.type]} · Mode skor 🏆` : L.track ? `${TYPE_NAME[L.type]} · Level ${L.num}` : `${levelLabel(L)} · ${TYPE_NAME[L.type]}`;
   hintText = hintFor(L);
   $('#hud-stats').textContent = '';
 
@@ -948,7 +985,8 @@ $('#btn-quit').addEventListener('click', () => {
   const wasOnline = current?.online;
   stopGame();
   closeModal();
-  if (wasOnline) { sendNet('quit'); show('online'); } else show('map');
+  if (wasOnline) sendNet('quit');
+  show(wasOnline || !SOLO_ON ? 'online' : 'map');
 });
 
 // ---------- Main Bareng (online) ----------
@@ -959,6 +997,9 @@ mountOnline({
   startLevel: (id, seed, extra) => startOnline('level', seed, id, extra),
   openTalk: () => { show('talk'); talk.setSync(true); },
   openDraw: (seed) => { show('draw'); drawOpen = true; draw.open(true, seed ?? null); },
+  bot: (levelId, game) => startBot(levelId, game), canBot: (t) => canBot(t),
+  openTalkSolo: () => show('talk'),
+  letter: () => ({ open: letterOpen(), to: getNames().pasangan, text: letterText() }),
 });
 
 function onlineParams(game, L) {
@@ -988,12 +1029,12 @@ function startOnline(game, seed, levelId = null, extra = {}) {
   const m = meNet(), p = peerNet();
   if (!G || !p) { show('online'); return; }
   show('game');
-  screens.game.dataset.theme = WORLDS[L ? L.world : 0].theme;
+  screens.game.dataset.theme = L ? DUO_WORLDS[L.world]?.game || WORLDS[0].theme : WORLDS[0].theme;
   screens.game.dataset.game = (L ? L.type : game).replace(/co$/, '');
   stageEl.innerHTML = '';
   $('#hud-title').textContent = L ? `Berdua · ${duoLabel(L)}${L.track ? '' : ' · ' + DUO_NAMES[L.type]}` : `Main Bareng · ${G.name}`;
   $('#hud-stats').textContent = '';
-  hintText = L ? `Level ${L.num}: ${DUO_NAMES[L.type]} bareng ${p.name} 💞` : G.desc;
+  hintText = L ? `Level ${L.num}: ${DUO_NAMES[L.type]} bareng ${p.name} 💞${duoGoal(L)}` : G.desc;
   const token = {};
   current = { i: -1, token, game: null, online: game, seed };
   const live = () => current?.token === token;
@@ -1057,37 +1098,106 @@ function h2hLine(game, r, seed) {
   }).catch(() => '');
 }
 if (window.__lqTest) window.__h2hLine = h2hLine;
+// Target level game seru (buat petunjuk)
+function duoGoal(L) {
+  if (!L || !isAction(L.type)) return '';
+  if (L.type === 'balloon') return ` · Target ${L.params.goal} m`;
+  if (L.type === 'cook') return ` · Target ${L.params.goal} pesanan`;
+  if (L.type === 'coop') return ' · Sampai pintu rumah bareng';
+  return ' · Menang kalah, levelnya tetep beres';
+}
+// Hasil level berdua (dipakai main bareng & latihan lawan bot di coba gratis)
+function duoResultHtml(L, r, { again, next, home = 'online', extraNote = '' }) {
+  const msg = L && !L.track && r.win ? fill(duoMsg(L)) : '';
+  const letterNow = L && !L.track && r.win && L.num === LETTER_AFTER;
+  const stars = L && r.win ? `<div class="stars">${[0, 1, 2].map((k) => `<span class="star ${k < r.stars ? 'on' : ''}" style="animation-delay:${0.25 + k * 0.25}s">★</span>`).join('')}</div>` : '';
+  return `
+      <div class="modal-emoji bounce">${r.icon || (r.win ? '🎉' : '💧')}</div>
+      ${L ? `<p class="detail">${esc(duoLabel(L))}${L.track ? '' : ' · ' + DUO_NAMES[L.type]}</p>` : ''}
+      <h2>${esc(r.title || (r.win ? 'Level beres!' : 'Yahh, belum berhasil'))}</h2>
+      ${stars}
+      <p class="detail">${esc(r.detail || '')}</p>
+      ${msg ? `<div class="love-note"><span class="from">💌 dari ${esc(getNames().pengirim)}</span>${esc(msg)}</div>` : ''}
+      ${extraNote}
+      <div data-h2h></div>
+      ${r.win || r.draw ? shareBtn({ icon: L ? DUO_ICONS[L.type] : r.shareIcon, kicker: L ? `Berdua · ${duoLabel(L)}` : r.kicker || 'Main Berdua', title: r.title || 'Level beres!', stars: L && r.win ? r.stars : null, sub: r.detail, note: msg }) : ''}
+      <div class="modal-actions">
+        <button class="btn ghost" data-go="${home}">${L ? '🗺️ Peta' : '🎮 Lobby'}</button>
+        ${again}
+        ${letterNow ? '<button class="btn" data-go="letter">Buka surat 💌</button>' : next}
+      </div>`;
+}
 function onlineFinish(token, game, r, L) {
   if (current?.token !== token) return;
   const h2h = L ? Promise.resolve('') : h2hLine(game, r, current.seed);
   if (r.win) { sfx('win'); confetti(); } else sfx('lose');
   bump('duoGames'); if (r.win) bump('duoWins');
-  trackDaily('duo'); if (r.win && !r.draw) trackDaily('duoWin'); trackDaily(`type:${(L ? L.type : game).replace(/co$/, '')}`);
+  playedType((L ? L.type : game).replace(/co$/, ''));
+  trackDaily('duo'); if (r.win && !r.draw && !L) trackDaily('duoWin'); trackDaily(`type:${(L ? L.type : game).replace(/co$/, '')}`);
+  if (L && r.win) trackDaily('duoLevel');
+  if (!L) trackDaily('duoFree');
+  if (L && r.win && r.stars >= 3) trackDaily('stars3');
   if (L && r.stars) recordDuo(L.id, r.stars);
-  if (L) recordPlay().then((isNew) => { if (isNew) { refreshStreak(true); if (!pendingPlays()) notifyPlayed(); } }).catch(() => {});
+  recordPlay().then((isNew) => { if (isNew) { refreshStreak(true); if (!pendingPlays()) notifyPlayed(); } }).catch(() => {});
   setTimeout(() => {
     if (current?.token !== token) return;
     stopGame();
     const next = L && r.win ? nextDuoLevel(L) : null;
-    const stars = L && r.win ? `<div class="stars">${[0, 1, 2].map((k) => `<span class="star ${k < r.stars ? 'on' : ''}" style="animation-delay:${0.25 + k * 0.25}s">★</span>`).join('')}</div>` : '';
-    modal.querySelector('.modal-card').innerHTML = `
-      <div class="modal-emoji bounce">${r.icon || '💞'}</div>
-      ${L ? `<p class="detail">${esc(duoLabel(L))}${L.track ? '' : ' · ' + DUO_NAMES[L.type]}</p>` : ''}
-      <h2>${esc(r.title)}</h2>
-      ${stars}
-      <p class="detail">${esc(r.detail)}</p>
-      <div data-h2h></div>
-      ${r.win || r.draw ? shareBtn({ icon: L ? DUO_ICONS[L.type] : ONLINE_GAMES[game]?.icon, kicker: L ? `Berdua · ${duoLabel(L)}` : `Main Berdua · ${ONLINE_GAMES[game]?.name || ''}`, title: r.title, stars: L && r.win ? r.stars : null, sub: r.detail }) : ''}
-      <div class="modal-actions">
-        <button class="btn ghost" data-go="online">${L ? '🗺️ Peta' : '🎮 Lobby'}</button>
-        ${L ? `<button class="btn ${next ? 'ghost' : ''}" data-ol-level="${L.id}">🔁 Ulangi</button>` : `<button class="btn" data-ol-again="${game}">Main lagi 🔁</button>`}
-        ${next && duoUnlocked(next) ? `<button class="btn" data-ol-level="${next.id}">Lanjut ▶</button>` : ''}
-      </div>`;
+    modal.querySelector('.modal-card').innerHTML = duoResultHtml(L, { ...r, shareIcon: ONLINE_GAMES[game]?.icon, kicker: `Main Berdua · ${ONLINE_GAMES[game]?.name || ''}` }, {
+      again: L ? `<button class="btn ${next ? 'ghost' : ''}" data-ol-level="${L.id}">🔁 Ulangi</button>` : `<button class="btn" data-ol-again="${game}">Main lagi 🔁</button>`,
+      next: next && duoUnlocked(next) ? `<button class="btn" data-ol-level="${next.id}">Lanjut ▶</button>` : '',
+    });
     modal.classList.remove('hidden');
     h2h.then((html) => { const el = modal.querySelector('[data-h2h]'); if (el && html) el.innerHTML = html; });
     refreshLobby();
   }, 700);
 }
+
+// ---------- Latihan lawan bot: pasangan belum online → main versi sendirian dari game yang sama ----------
+// Coba gratis: bintangnya masuk ke peta berdua. Versi pasangan: latihan doang, bintang cuma dari main bareng.
+const BOT_SOLO = { flyco: 'fly', tebak: 'quiz', samaan: 'quiz', memoryco: 'memory', simonco: 'simon', popco: 'pop', catchco: 'catch', stackco: 'stack', throwco: 'throw' };
+const botType = (t) => BOT_SOLO[t] || t;
+const canBot = (t) => Boolean(STARTERS[botType(t)]);
+function startBot(levelId, game) {
+  const D = getDuoLevel(levelId);
+  const type = botType(D ? D.type : game);
+  if (!STARTERS[type]) { toast('Game ini cuma bisa dimainin berdua 💞'); return; }
+  const k = D ? (D.track ? D.k : Math.min(9, D.world)) : 2;
+  const kk = type === 'quiz' ? k % Math.max(1, CONFIG.quiz.length) : type === 'coop' && D?.params.level != null ? D.params.level : k;
+  startLevel({
+    id: `b-${D ? D.id : game}`, bot: D || { free: game }, track: type, k: kk, num: D?.num || 1, type,
+    world: D ? D.world % 5 : 0, theme: D ? DUO_WORLDS[D.world]?.game : null, params: trackParams(type, kk),
+  });
+}
+function botFinish(token, L, r) {
+  const D = L.bot.free ? null : L.bot, trial = Boolean(CONFIG.showcase);
+  trackDaily(`type:${(D ? D.type : L.bot.free).replace(/co$/, '')}`);
+  recordPlay().then((isNew) => { if (isNew) { refreshStreak(true); if (!pendingPlays()) notifyPlayed(); } }).catch(() => {});
+  if (r.win) { sfx('win'); confetti(); owlSay(pick(OWL_WIN), 'happy', 0); } else { sfx('lose'); owlSay(pick(OWL_LOSE), 'sad', 0); }
+  if (trial && D && r.win) recordDuo(D.id, r.stars);
+  setTimeout(() => {
+    if (current?.token !== token) return;
+    stopGame();
+    resultL = L;
+    const other = getNames()[whoAmI() === 'pengirim' ? 'pasangan' : 'pengirim'];
+    const next = D && r.win && trial ? nextDuoLevel(D) : null;
+    const tip = trial
+      ? '<p class="bot-tip">🤖 Barusan lawan bot. <b>Lebih seru lawan pasanganmu beneran!</b> Di menu Berdua, bikin room terus kirim kodenya ke dia 💞</p>'
+      : `<p class="bot-tip">🤖 Ini latihan lawan bot. Bintangnya masuk kalau main bareng ${esc(other)} yaa 💞</p>`;
+    const res = { ...r, title: r.win ? (D ? `${duoLabel(D)} beres!` : 'Menang lawan bot! 🤖') : 'Yahh, belum berhasil', icon: r.win ? '🎉' : '💧' };
+    modal.querySelector('.modal-card').innerHTML = duoResultHtml(trial || !D ? D : null, trial ? res : { ...res, win: r.win && !D ? r.win : false, stars: 0, title: r.win ? 'Latihan beres! 💪' : res.title }, {
+      again: `<button class="btn ${next ? 'ghost' : ''}" data-act="retry">🔁 Ulangi</button>`,
+      next: next ? `<button class="btn" data-bot-level="${next.id}">Lanjut ▶</button>` : !trial ? `<button class="btn" data-go="online">📣 Ajak ${esc(other)}</button>` : '',
+      extraNote: tip,
+    });
+    modal.classList.remove('hidden');
+  }, 700);
+}
+if (window.__lqTest) Object.assign(window, { __bot: startBot, __startDuo: (id, seed) => startOnline('level', seed, id) });
+modal.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-bot-level]'); if (!b) return;
+  sfx('click'); closeModal(); startBot(b.dataset.botLevel);
+});
 modal.addEventListener('click', (e) => {
   const again = e.target.closest('[data-ol-again]');
   const lvl = e.target.closest('[data-ol-level]');
@@ -1119,6 +1229,7 @@ function onFinish(token, r) {
   if (current?.token !== token) return;
   const L = current.L;
   playedType(L.type);
+  if (L.bot) return botFinish(token, L, r);
   trackDaily(`type:${L.type}`);
   if (L.endless) { trackDaily('endless'); return endlessFinish(token, L, r); }
   if (r.win && !L.track && !L.bonus) trackDaily('level');
@@ -1254,6 +1365,7 @@ modal.addEventListener('click', (e) => {
   const i = +modal.dataset.level;
   closeModal();
   if (resultL?.endless && act === 'retry') { startLevel(endlessLevel(resultL.type)); return; }
+  if (resultL?.bot && act === 'retry') { startLevel(resultL); return; }
   if (resultL?.track && (act === 'retry' || act === 'next')) {
     const L = act === 'retry' ? resultL : soloTrack(resultL.track, resultL.k + 1);
     if (L) startLevel(L); else show('map');
@@ -1491,7 +1603,7 @@ for (let i = 0; i < 16; i++) {
 updateHero();
 if (!CONFIG.demo) renderDaily($('#daily-home'));
 setupNav();
-maybeWelcome({ sfx, onStart: () => { if (!Object.keys(progress.stars).length) startLevel(0); } });
+maybeWelcome({ sfx, onStart: () => { if (SOLO_ON) { if (!Object.keys(progress.stars).length) startLevel(0); } else show('online'); } });
 // Fitur yang belum pernah dibuka dapet label "baru" (dikenalin pelan-pelan)
 const SEEN = (k) => `lq-seen-${CONFIG.slug || CONFIG.showcase || 'demo'}-${k}`;
 function markNew() {
@@ -1510,6 +1622,18 @@ if (new URLSearchParams(location.search).get('duo') === '1') {
   setTimeout(openFromInvite, 300);
 }
 navigator.serviceWorker?.addEventListener('message', (e) => { if (e.data?.type === 'open-duo') openFromInvite(); });
+// Coba gratis dari halaman depan: ?main=duo → menu Berdua, ?main=<game> → langsung main game itu (lawan bot)
+if (CONFIG.showcase) {
+  const want = new URLSearchParams(location.search).get('main');
+  if (want) {
+    history.replaceState(null, '', location.pathname + location.search.replace(/[?&]main=[^&]*/, '').replace(/^&/, '?'));
+    setTimeout(() => {
+      show('online');
+      if (want !== 'duo' && canBot(want)) startBot(null, want);
+      else toast('🎮 Coba gratis: semua 120 level kebuka! Tap level mana aja');
+    }, 250);
+  }
+}
 // Aplikasi siap: tutup layar pembuka
 document.body.classList.add('app-ready');
 setTimeout(() => document.getElementById('splash')?.remove(), 700);

@@ -10,15 +10,19 @@ import { on as onNet, send as sendNet, peer as peerNet } from './online.js';
 
 const $ = (s) => document.querySelector(s);
 
+// Coba gratis: cuma beberapa kartu tiap topik yang kebuka, sisanya ada di versi lengkap
+const TRIAL_PER_CAT = 4;
+const trial = () => Boolean(CONFIG.showcase);
 function allCards() {
   const cards = [];
-  for (const [cat, list] of Object.entries(TALK_CARDS)) list.forEach((q) => cards.push({ cat, q }));
+  for (const [cat, list] of Object.entries(TALK_CARDS)) list.slice(0, trial() ? TRIAL_PER_CAT : list.length).forEach((q) => cards.push({ cat, q }));
   (CONFIG.talkCustom || []).filter((q) => q && q.trim()).forEach((q) => cards.push({ cat: 'custom', q: q.trim() }));
   return cards;
 }
 
 export function initTalk({ sfx }) {
   const cards = allCards();
+  const fullCount = (c) => (c === 'semua' ? Object.values(TALK_CARDS).reduce((a, l) => a + l.length, 0) + cards.filter((x) => x.cat === 'custom').length : c === 'custom' ? cards.filter((x) => x.cat === 'custom').length : TALK_CARDS[c]?.length || 0);
   const cats = ['semua', ...Object.keys(TALK_CATS).filter((c) => cards.some((x) => x.cat === c))];
   let cat = 'semua';
   let deck = [];
@@ -30,7 +34,7 @@ export function initTalk({ sfx }) {
 
   function renderCats() {
     $('#talk-cats').innerHTML = cats.map((c) => `
-      <button type="button" class="talk-cat ${c === cat ? 'on' : ''}" data-cat="${c}" style="--tc:${c === 'semua' ? 'var(--pink)' : TALK_CATS[c].color}"><span class="tc-ic">${c === 'semua' ? '🃏' : TALK_CATS[c].icon}</span><b>${esc(catName(c))}</b><small>${cards.filter((x) => c === 'semua' || x.cat === c).length}</small></button>`).join('');
+      <button type="button" class="talk-cat ${c === cat ? 'on' : ''}" data-cat="${c}" style="--tc:${c === 'semua' ? 'var(--pink)' : TALK_CATS[c].color}"><span class="tc-ic">${c === 'semua' ? '🃏' : TALK_CATS[c].icon}</span><b>${esc(catName(c))}</b><small>${trial() ? `${cards.filter((x) => c === 'semua' || x.cat === c).length}/${fullCount(c)} 🔓` : cards.filter((x) => c === 'semua' || x.cat === c).length}</small></button>`).join('');
   }
   function newDeck() {
     deck = shuffle(cards.filter((x) => cat === 'semua' || x.cat === cat));
@@ -47,10 +51,29 @@ export function initTalk({ sfx }) {
   window.addEventListener('resize', () => fitQ());
   function draw() {
     if (busy) return;
+    if (!deck.length && trial() && drawn > 0 && !locked) { showLocked(); return; }
+    locked = false;
     if (!deck.length) newDeck();
     const card = deck.pop();
     show(card);
     if (sync) sendNet('talk', { card });
+  }
+  // Coba gratis: kartu yang kebuka udah habis → kartu "kebuka di versi kalian"
+  let locked = false;
+  function showLocked() {
+    locked = true;
+    const el = $('#talk-card'), more = fullCount(cat) - cards.filter((x) => cat === 'semua' || x.cat === cat).length;
+    sfx('flip');
+    el.classList.remove('flipped');
+    setTimeout(() => {
+      el.style.setProperty('--talk', 'var(--pink)');
+      $('#talk-cat').textContent = '🔒 Versi lengkap';
+      $('#talk-q').textContent = `Masih ada ${more} kartu lagi di topik ini 💌 Kebuka semua (100+ kartu) di versi kalian, plus kartu yang kamu tulis sendiri.`;
+      fitQ();
+      $('#talk-turn').innerHTML = '<span class="talk-buy" data-paket>💖 Bikin versi kalian</span>';
+      el.classList.add('flipped');
+      $('#talk-next').textContent = 'Ulangi kartu gratis 🔁';
+    }, el.classList.contains('flipped') ? 260 : 0);
   }
   function show(card) {
     busy = true;

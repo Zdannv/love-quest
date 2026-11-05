@@ -10,7 +10,7 @@ function badges(c) {
   const add = (group, icon, title, desc, cur, goal) => B.push({ group, icon, title, desc, cur: Math.min(cur, goal), goal, ok: cur >= goal });
   add('Petualangan', '🌱', 'Langkah pertama', 'Selesaiin 1 level', c.levelsDone, 1);
   c.worlds.forEach((w, i) => add('Petualangan', w.icon, `Tamat ${w.name}`, `Selesaiin semua level dunia ${i + 1}`, w.done, w.total));
-  add('Petualangan', '⭐', 'Kolektor bintang', 'Kumpulin 100 bintang', c.stars, 100);
+  add('Petualangan', '⭐', 'Kolektor bintang', `Kumpulin ${c.duoOnly ? 150 : 100} bintang`, c.stars, c.duoOnly ? 150 : 100);
   add('Petualangan', '👑', 'Juara petualangan', `Dapet semua ${c.maxStars} bintang`, c.stars, c.maxStars);
   add('Streak', '🔥', 'Nyala 3 hari', 'Main berdua 3 hari berturut-turut', c.streak.longest, 3);
   add('Streak', '💪', 'Seminggu kompak', 'Streak 7 hari', c.streak.longest, 7);
@@ -18,7 +18,8 @@ function badges(c) {
   add('Streak', '💍', 'Sebulan nggak putus', 'Streak 30 hari', c.streak.longest, 30);
   add('Berdua', '💞', 'Main bareng pertama', 'Selesaiin 1 game berdua', st.duoGames, 1);
   add('Berdua', '🥊', 'Jagoan duel', 'Menang 10 kali main berdua', st.duoWins, 10);
-  add('Berdua', '🗺️', 'Petualang berdua', `Tamatin ${c.duoTotal} level berdua`, c.duoDone, c.duoTotal);
+  if (c.duoOnly) add('Berdua', '💌', 'Surat rahasia', `Tamatin ${c.letterAt} level berdua`, c.duoDone, c.letterAt);
+  else add('Berdua', '🗺️', 'Petualang berdua', `Tamatin ${c.duoTotal} level berdua`, c.duoDone, c.duoTotal);
   add('Deep Talk', '💬', 'Mulai ngobrol', 'Buka 10 kartu Deep Talk', st.talkCards, 10);
   add('Deep Talk', '🫶', 'Makin kenal', 'Buka 50 kartu Deep Talk', st.talkCards, 50);
   add('Deep Talk', '📚', 'Semua kartu', 'Buka 100 kartu Deep Talk', st.talkCards, 100);
@@ -26,7 +27,7 @@ function badges(c) {
   add('Peliharaan', '🍼', 'Tumbuh bareng', 'Peliharaan level 5', pet.lvl || 0, 5);
   add('Peliharaan', '🏅', 'Peliharaan juara', 'Peliharaan level 10', pet.lvl || 0, 10);
   add('Game', '🎮', 'Penjelajah game', 'Mainin 10 jenis game beda', st.types.length, 10);
-  add('Game', '🏆', 'Pemecah rekor', 'Pecahin rekor di 3 game mode skor', Object.values(c.bests).filter((v) => v > 0).length, 3);
+  if (!c.duoOnly) add('Game', '🏆', 'Pemecah rekor', 'Pecahin rekor di 3 game mode skor', Object.values(c.bests).filter((v) => v > 0).length, 3);
   return B;
 }
 

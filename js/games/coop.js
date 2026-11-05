@@ -168,7 +168,7 @@ export function startCoop(stage, p, api) {
   function update(dt) {
     stateT += dt; introT += dt;
     if (state === 'dead') { if (stateT > 1.4) { msg = null; load(lvIdx); } return; }
-    if (state === 'clear') { if (stateT > 2.2) { if (!duel) end(); else if (lvIdx + 1 >= COOP_LEVELS.length) end(); else load(lvIdx + 1); } return; }
+    if (state === 'clear') { if (stateT > 2.2) { if (!duel || p.single) end(); else if (lvIdx + 1 >= COOP_LEVELS.length) end(); else load(lvIdx + 1); } return; }
     // tombol → gerbang & lift
     gates = pressed('o') ? Math.min(1, gates + dt * 4) : Math.max(0, gates - dt * 4);
     const want = pressed('p') ? LIFT : 0, before = liftY;
@@ -339,7 +339,7 @@ export function startCoop(stage, p, api) {
     if (done) return;
     done = true;
     const got = gems.filter((g) => g.got).length;
-    if (duel) { api.finish({ win: state === 'clear' || lvIdx >= COOP_LEVELS.length - 1, levels: state === 'clear' ? lvIdx + 1 : lvIdx }); return; }
+    if (duel) { api.finish({ win: state === 'clear' || lvIdx >= COOP_LEVELS.length - 1, clear: state === 'clear', gems: got, deaths, levels: state === 'clear' ? lvIdx + 1 : lvIdx }); return; }
     api.finish({ win: true, stars: Math.min(3, 1 + got), detail: `Level ${lvIdx + 1} selesai · 💎 ${got}/${gems.length}${deaths ? ` · ${deaths}x ulang` : ''}` });
   }
 

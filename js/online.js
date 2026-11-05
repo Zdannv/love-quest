@@ -1,20 +1,19 @@
 // Main Berdua (online): dua HP nyambung lewat Supabase Realtime (broadcast + presence), tanpa database.
 // Game pasangan otomatis masuk room berdua. Bisa juga pakai kode 4 angka buat main sama temen.
-// Isinya: peta 30 level kerja sama (duo-levels.js) + game bebas (balapan, gantian, Deep Talk bareng).
+// Isinya: petualangan 120 level berdua (duo-levels.js) + game bebas (duel, bareng, Deep Talk bareng).
+// Pasangan belum online? Tetep bisa main: latihan lawan bot (versi sendirian dari game yang sama).
 import { CONFIG } from './config.js';
 import { getNames, getFace, getChars } from './personal.js';
 import { esc } from './util.js';
 import { gameTile, gameHead } from './game-look.js';
 import { ONLINE_GAMES } from './online-games.js';
-import { whoAmI, askProfile, forget } from './profile.js';
-import { LEVEL_MAP } from './level-map.js';
-import { DUO_LEVELS, DUO_NAMES, DUO_ICONS, DUO_DESC, DUO_TYPES, TRACK_LEN, trackLevel, getDuoLevel, duoLabel, duoStars, duoUnlocked, mergeDuo } from './duo-levels.js';
+import { whoAmI, askProfile, forget, setRole } from './profile.js';
+import { DUO_LEVELS, DUO_WORLDS, LETTER_AFTER, PER_WORLD, DUO_NAMES, DUO_ICONS, DUO_DESC, DUO_TYPES, TRACK_LEN, trackLevel, getDuoLevel, duoLabel, duoStars, duoUnlocked, mergeDuo } from './duo-levels.js';
 import { pickQuestions } from './couple-questions.js';
 import { sendInvite, pushState, enablePush } from './streak.js';
 
 const $ = (s) => document.querySelector(s);
 const ID_KEY = 'lq-online-id';
-const WORLD_THEME = ['w-flower', 'w-candy', 'w-beach', 'w-night', 'w-home'];
 
 const myId = (() => {
   try {
@@ -74,6 +73,11 @@ async function joinRoom(code) {
       const before = net.peer?.id;
       net.peer = others[0] || null;
       if (before && !net.peer) emitLocal('peer-left');
+      // Coba gratis: dua HP sama-sama jadi profil yang sama → yang id-nya lebih besar otomatis pindah
+      if (CONFIG.showcase && net.peer && net.peer.role === myRole() && myId > net.peer.id) {
+        setRole(myRole() === 'pasangan' ? 'pengirim' : 'pasangan');
+        ch.track(me());
+      }
       if (net.peer && net.peer.id !== before) send('duo-prog', { stars: duoStars() }); // samain progres level
       render();
     });
@@ -115,13 +119,13 @@ function render() {
   if (!role) status = 'Masuk ke profilmu dulu yaa';
   else if (net.status === 'connecting') status = 'Lagi nyambung…';
   else if (net.status === 'error') status = 'Gagal nyambung, cek internet terus coba lagi 🥺';
-  else if (!net.code) status = 'Bikin room baru atau masukin kode dari temanmu 👇';
-  else if (!p) status = cr && net.code === cr ? `Nunggu ${esc(nameOf(other))} buka menu Berdua juga…` : 'Kirim kode ini ke temanmu, terus tunggu dia gabung…';
+  else if (!net.code) status = CONFIG.showcase ? 'Lagi sendirian? Langsung pilih level di bawah, lawannya bot dulu 🤖' : 'Bikin room baru atau masukin kode dari temanmu 👇';
+  else if (!p) status = cr && net.code === cr ? `Nunggu ${esc(nameOf(other))} buka menu Berdua juga… Sambil nunggu, main lawan bot dulu bisa 🤖` : 'Kirim kode ini ke pasangan / temanmu, terus tunggu dia gabung…';
   else if (clash) status = `Kalian masuk pakai profil yang sama. Salah satu ganti profil dulu yaa`;
   else status = `✓ ${esc(p.name)} udah masuk! Pilih mainnya di bawah 👇`;
 
   // Room pakai kode cuma kebuka kalau lagi dipakai (biasanya pasangan langsung nyambung otomatis)
-  const codeOpen = Boolean(net.code && net.code !== cr) || (!cr && role);
+  const codeOpen = Boolean(net.code && net.code !== cr) || (!cr && role && !CONFIG.showcase); // coba gratis: ditutup biar levelnya langsung keliatan
   const friendRoom = net.code && net.code !== cr;
   const pick = (r) => { const look = playerLook(r, nameOf(r)); return `<button type="button" class="ol-pickme" data-ol="profile"><span class="ol-ava">${look.face ? `<img src="${esc(look.face)}" alt="">` : `<span>${look.emoji}</span>`}</span><b>${esc(nameOf(r))}</b><small>Ini aku</small></button>`; };
   const shareBtn = role && !p && !friendRoom && net.status === 'on'
@@ -137,9 +141,9 @@ function render() {
     </div>
     <p class="ol-status ${ready() ? 'ok' : ''}">${status}</p>
     ${shareBtn}
-    <p class="ol-me">Kamu masuk sebagai <b>${esc(nameOf(role))}</b> · <button class="link-btn" type="button" data-ol="switch">bukan kamu?</button></p>
+    ${CONFIG.showcase ? '' : `<p class="ol-me">Kamu masuk sebagai <b>${esc(nameOf(role))}</b> · <button class="link-btn" type="button" data-ol="switch">bukan kamu?</button></p>`}
     <details class="ol-friends" ${codeOpen ? 'open' : ''}>
-      <summary>Main sama orang lain? <u>Pakai kode room</u></summary>
+      <summary>${CONFIG.showcase ? '💞 Main bareng pasanganmu beneran? <u>Pakai kode room</u>' : 'Main sama orang lain? <u>Pakai kode room</u>'}</summary>
       ${net.code && net.code !== cr ? `<p class="ol-code">Kode room: <b>${esc(net.code)}</b></p>` : ''}
       <div class="ol-code-row">
         ${cr && net.code !== cr ? '<button type="button" class="btn ghost small-btn" data-ol="couple">Balik ke room berdua</button>' : ''}
@@ -150,21 +154,28 @@ function render() {
 
   // Peta level berdua: tab Petualangan (campur) / Per game / Main bebas
   const stars = duoStars();
-  const tabs = `<p class="ol-pickh"><b>Mau main apa berdua?</b>${ready() ? '' : `<small>${!role ? 'Pilih dulu kamu yang mana di atas ☝️' : `Bisa dimulai pas ${esc(friendRoom || !coupleRoom() ? 'temanmu' : nameOf(other))} udah masuk`}</small>`}</p>
+  const tabs = `<p class="ol-pickh"><b>Mau main apa berdua?</b>${ready() ? '' : `<small>${!role ? 'Pilih dulu kamu yang mana di atas ☝️' : `${esc(friendRoom || !coupleRoom() ? 'Pasanganmu' : nameOf(other))} belum masuk? Tap game-nya, main lawan bot dulu 🤖`}</small>`}</p>
   <div class="ol-modes" role="tablist">
-    ${[['adv', '🗺️', 'Petualangan', '30 level'], ['per', '🎯', 'Per game', 'pilih 1 game'], ['free', '🎲', 'Bebas', 'tanpa level']].map(([id, ic, t, sub]) => `<button type="button" role="tab" data-ol-tab="${id}" aria-selected="${olTab === id}"><span>${ic}</span><b>${t}</b><small>${sub}</small></button>`).join('')}
+    ${[['adv', '🗺️', 'Petualangan', `${DUO_LEVELS.length} level`], ['per', '🎯', 'Per game', 'pilih 1 game'], ['free', '🎲', 'Bebas', 'tanpa level']].map(([id, ic, t, sub]) => `<button type="button" role="tab" data-ol-tab="${id}" aria-selected="${olTab === id}"><span>${ic}</span><b>${t}</b><small>${sub}</small></button>`).join('')}
   </div>`;
   let body = '';
   if (olTab === 'adv') {
     const advStars = DUO_LEVELS.reduce((a, L) => a + (stars[L.id] || 0), 0);
-    body = `<p class="ol-section">Petualangan berdua <span>⭐ ${advStars}/${DUO_LEVELS.length * 3}</span></p>` + LEVEL_MAP.map((w, wi) => {
+    const lt = ui.letter?.();
+    const letterCard = lt ? `
+      <button type="button" class="letter-btn ${lt.open ? '' : 'locked'}" data-go="letter" ${lt.open ? '' : 'disabled'}>
+        <span>💌</span><div><b>Surat untuk ${esc(lt.to)}</b><small>${esc(lt.text)}</small></div>
+      </button>` : '';
+    body = `<p class="ol-section">Petualangan berdua <span>⭐ ${advStars}/${DUO_LEVELS.length * 3}</span></p>` + DUO_WORLDS.map((w, wi) => {
       const levels = DUO_LEVELS.filter((L) => L.world === wi);
       const open = duoUnlocked(levels[0], stars);
-      return `
-      <section class="world ${WORLD_THEME[wi]} ${open ? '' : 'locked'}">
+      const got = levels.reduce((a, L) => a + (stars[L.id] || 0), 0);
+      return `${wi === 5 ? `${letterCard}<p class="ol-section ol-more">✨ Petualangan lanjutan <span>level ${LETTER_AFTER + 1}–${DUO_LEVELS.length}</span></p>` : ''}
+      <section class="world ${w.theme} ${open ? '' : 'locked'}">
         <div class="world-head">
           <span class="world-icon">${w.icon}</span>
-          <div><small>Dunia ${wi + 1}</small><h2>${esc(w.name)}</h2></div>
+          <div><small>Dunia ${wi + 1} · level ${wi * PER_WORLD + 1}–${(wi + 1) * PER_WORLD}</small><h2>${esc(w.name)}</h2></div>
+          <span class="world-stars">⭐ ${got}/${levels.length * 3}</span>
         </div>
         <div class="levels">${levels.map((L) => lvlBtn(L, stars)).join('')}</div>
       </section>`;
@@ -189,8 +200,7 @@ function render() {
     }).join('') + '</div>';
   }
   $('#ol-map').innerHTML = tabs + body;
-  $('#ol-map').classList.toggle('waiting', !ready());
-  $('#ol-games').classList.toggle('waiting', !ready());
+  $('#ol-map').classList.toggle('waiting', !ready() && !role);
 
   const MODE = { balloon: '🤝 Bareng', sumo: '⚔️ Duel', math: '⚡ Adu cepet', bomb: '⚔️ Duel', coop: '🤝 Bareng', race: '⚔️ Duel', fight: '⚔️ Duel', penalty: '⚔️ Duel', pillow: '⚔️ Duel', fly: '⚔️ Duel', cook: '🤝 Bareng', puzzle: '🤝 Bareng', memory: '🎲 Gantian', tebak: '💞 Kenalan', pictio: '🎨 Tebak', talk: '💬 Ngobrol' };
   $('#ol-games').innerHTML = olTab !== 'free' ? '' : gameHead('🎲 Main bebas', 'Tanpa level, langsung main') + '<div class="gt-grid">' + Object.entries(ONLINE_GAMES).map(([id, g]) => gameTile({ id, attr: `data-game="${id}"`, icon: g.icon, name: esc(g.name), tag: MODE[id] || '' })).join('') + '</div>';
@@ -211,15 +221,30 @@ function lvlBtn(L, stars) {
   </button>`;
 }
 
-function needPartner() {
-  if (!myRole()) { ui.toast('Masuk ke profilmu dulu yaa'); return true; }
-  if (!ready()) { ui.toast(net.peer ? 'Kalian pakai profil yang sama 🤔' : 'Tunggu pasanganmu masuk dulu yaa 💞'); return true; }
-  return false;
+// Belum bisa main bareng → coba gratis: langsung lawan bot; versi pasangan: tawarin lawan bot / panggil pasangan
+function needPartner(game, level) {
+  if (ready()) return false;
+  if (net.peer && myRole() && net.peer.role === myRole()) { ui.toast('Kalian pakai profil yang sama 🤔'); return true; }
+  const L = getDuoLevel(level), kind = L ? L.type : game;
+  if (kind === 'talk') { ui.openTalkSolo(); return true; }
+  if (!ui.canBot(kind)) { ui.toast(`${ONLINE_GAMES[kind]?.name || 'Game ini'} cuma bisa dimainin berdua 💞 ajak pasanganmu dulu`); return true; }
+  if (CONFIG.showcase || !myRole()) { ui.sfx('click'); ui.bot(level, L ? null : game); return true; }
+  const other = nameOf(myRole() === 'pasangan' ? 'pengirim' : 'pasangan');
+  ui.sfx('click');
+  ui.modal(`
+    <div class="modal-emoji">${L ? DUO_ICONS[L.type] : ONLINE_GAMES[game].icon}</div>
+    <h2>${esc(other)} belum online</h2>
+    <p class="detail">Panggil dia biar main bareng, atau latihan dulu lawan bot 🤖</p>
+    <div class="modal-actions">
+      <button class="btn ghost" data-ol-act="bot" data-lv="${esc(level || '')}" data-g="${esc(L ? '' : game)}">🤖 Lawan bot</button>
+      <button class="btn" data-ol-act="call">📣 Panggil ${esc(other)}</button>
+    </div>`);
+  return true;
 }
 
 // Ajak main: game bebas (game) atau level (level = id level, Petualangan atau Per game)
 export function inviteGame(game, level = null) {
-  if (needPartner()) return;
+  if (needPartner(game, level)) return;
   const seed = Math.floor(Math.random() * 1e9);
   const L = getDuoLevel(level);
   const kind = L ? L.type : game;
@@ -319,6 +344,12 @@ export function mountOnline(opts) {
     ui.sfx('click');
     const act = btn.dataset.olAct;
     if (act === 'cancel') { send('cancel'); pendingInvite = null; ui.closeModal(); }
+    if (act === 'bot') { ui.closeModal(); ui.bot(btn.dataset.lv || null, btn.dataset.g || null); }
+    if (act === 'call') {
+      ui.closeModal();
+      const c = document.querySelector('#screen-online [data-ol="call"]');
+      if (c) c.click(); else ui.toast('Kirim link game-nya ke dia, terus minta buka menu Berdua 💌');
+    }
     if (act === 'no') { send('decline'); ui.closeModal(); }
     if (act === 'yes') {
       const inv = JSON.parse(btn.dataset.inv || 'null');
@@ -351,9 +382,11 @@ export function mountOnline(opts) {
 
 // Dipanggil tiap buka layar Main Berdua
 export function openTrack(type) { olTab = 'per'; olTrack = type; render(); }
+export function openFree() { olTab = 'free'; olTrack = ''; render(); }
 export async function enterLobby() {
   render();
   refreshPushState();
+  if (!myRole() && CONFIG.showcase) setRole('pasangan'); // coba gratis: tanpa milih profil / tanggal lahir
   if (!myRole()) {
     const role = await askProfile({ sfx: ui?.sfx });
     if (!role) { render(); return; }

@@ -33,6 +33,10 @@ const animalOf = (s) => ANIMALS.find((a) => a.k === s.kind);
 // Paket biasa cuma dapet kucing; Premium (dan versi contoh) bebas pilih semua
 const FREE_PET = 'kucing';
 const isBasic = () => CONFIG.plan === 'basic' && !CONFIG.showcase;
+// Coba gratis: cuma beberapa hewan & barang toko yang kebuka, sisanya buat versi lengkap
+const trial = () => Boolean(CONFIG.showcase);
+const TRIAL_PETS = () => [FREE_PET, ...ANIMALS.filter((a) => a.k !== FREE_PET).slice(0, 3).map((a) => a.k)];
+let askFull = () => {}; // diisi di initPet (butuh toast)
 const NM = () => getNames();
 const ACT = { makan: 'kasih makan', mandi: 'mandiin', main: 'ngajak main', tidur: 'nidurin', bangun: 'bangunin' };
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
@@ -101,6 +105,7 @@ export async function getH2H() { const s = await load(); return s.h2h || {}; }
 export async function partnerDaily(role) { const s = await load(); return s.dq?.d === today() ? s.dq[role] || 0 : 0; }
 
 export function initPet({ sfx, toast }) {
+  askFull = (t) => { toast(t); setTimeout(() => document.querySelector('.showcase-bar [data-paket]')?.click(), 1200); };
   const root = document.querySelector('#pet-root');
   let st = null, busy = false, poll = 0, chatPoll = 0, mode = null, raf = 0;
 
@@ -147,7 +152,7 @@ export function initPet({ sfx, toast }) {
         <h2>${cur ? 'Ganti hewan peliharaan' : 'Pilih hewan peliharaan kalian'} 🐾</h2>
         <p>${cur ? 'Level & XP-nya tetap kebawa kok' : 'Nanti dirawat berdua, dikasih makan, dimandiin, diajak main 💞'}</p>
         ${isBasic() ? '<p class="pet-lock-note">✨ Paket Love Quest dapet <b>Kucing</b>. Upgrade ke <b>Premium</b> buat buka semua 16 hewan.</p>' : ''}
-        <div class="pet-grid">${ANIMALS.map((a) => { const lock = isBasic() && a.k !== FREE_PET && a.k !== cur; return `<button data-pick="${a.k}" class="${cur === a.k ? 'on' : ''} ${lock ? 'locked' : ''}" ${lock ? 'data-locked="1"' : ''}><img class="pet-thumb" src="/img/pets/thumb/${a.m}.webp" alt="">${lock ? '<span class="pet-lock">🔒 Premium</span>' : ''}<b>${a.label}</b></button>`; }).join('')}</div>
+        <div class="pet-grid">${ANIMALS.map((a) => { const tl = trial() && !TRIAL_PETS().includes(a.k) && a.k !== cur; const lock = tl || (isBasic() && a.k !== FREE_PET && a.k !== cur); return `<button data-pick="${a.k}" class="${cur === a.k ? 'on' : ''} ${lock ? 'locked' : ''}" ${lock ? `data-locked="${tl ? 'trial' : '1'}"` : ''}><img class="pet-thumb" src="/img/pets/thumb/${a.m}.webp" alt="">${lock ? `<span class="pet-lock">${tl ? '🔒 Versi lengkap' : '🔒 Premium'}</span>` : ''}<b>${a.label}</b></button>`; }).join('')}</div>
         ${cur ? '<button class="link-btn" data-pick="batal">batal</button>' : ''}
       </div>`;
   }
@@ -185,7 +190,7 @@ export function initPet({ sfx, toast }) {
         <button data-pet="main" ${s.sleep || s.energy < 10 ? 'disabled' : ''}><span>⚽</span>Main</button>
         <button data-pet="tidur"><span>${s.sleep ? '☀️' : '💤'}</span>${s.sleep ? 'Bangun' : 'Tidur'}</button>
       </div>
-      ${shopHTML(s, lvl, shopTab)}
+      ${shopHTML(s, lvl, shopTab, trial())}
       <div class="pet-couple">
         <p>Hari ini: <b>${s.daily.pasangan ? '✅' : '⬜'} ${esc(getNames().pasangan)}</b> · <b>${s.daily.pengirim ? '✅' : '⬜'} ${esc(getNames().pengirim)}</b>${s.daily.bonus ? ' · <span>kompak +30 XP 💞</span>' : ' · rawat berdua buat bonus XP 💞'}</p>
         ${last ? `<small>${esc(getNames()[last.w] || '')} ${ACT[last.a] || last.a} ${esc(s.name)} · ${ago(last.t)}</small>` : ''}
@@ -374,6 +379,7 @@ export function initPet({ sfx, toast }) {
     if (pick) {
       sfx('click');
       if (pick.dataset.pick === 'batal') { choosing = false; render(); return; }
+      if (pick.dataset.locked === 'trial') { sfx('bad'); askFull('Di coba gratis cuma 4 hewan. Semua 16 hewan kebuka di versi kalian 💌'); return; }
       if (pick.dataset.locked) { sfx('bad'); toast('Hewan ini buat paket Premium ✨ Minta yang ngasih game ini buat upgrade ya!'); return; }
       const a = ANIMALS.find((x) => x.k === pick.dataset.pick);
       choosing = false;
@@ -396,6 +402,7 @@ export function initPet({ sfx, toast }) {
     const tb = e.target.closest('[data-shoptab]');
     if (tb) { sfx('click'); shopTab = tb.dataset.shoptab; render(); return; }
     const sh = e.target.closest('[data-shop],[data-rug]');
+    if (sh && sh.dataset.trial) { sfx('bad'); askFull('Barang ini kebuka di versi kalian 💌 Di coba gratis cuma beberapa yang bisa dibeli'); return; }
     if (sh && !busy) { shopClick(sh); return; }
     const b = e.target.closest('[data-pet]');
     if (!b || busy) return;

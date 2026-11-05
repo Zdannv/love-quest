@@ -25,6 +25,7 @@ function remember(role) {
   try { localStorage.setItem(KEY(), role); } catch {}
   setPlayer(role); // streak ikut pakai profil ini
 }
+export function setRole(role) { if (ROLES.includes(role)) remember(role); }
 export function forget() {
   try { localStorage.removeItem(KEY()); } catch {}
 }

@@ -17,8 +17,8 @@ export const SHOWCASES = {
       'Kalau kita ke Bandung lagi, mau ngulang ke mana dulu?',
     ],
     messages: {
-      0: 'Level pertama beres! Liat deh, kartunya ada muka kita hehe 📸',
-      2: 'Jago banget nge-tap muka Arga, kayak pas kamu nyubit pipi aku 😤',
+      0: 'Level pertama beres berdua! Liat deh, yang terbang muka kita hehe 📸',
+      2: 'Balonnya sampai! Kalau bareng kamu, terbang setinggi apa pun berani 🎈',
     },
     finalLetter: `Hai Kirana,
 

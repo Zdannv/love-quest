@@ -2165,3 +2165,48 @@ body.is-couple.app-ready #splash { opacity: 0; visibility: hidden; pointer-event
 /* Deep Talk: kartu jangan terlalu sempit di HP pendek (tulisannya diatur fitQ() di talk.js) */
 .talk-card { width: min(100%, 340px, max(250px, calc((100dvh - 452px) * .8))); }
 .talk-front p { overflow-wrap: anywhere; }
+
+/* ---------- Fokus game couple berdua ---------- */
+/* Dunia petualangan berdua 6–10 (kartu peta) */
+.w-forest  { background: linear-gradient(160deg, #dff5d8, #c6ecd9); }
+.w-snow    { background: linear-gradient(160deg, #eaf6ff, #d6e6ff); }
+.w-fair    { background: linear-gradient(160deg, #ffe6c9, #ffd1e8 60%, #d9d1ff); }
+.w-space   { background: linear-gradient(160deg, #1f1d4d, #4b2f8f); color: #fff; }
+.w-space .world-icon, .w-space .world-stars { background: rgba(255,255,255,.18); }
+.w-wedding { background: linear-gradient(160deg, #fff8ef, #ffe1ea); box-shadow: inset 0 0 0 2px #f5d58a; }
+.ol-section.ol-more { margin-top: 18px; }
+.bot-tip { margin: 10px 0 0; padding: 10px 12px; border-radius: 14px; background: #f3eeff; color: #5b3fa8; font-size: 13.5px; line-height: 1.45; }
+.talk-buy { display: inline-block; margin-top: 4px; padding: 7px 14px; border-radius: 999px; background: var(--pink-deep); color: #fff; font-style: normal; font-weight: 700; cursor: pointer; }
+
+/* Landing: langsung coba satu game */
+.lp-quick { margin: 18px 0 0; min-width: 0; }
+.lp-quick > p { display: flex; flex-direction: column; gap: 2px; margin: 0 0 10px; }
+.lp-quick > p b { font-size: 17px; color: var(--ink); }
+.lp-quick > p small { font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+.lp-quick-row { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 12px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.lp-quick-row::-webkit-scrollbar { display: none; }
+.lp-quick-row a { flex: none; scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 92px; padding: 12px 6px 10px; border-radius: 20px; background: #fff; color: var(--ink); text-decoration: none; box-shadow: 0 5px 0 #f6cfe0, 0 10px 18px rgba(160,60,120,.08); transition: transform .15s; }
+.lp-quick-row a:active { transform: translateY(3px); box-shadow: 0 2px 0 #f6cfe0; }
+.lp-quick-row a span { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; font-size: 30px; background: linear-gradient(135deg, #ffe3ef, #ece3ff); }
+.lp-quick-row a span img.fx { width: 36px; height: 36px; }
+.lp-quick-row a b { font-size: 12.5px; line-height: 1.15; text-align: center; }
+@media (min-width: 900px) { .lp-quick-row { flex-wrap: wrap; overflow: visible; } }
+
+/* Landing: grid game, tiap kartu = link langsung main */
+.lp-games li a { display: block; color: inherit; text-decoration: none; }
+.lp-games li a:active { transform: scale(.98); }
+.lp-g-art { display: grid !important; place-items: center; width: 100%; aspect-ratio: 4 / 5; font-style: normal; font-size: 84px; background: radial-gradient(circle at 50% 50%, #fff 0 44%, transparent 45%), linear-gradient(150deg, #ffc1da, #c6b3ff); }
+.lp-g-art img.fx { width: 96px; height: 96px; }
+.lp-games li u { position: absolute; top: 8px; right: 8px; text-decoration: none; font-size: 11px; font-weight: 800; color: #6b4a00; background: #ffd34d; padding: 3px 8px; border-radius: 999px; box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+.lp-games li em::before { content: '♥ '; }
+
+/* Landing: tombol coba nempel di bawah (HP) */
+.lp-sticky { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(transparent, rgba(255,240,247,.96) 30%); transform: translateY(110%); transition: transform .3s ease; pointer-events: none; }
+.lp-sticky.show { transform: none; pointer-events: auto; }
+.lp-sticky .lp-try { max-width: 480px; margin: 0 auto; padding: 10px 18px 10px 10px; }
+.lp-sticky .lp-try-ic { width: 44px; height: 44px; }
+.lp-sticky .lp-try-txt b { font-size: 18px; }
+.lp-sticky .lp-try-txt small { font-size: 12.5px; }
+@media (min-width: 900px) { .lp-sticky { display: none; } }
+body:not(.is-demo) .lp-sticky { display: none; }
+.lp-hero-txt { min-width: 0; }

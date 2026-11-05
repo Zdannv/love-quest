@@ -40,20 +40,21 @@ export function upgradeShop(s, lvl) {
 }
 export const rugHex = (s) => (RUGS.find((r) => r.id === s.rug) || RUGS[0]).hex;
 
-export function shopHTML(s, lvl, tab) {
-  const item = (it, kind) => {
+export function shopHTML(s, lvl, tab, trial = false) {
+  const item = (it, kind, i) => {
     const own = kind === 'acc' ? s.owned.includes(it.id) : s.rugs.includes(it.id) || !it.price;
     const on = kind === 'acc' ? s.outfit === it.id : s.rug === it.id;
-    const lock = it.lvl && lvl < it.lvl && !own;
-    const tag = on ? '<em class="on">Dipakai ✓</em>' : own ? '<em>Pakai</em>' : lock ? `<em>🔒 Lv ${it.lvl}</em>` : `<em class="${s.coins >= it.price ? 'buy' : 'poor'}">🪙 ${it.price}</em>`;
+    const tl = trial && !own && i >= (kind === 'acc' ? 4 : 3); // coba gratis: sisanya buat versi lengkap
+    const lock = tl || (it.lvl && lvl < it.lvl && !own);
+    const tag = on ? '<em class="on">Dipakai ✓</em>' : own ? '<em>Pakai</em>' : tl ? '<em>🔒 Versi lengkap</em>' : lock ? `<em>🔒 Lv ${it.lvl}</em>` : `<em class="${s.coins >= it.price ? 'buy' : 'poor'}">🪙 ${it.price}</em>`;
     const pic = kind === 'acc' ? `<span class="si-em">${it.em}</span>` : `<span class="si-rug" style="--rug:${it.hex}"></span>`;
-    return `<button class="shop-item ${on ? 'on' : ''} ${own ? 'own' : ''} ${lock ? 'lock' : ''}" data-${kind === 'acc' ? 'shop' : 'rug'}="${it.id}">${pic}<b>${esc(it.name)}</b>${tag}</button>`;
+    return `<button class="shop-item ${on ? 'on' : ''} ${own ? 'own' : ''} ${lock ? 'lock' : ''}" data-${kind === 'acc' ? 'shop' : 'rug'}="${it.id}" ${tl ? 'data-trial="1"' : ''}>${pic}<b>${esc(it.name)}</b>${tag}</button>`;
   };
   return `
     <div class="pet-sec"><b>🛍️ Toko</b><small>beli pakai koin dari ngerawat, dompetnya berdua</small></div>
     <div class="pet-shop">
       <div class="shop-tabs"><button data-shoptab="acc" class="${tab === 'acc' ? 'on' : ''}">👗 Aksesoris</button><button data-shoptab="rug" class="${tab === 'rug' ? 'on' : ''}">🧶 Karpet</button></div>
-      <div class="shop-grid">${tab === 'rug' ? RUGS.map((r) => item(r, 'rug')).join('') : SHOP.map((a) => item(a, 'acc')).join('')}</div>
+      <div class="shop-grid">${tab === 'rug' ? RUGS.map((r, i) => item(r, 'rug', i)).join('') : SHOP.map((a, i) => item(a, 'acc', i)).join('')}</div>
       <small class="shop-earn">🪙 Dapet koin: makan +2 · mandi +6 · main +2–10 · elus +1 · kado harian · koin nyasar di kamar</small>
     </div>`;
 }

@@ -41,16 +41,16 @@ export const CONFIG = {
       per: 'sekali bayar',
       note: 'Akses selamanya, tanpa biaya bulanan.',
       tag: 'Paling pas buat mulai',
-      highlights: ['20 game + 60 level & 5 puzzle foto', 'Main berdua online (30 level + game duel)', 'Isi sendiri lewat CMS: nama, pesan, kuis, foto, surat', 'Deep Talk, peliharaan kucing 3D & streak berdua', 'Bisa dipasang di HP & dimainin offline'],
+      highlights: ['120 level game couple dimainin berdua', '21 game duel & kerja sama dari HP masing-masing', 'Isi sendiri lewat CMS: nama, pesan tiap level, foto, surat', 'Deep Talk 100+ kartu, peliharaan 3D & streak berdua', 'Pasangan lagi offline? Latihan lawan bot dulu'],
       features: [
         'Akun CMS (halaman admin) pribadi buat ngelola isi game sendiri, kapan aja, langsung dari HP',
-        'Yang bisa kamu ganti: nama kalian, pesan tiap level, kuis, surat, foto surat & 5 puzzle foto',
-        'Foto kalian juga muncul di kartu game Kartu Kembar',
+        'Yang bisa kamu ganti: nama kalian, pesan tiap level, kuis, surat, foto surat & foto puzzle',
+        'Foto kalian juga muncul di Puzzle Bareng & Kartu Kembar',
         'Perubahan langsung muncul di game pasanganmu, nggak perlu kirim link baru',
-        '60 level + 5 bonus puzzle foto: 5 dunia, tiap dunia 12 game yang beda-beda',
-        '20 jenis mini-game: balapan, gelut, masak bareng, bom, penalti, perang bantal, terbang, lari, labirin, susun kue, dll.',
-        'Mode Pilih game: main satu game favorit sampai levelnya makin susah, atau kejar rekor skor',
-        'Main Berdua online dari HP masing-masing: 30 level kerja sama + game bebas (gelut, masak bareng, jalan pulang berdua, bom, balapan, tebak pasangan, dll.)',
+        'Petualangan berdua 120 level: 10 dunia, tiap level beres ada pesan dari kamu, surat rahasia kebuka di level 60',
+        'Game couple dimainin bareng dari HP masing-masing: sumo, adu hitung, balon berdua, masak bareng, perang bantal, bom, penalti, balapan, gelut, jalan pulang berdua, tebak pasangan, dll.',
+        'Main bebas tanpa level: tiap main lagi makin susah, plus papan skor siapa yang paling sering menang',
+        'Pasangan lagi offline? Tetep bisa latihan lawan bot',
         'Tebak Gambar & Gambar Udara: gambar pakai jari di depan kamera, pasangan nebak dari HP-nya',
         'Kartu Deep Talk: 100 pertanyaan buat ngobrol berdua, bisa ditambah pertanyaan sendiri',
         'Peliharaan 3D bareng (kucing): kasih makan, mandiin, ajak main tiap hari',
@@ -204,3 +204,6 @@ Makasih ya udah jadi orang yang bikin hari-hari {pengirim} lebih berwarna.
 
 Sayang kamu, hari ini, besok, dan seterusnya 💖`,
 };
+
+// Teks pesan bawaan (sebelum diganti isi CMS): pesan yang masih bawaan diganti pesan versi Main Berdua (lihat duo-levels.js)
+export const DEFAULT_MSG = new Set([...CONFIG.messages, ...CONFIG.stageMessages]);
