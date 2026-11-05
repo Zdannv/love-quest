@@ -195,7 +195,7 @@ $('#btn-report').addEventListener('click', async () => {
   } catch (x) { toast(x.message); }
   b.disabled = false; b.textContent = '📊 Kirim laporan sekarang';
 });
-const FUNNEL = [['landing_view', 'Buka landing'], ['try_click', 'Coba main gratis'], ['paket_open', 'Lihat paket'], ['bayar_view', 'Buka halaman bayar'], ['bayar_submit', 'Klik bayar'], ['bayar_paid', 'Lunas 🎉']];
+const FUNNEL = [['landing_view', 'Buka landing'], ['try_click', 'Klik coba dulu'], ['paket_open', 'Lihat paket'], ['bayar_view', 'Buka halaman bayar'], ['bayar_submit', 'Klik bayar'], ['bayar_paid', 'Lunas 🎉']];
 function renderFunnel() {
   const box = $('#funnel');
   if (events === null) { box.innerHTML = '<p class="muted small">Statistik belum bisa dimuat. Jalankan <code>supabase/migration-10.sql</code> di SQL Editor dulu.</p>'; return; }

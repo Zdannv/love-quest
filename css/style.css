@@ -2244,3 +2244,16 @@ body:not(.is-demo) .lp-sticky { display: none; }
 .wa-mini { display: block; margin-top: 10px; text-align: center; font-size: 13.5px; font-weight: 600; color: #128c4a; text-decoration: none; }
 .wa-mini b { text-decoration: underline; }
 .btn.wa-solid { background: #25d366; box-shadow: 0 5px 0 #1a9e4b; color: #fff; }
+/* Strip "tap satu langsung main" di bawah HP (videonya daya tarik utama), di desktop selebar hero */
+.lp-hero > .lp-quick { margin: 0; grid-column: 1 / -1; }
+@media (min-width: 900px) { .lp-hero > .lp-quick { text-align: center; } .lp-hero > .lp-quick > p { align-items: center; } .lp-hero > .lp-quick .lp-quick-row { justify-content: center; } }
+/* HP: video duluan, baru tombol coba gratis & strip game di bawahnya */
+@media (max-width: 759px) {
+  .lp-hero { gap: 0; }
+  .lp-hero-txt { display: contents; }
+  .lp-hero-txt > .lp-kicker { justify-self: start; }
+  .lp-phone { order: 1; margin: 4px auto 30px; }
+  .lp-hero-txt > .lp-cta-hero { order: 2; width: 100%; justify-self: center; }
+  .lp-hero-txt > .lp-trust { order: 3; }
+  .lp-hero > .lp-quick { order: 4; margin-top: 26px; }
+}

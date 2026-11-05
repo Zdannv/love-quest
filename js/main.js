@@ -534,11 +534,11 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('[data-try]')) { track('try_click'); $('#btn-play').click(); return; }
   const g = e.target.closest('[data-try-game]'); if (g) track('try_click'); // link-nya langsung buka game itu
 });
-// Tombol "Coba main gratis" nempel di bawah (HP): muncul setelah lewat tombol di hero, ilang pas sampai ajakan terakhir
+// Tombol "Coba dulu Love Quest-nya" nempel di bawah (HP): muncul setelah lewat tombol di hero, ilang pas sampai ajakan terakhir
 if (CONFIG.demo && !CONFIG.showcase && $('#lp-sticky') && 'IntersectionObserver' in window) {
   const bar = $('#lp-sticky'), seen = { hero: true, final: false };
   const sync = () => { const on = !seen.hero && !seen.final; bar.classList.toggle('show', on); bar.setAttribute('aria-hidden', String(!on)); bar.querySelector('button').tabIndex = on ? 0 : -1; };
-  const io = new IntersectionObserver((es) => { es.forEach((en) => { seen[en.target.matches('.lp-final') ? 'final' : 'hero'] = en.isIntersecting; }); sync(); });
+  const io = new IntersectionObserver((es) => { es.forEach((en) => { const fin = en.target.matches('.lp-final'); seen[fin ? 'final' : 'hero'] = en.isIntersecting || (!fin && en.boundingClientRect.top > 0); }); sync(); });
   [$('.lp-cta-hero'), $('.lp-final')].filter(Boolean).forEach((el) => io.observe(el));
 }
 if (CONFIG.demo && !CONFIG.showcase) track('landing_view', { once: true });
@@ -580,7 +580,7 @@ document.addEventListener('click', (e) => {
   showPackages();
 });
 // Demo: nyobanya langsung di contoh versi jadi (Kirana & Arga)
-if (CONFIG.demo) $('#btn-play').textContent = '🎮 Coba main gratis';
+if (CONFIG.demo) $('#btn-play').textContent = '🎮 Coba dulu Love Quest';
 // Main yuk → pilih mode: sendiri (peta level) atau berdua (online)
 $('#btn-play').addEventListener('click', () => {
   sfx('click');
