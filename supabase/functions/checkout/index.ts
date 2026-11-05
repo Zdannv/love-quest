@@ -4,6 +4,12 @@
 //   { action: "claim",  order_id, secret }      → setelah lunas: kasih login CMS (password baru tiap diambil)
 //   { action: "upgrade_check", order_id } + header Authorization → cek & proses pesanan upgrade (cadangan kalau notifikasi telat)
 //   { action: "upgrade" } + header Authorization: Bearer <token login CMS> → bayar selisih Rp20.000, paket jadi Premium
+// QRIS semi-otomatis (tanpa Midtrans): pembeli scan QRIS owner, bayar nominal + kode unik, upload bukti,
+// owner cek mutasi terus tap "Setujui" di /owner → akun langsung jadi (pembeli yang nunggu di /bayar langsung dapet login).
+//   { action: "qris_info" }                                  → QRIS udah diatur owner atau belum
+//   { action: "qris_create", plan, email, names, promo }     → bikin pesanan + nominal unik + gambar QRIS
+//   { action: "qris_proof", order_id, secret, proof }        → upload bukti bayar (gambar base64) + notif Telegram
+//   { action: "qris_setup" | "qris_review" | "qris_approve" | "qris_reject" } + token admin → buat halaman /owner
 //   Notifikasi Midtrans (POST berisi signature_key) → cek tanda tangan, cek ulang ke API Midtrans,
 //   kalau lunas: bikin akun CMS + game-nya otomatis (sekali bayar, aktif selamanya).
 // Secret yang perlu diisi di Supabase → Edge Functions → Secrets:
@@ -96,13 +102,37 @@ Beresin di lovequest.id/owner`);
     await db.from('orders').update({ status: 'need_help', note: `Game gagal dibuat: ${insErr?.message}` }).eq('id', orderId);
     return;
   }
-  await db.from('couples').update({ plan: o.plan, paid_until: null, active: true, owner_email: o.email, note: `Midtrans ${orderId}` }).eq('id', couple.id);
+  await db.from('couples').update({ plan: o.plan, paid_until: null, active: true, owner_email: o.email, note: `${orderId.startsWith('LQQ-') ? 'QRIS' : 'Midtrans'} ${orderId}` }).eq('id', couple.id);
   await db.from('orders').update({ status: 'paid', couple_id: couple.id, slug: couple.slug, paid_at: new Date().toISOString() }).eq('id', orderId);
   if (o.promo_code) await db.rpc('promo_use', { p_code: o.promo_code });
   await notify(`🎉 Penjualan baru!
 ${o.plan === 'custom' ? 'Love Quest Premium' : 'Love Quest'} · ${rp(o.amount)}${o.promo_code ? ` (promo ${o.promo_code})` : ''}
 ${o.email}${o.names?.pengirim ? ` · ${o.names.pengirim} → ${o.names.pasangan || '?'}` : ''}
 ${orderId}`);
+}
+
+// ---------- QRIS semi-otomatis ----------
+const BUCKET = 'payments'; // privat: gambar QRIS owner (qris.png) & bukti bayar (proof/<kode>.jpg)
+async function bucket() {
+  const { error } = await db.storage.getBucket(BUCKET);
+  if (error) await db.storage.createBucket(BUCKET, { public: false, fileSizeLimit: 5 * 1024 * 1024 });
+}
+const signed = async (path: string, secs = 3600) => (await db.storage.from(BUCKET).createSignedUrl(path, secs)).data?.signedUrl || null;
+const hasQris = async () => Boolean((await db.storage.from(BUCKET).list('', { search: 'qris.png' })).data?.some((f) => f.name === 'qris.png'));
+const isQris = (o: { pay_status?: string | null }) => String(o.pay_status || '').startsWith('qris');
+function dataUrl(s: unknown, max: number) {
+  const m = /^data:(image\/(png|jpeg|webp));base64,(.+)$/.exec(String(s || ''));
+  if (!m) return null;
+  const bytes = Uint8Array.from(atob(m[3]), (c) => c.charCodeAt(0));
+  return bytes.length > max ? null : { type: m[1], bytes };
+}
+async function isAdmin(req: Request) {
+  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!token) return false;
+  const { data: { user } } = await db.auth.getUser(token);
+  if (!user) return false;
+  const { data } = await db.from('admins').select('user_id').eq('user_id', user.id).maybeSingle();
+  return Boolean(data);
 }
 
 async function checkOwner(orderId: string, secret: string) {
@@ -114,9 +144,80 @@ async function checkOwner(orderId: string, secret: string) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'POST saja' }, 405);
-  if (!SERVER_KEY) return json({ error: 'Pembayaran otomatis belum diaktifkan' }, 503);
   let body: Record<string, any>;
   try { body = await req.json(); } catch { return json({ error: 'Body harus JSON' }, 400); }
+
+  // ---- QRIS semi-otomatis ----
+  if (body.action === 'qris_info') return json({ ok: true, enabled: await hasQris() });
+
+  if (body.action === 'qris_create') {
+    if (!(await hasQris())) return json({ error: 'Bayar QRIS lagi nggak tersedia, pakai cara lain dulu ya' }, 503);
+    const plan = body.plan === 'custom' ? 'custom' : 'basic';
+    const email = String(body.email || '').trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 120) return json({ error: 'Email-nya belum bener' }, 400);
+    const names = { pasangan: String(body.names?.pasangan || '').trim().slice(0, 40), pengirim: String(body.names?.pengirim || '').trim().slice(0, 40) };
+    let amount = (await prices())[plan as 'basic' | 'custom'], promo: string | null = null, discount = 0;
+    if (body.promo) {
+      const { data: pc } = await db.rpc('promo_check', { p_code: String(body.promo), p_plan: plan });
+      if (!pc?.ok) return json({ error: pc?.message || 'Kode promo nggak berlaku' }, 400);
+      promo = pc.code; discount = pc.discount; amount = pc.final;
+    }
+    // Kode unik 3 digit di belakang nominal biar pembayarannya gampang dicocokin di mutasi
+    const code = 11 + (crypto.getRandomValues(new Uint16Array(1))[0] % 289);
+    const id = `LQQ-${wib()}-${rand(6)}`, secret = rand(32), total = amount + code;
+    const { error } = await db.from('orders').insert({ id, plan, amount: total, email, names, token_hash: await sha('SHA-256', secret), promo_code: promo, discount, pay_status: 'qris_wait', note: `QRIS · kode unik ${code}` });
+    if (error) return json({ error: 'Gagal nyimpen pesanan, coba lagi ya' }, 500);
+    return json({ ok: true, order_id: id, secret, amount: total, code, qris: await signed('qris.png', 6 * 3600) });
+  }
+
+  if (body.action === 'qris_proof') {
+    const o = await checkOwner(String(body.order_id || ''), String(body.secret || ''));
+    if (!o || !isQris(o) || o.status !== 'pending') return json({ error: 'Pesanan nggak ketemu' }, 404);
+    const img = dataUrl(body.proof, 4 * 1024 * 1024);
+    if (!img) return json({ error: 'Gambar buktinya nggak kebaca, coba screenshot ulang ya' }, 400);
+    await bucket();
+    const path = `proof/${o.id}.jpg`;
+    const { error } = await db.storage.from(BUCKET).upload(path, img.bytes, { contentType: img.type, upsert: true });
+    if (error) return json({ error: 'Gagal upload bukti, coba lagi ya' }, 500);
+    await db.from('orders').update({ pay_status: 'qris_review' }).eq('id', o.id);
+    const link = await signed(path, 7 * 24 * 3600);
+    await notify(`🧾 Bukti bayar QRIS masuk, tolong dicek
+${o.plan === 'custom' ? 'Love Quest Premium' : 'Love Quest'} · ${rp(o.amount)} (cek mutasi blu persis segini)
+${o.email}
+${o.id}
+Bukti: ${link}
+Setujui di ${SITE}/owner`);
+    return json({ ok: true });
+  }
+
+  if (['qris_setup', 'qris_review', 'qris_approve', 'qris_reject'].includes(body.action)) {
+    if (!(await isAdmin(req))) return json({ error: 'Bukan admin' }, 403);
+    if (body.action === 'qris_setup') {
+      const img = dataUrl(body.image, 3 * 1024 * 1024);
+      if (!img) return json({ error: 'Upload gambar QRIS (PNG/JPG, maks 3 MB)' }, 400);
+      await bucket();
+      const { error } = await db.storage.from(BUCKET).upload('qris.png', img.bytes, { contentType: img.type, upsert: true });
+      return error ? json({ error: error.message }, 500) : json({ ok: true, qris: await signed('qris.png') });
+    }
+    if (body.action === 'qris_review') { // gambar QRIS sekarang + link bukti tiap pesanan yang nunggu dicek
+      const { data: list } = await db.from('orders').select('id').eq('status', 'pending').eq('pay_status', 'qris_review');
+      const proofs: Record<string, string | null> = {};
+      for (const r of list || []) proofs[r.id] = await signed(`proof/${r.id}.jpg`);
+      return json({ ok: true, qris: (await hasQris()) ? await signed('qris.png') : null, proofs });
+    }
+    const { data: o } = await db.from('orders').select('*').eq('id', String(body.order_id || '')).maybeSingle();
+    if (!o || !isQris(o)) return json({ error: 'Pesanan QRIS nggak ketemu' }, 404);
+    if (body.action === 'qris_reject') {
+      await db.from('orders').update({ status: 'failed', pay_status: 'qris_rejected', note: `QRIS ditolak${body.reason ? `: ${String(body.reason).slice(0, 120)}` : ''}` }).eq('id', o.id).eq('status', 'pending');
+      return json({ ok: true });
+    }
+    await db.from('orders').update({ pay_status: 'qris_ok' }).eq('id', o.id);
+    await fulfill(o.id);
+    const { data: now } = await db.from('orders').select('status, slug, note').eq('id', o.id).single();
+    return json({ ok: true, status: now?.status, slug: now?.slug, note: now?.note });
+  }
+
+  if (!SERVER_KEY) return json({ error: 'Pembayaran otomatis belum diaktifkan' }, 503);
 
   // ---- Notifikasi dari Midtrans ----
   if (body.signature_key) {
@@ -227,14 +328,17 @@ Deno.serve(async (req) => {
     const o = await checkOwner(String(body.order_id || ''), String(body.secret || ''));
     if (!o) return json({ error: 'Pesanan nggak ketemu' }, 404);
     // Notifikasi Midtrans telat/nggak nyampe? Cek sendiri statusnya
-    if (o.status === 'pending') {
+    if (o.status === 'pending' && !isQris(o)) {
       const st = await fetch(`${API}/${encodeURIComponent(o.id)}/status`, { headers: { Authorization: auth(), Accept: 'application/json' } }).then((r) => r.json()).catch(() => null);
       const ts = st?.transaction_status;
       if ((ts === 'settlement' || (ts === 'capture' && st.fraud_status === 'accept')) && Math.round(Number(st.gross_amount)) === o.amount) await fulfill(o.id);
       else if (['expire', 'cancel', 'deny', 'failure'].includes(ts)) await db.from('orders').update({ status: 'failed', pay_status: ts }).eq('id', o.id);
     }
-    const { data: cur } = await db.from('orders').select('status, slug, couple_id, email, plan, claimed').eq('id', o.id).single();
-    if (body.action === 'status' || cur.status !== 'paid') return json({ ok: true, status: cur.status, plan: cur.plan });
+    const { data: cur } = await db.from('orders').select('status, slug, couple_id, email, plan, claimed, pay_status, amount').eq('id', o.id).single();
+    if (body.action === 'status' || cur.status !== 'paid') {
+      const q = isQris(cur) ? { qris_state: cur.pay_status, amount: cur.amount, qris: cur.pay_status === 'qris_wait' ? await signed('qris.png', 6 * 3600) : null } : {};
+      return json({ ok: true, status: cur.status, plan: cur.plan, ...q });
+    }
     // claim: password baru tiap diambil (yang lama otomatis nggak berlaku)
     const { data: c } = await db.from('couples').select('owner').eq('id', cur.couple_id).single();
     const password = rand(10);

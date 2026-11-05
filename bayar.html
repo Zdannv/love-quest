@@ -42,12 +42,30 @@
         <label>Nama kamu<input id="pay-pengirim" maxlength="40" placeholder="contoh: Raka"></label>
         <label>Nama pasangan<input id="pay-pasangan" maxlength="40" placeholder="contoh: Nadia"></label>
       </div>
-      <small class="pay-note">Nama bisa diganti lagi nanti di CMS. Bayar pakai QRIS, e-wallet, transfer bank, atau kartu.</small>
+      <small class="pay-note">Nama bisa diganti lagi nanti di CMS. Pilihan cara bayarnya muncul di langkah berikutnya.</small>
       <p class="pay-err" id="pay-err" hidden></p>
+      <button class="pay-qris-btn" id="pay-qris-go" type="submit" hidden><span class="pq-ic" aria-hidden="true">QRIS</span><span><b>Bayar pakai QRIS · <span class="pay-amt2"></span></b><small>GoPay, OVO, Dana, ShopeePay, m-banking</small></span></button>
       <button class="btn big" id="pay-go" type="submit">Bayar <span id="pay-amt"></span> ▶</button>
       <small class="pay-note">Dengan membayar, kamu setuju dengan <a href="/syarat" target="_blank">Syarat &amp; Ketentuan</a>, <a href="/privasi" target="_blank">Kebijakan Privasi</a>, dan <a href="/refund" target="_blank">Kebijakan Refund</a>.</small>
-      <a class="pay-wa" id="pay-wa" target="_blank" rel="noopener">Lebih suka pesan lewat WhatsApp?</a>
+      <div class="pay-or"><span>atau</span></div>
+      <a class="wa-btn" id="pay-wa" target="_blank" rel="noopener"><svg class="wa-ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.6.3-.2.2-.8.8-.8 2s.9 2.3 1 2.5c.1.2 1.7 2.6 4.2 3.6 1.6.7 2.2.7 3 .6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.2-.2-.4-.3z"/></svg><span><b>Pesan lewat WhatsApp</b><small>Bayar pakai QRIS / transfer, akunnya dibikinin admin</small></span></a>
     </form>
+
+    <!-- 1b. QRIS: scan, bayar nominal unik, upload bukti -->
+    <section class="pay-card" id="pay-qris" hidden>
+      <h1>Scan &amp; bayar pakai QRIS</h1>
+      <p class="pay-sub">Bisa dari GoPay, OVO, Dana, ShopeePay, atau m-banking apa aja.</p>
+      <div class="pq-amt"><small>Bayar persis</small><b id="pq-amt"></b><button type="button" class="link-btn" id="pq-copy">Salin</button></div>
+      <p class="pq-why">3 angka terakhir itu kode unik pesananmu, biar pembayaranmu cepet ketemu 🙏</p>
+      <img id="pq-img" class="pq-img" alt="Kode QRIS Love Quest">
+      <a id="pq-save" class="link-btn pq-save" target="_blank" rel="noopener">Buka gambar QRIS (buat disimpan)</a>
+      <ol class="pq-steps"><li>Scan QRIS-nya (atau simpan gambarnya, terus upload di aplikasi bayarmu)</li><li>Masukin nominal <b>persis</b> kayak di atas</li><li>Screenshot bukti bayarnya, terus upload di bawah</li></ol>
+      <label class="pq-file"><input type="file" accept="image/*" id="pq-file"><span id="pq-file-txt">📎 Pilih screenshot bukti bayar</span></label>
+      <img id="pq-prev" class="pq-prev" alt="Bukti bayar" hidden>
+      <p class="pay-err" id="pq-err" hidden></p>
+      <button class="btn big" id="pq-send" type="button" disabled>Kirim bukti bayar</button>
+      <small class="pay-note">Kode pesanan: <b id="pq-id"></b> · Jam layanan 09.00–21.00 WIB</small>
+    </section>
 
     <!-- 2. Habis bayar: nunggu / berhasil / gagal -->
     <section class="pay-card" id="pay-wait" hidden>
@@ -55,6 +73,7 @@
       <h1>Ngecek pembayaran…</h1>
       <p class="pay-sub" id="pay-wait-txt">Biasanya cuma beberapa detik. Jangan tutup halaman ini ya.</p>
       <button class="btn ghost" id="pay-recheck" type="button" hidden>Cek lagi</button>
+      <a class="wa-btn" id="pw-wa" target="_blank" rel="noopener" hidden><span><b>Chat admin biar lebih cepet</b><small>Kirim kode pesananmu</small></span></a>
     </section>
     <section class="pay-card pay-done" id="pay-done" hidden>
       <div class="pay-big">🎉</div>

@@ -484,7 +484,7 @@ if (CONFIG.demo && $('#lp-prices')) {
       <h3>${esc(pk.name)}</h3>
       <div class="lp-amt">${esc(pk.price)} <span>${esc(pk.per)}</span></div>
       <ul>${(pk.highlights || pk.features.slice(0, 5)).map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
-      ${CONFIG.checkout?.enabled ? `<a class="btn ${i ? '' : 'ghost'}" href="/bayar?paket=${i ? 'custom' : 'basic'}">Pesan ${esc(pk.price)}</a><button class="link-btn" type="button" data-paket>lihat detail</button>` : `<button class="btn ${i ? '' : 'ghost'}" type="button" data-paket>Lihat detail paket</button>`}
+      ${CONFIG.checkout?.enabled ? `<a class="btn ${i ? '' : 'ghost'}" href="/bayar?paket=${i ? 'custom' : 'basic'}">Pesan ${esc(pk.price)}</a><a class="wa-mini" data-wa="${esc(`Halo! Aku mau pesan ${pk.name} (${pk.price}) 💖`)}" target="_blank" rel="noopener">atau pesan lewat <b>WhatsApp</b></a><button class="link-btn" type="button" data-paket>lihat detail</button>` : `<button class="btn ${i ? '' : 'ghost'}" type="button" data-paket>Lihat detail paket</button>`}
     </article>`).join('');
 }
 // Pengumuman dari halaman owner (di landing, di game, atau dua-duanya)
@@ -551,10 +551,15 @@ function showPackages() {
     </details>
     <div class="modal-actions">
       <button class="btn ghost" data-act="close">Nanti dulu</button>
-      ${!pay && CONFIG.orderUrl ? `<a class="btn" href="${esc(CONFIG.orderUrl)}" target="_blank" rel="noopener">💌 Pesan via WhatsApp</a>` : ''}
+      ${CONFIG.whatsapp ? `<a class="btn wa-solid" data-wa="Halo! Aku mau pesan Love Quest 💖" target="_blank" rel="noopener">💬 Pesan via WhatsApp</a>` : ''}
     </div>`;
   modal.classList.remove('hidden');
 }
+// Tombol pesan lewat WhatsApp (nomor dari halaman owner)
+const waLink = (t) => `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(t)}`;
+const fillWa = (root = document) => root.querySelectorAll('[data-wa]').forEach((a) => { a.href = waLink(a.dataset.wa); });
+fillWa();
+document.addEventListener('click', (e) => { const a = e.target.closest('[data-wa]'); if (!a) return; a.href = waLink(a.dataset.wa); track('wa_click'); });
 document.addEventListener('click', (e) => {
   if (!e.target.closest('[data-paket]')) return;
   track('paket_open');
