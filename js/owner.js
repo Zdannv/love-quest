@@ -40,7 +40,6 @@ const SAMPLE = [
   { id: 'a4', slug: 'lamaaaaa0003', owner_email: 'lama@email.com', names: {}, plan: 'basic', paid_until: '2026-09-30', active: false, note: 'nggak lanjut', created_at: '2026-09-20T09:00:00Z', updated_at: '2026-09-20T12:00:00Z' },
 ];
 const SAMPLE_ORDERS = [
-  { id: 'LQQ-20261105-abc123', plan: 'basic', amount: 29137, email: 'nadia@email.com', names: {}, status: 'pending', pay_status: 'qris_review', note: 'QRIS · kode unik 137', claimed: 0, created_at: new Date(Date.now() - 6e5).toISOString(), paid_at: null },
   { id: 'LQ-20261015-abc123', plan: 'custom', amount: 49000, email: 'arga@email.com', names: { pengirim: 'Arga', pasangan: 'Kirana' }, status: 'paid', pay_status: 'settlement', slug: 'kiranaarga27', claimed: 1, created_at: '2026-10-15T08:58:00Z', paid_at: '2026-10-15T09:00:00Z' },
   { id: 'LQ-20261015-zzz999', plan: 'basic', amount: 29000, email: 'raka@email.com', names: {}, status: 'need_help', pay_status: 'settlement', note: 'Akun gagal dibuat: email sudah terdaftar', claimed: 0, created_at: '2026-10-15T10:00:00Z', paid_at: '2026-10-15T10:02:00Z' },
   { id: 'LQ-20261015-pend01', plan: 'basic', amount: 29000, email: 'calon@email.com', names: {}, status: 'pending', pay_status: 'pending', claimed: 0, created_at: '2026-10-15T11:00:00Z' },
@@ -137,11 +136,6 @@ function renderSettings() {
     <form class="set-group" data-set="packages"><h4>📦 Isi kartu paket</h4>
       ${[0, 1].map((i) => `<div class="grid2"><label>Label ${i ? 'Premium' : 'Love Quest'}<input name="tag${i}" maxlength="40" value="${esc(pk[i]?.tag || '')}"></label><label>Poin utama (satu per baris)<textarea name="hl${i}" rows="5">${esc((pk[i]?.highlights || []).join('\n'))}</textarea></label></div>`).join('')}
       <button class="btn small-btn">Simpan isi paket</button></form>
-    <form class="set-group" data-qris-set><h4>🧾 QRIS (bayar tanpa Midtrans)</h4>
-      <p class="muted small">Upload gambar QRIS blu-mu. Begitu ada, di halaman bayar muncul tombol <b>Bayar pakai QRIS</b>: pembeli bayar nominal + kode unik, upload bukti, kamu tinggal cek mutasi terus tap <b>Setujui</b> di daftar pembayaran.</p>
-      ${qris.img ? `<img class="qris-prev" src="${esc(qris.img)}" alt="QRIS sekarang">` : '<p class="muted small">Belum ada QRIS → tombol QRIS belum muncul.</p>'}
-      <label>Gambar QRIS (PNG/JPG)<input type="file" name="qris" accept="image/png,image/jpeg"></label>
-      <button class="btn small-btn">${qris.img ? 'Ganti QRIS' : 'Simpan QRIS'}</button></form>
     <form class="set-group" data-set="contact"><h4>📞 Kontak</h4>
       <div class="grid2"><label>WhatsApp layanan<input name="whatsapp" value="${esc(c.whatsapp || '')}" placeholder="08xx atau 628xx"></label><label>Email<input type="email" name="email" value="${esc(c.email || '')}"></label></div>
       <div class="grid3"><label>Jam layanan<input name="hours" value="${esc(c.hours || '')}"></label><label>Instagram<input name="instagram" value="${esc(c.instagram || '')}" placeholder="@lovequest.id"></label><label>TikTok<input name="tiktok" value="${esc(c.tiktok || '')}" placeholder="@lovequest.id"></label></div>
@@ -160,23 +154,6 @@ const testiRow = (t = {}, i = 0) => `<div class="testi-row"><div class="grid2"><
 document.addEventListener('click', (e) => {
   if (e.target.closest('[data-testi-add]')) { $('#testi-list').insertAdjacentHTML('beforeend', testiRow()); }
   if (e.target.closest('[data-testi-del]')) e.target.closest('.testi-row').remove();
-});
-// QRIS owner: disimpen di storage privat lewat edge function checkout
-let qris = { img: null, proofs: {} };
-async function loadQris() {
-  if (PREVIEW) return;
-  try { const r = await callOwner({ action: 'qris_review' }, 'checkout'); qris = { img: r.qris, proofs: r.proofs || {} }; } catch { /* checkout lama belum di-deploy */ }
-}
-document.addEventListener('submit', async (e) => {
-  const q = e.target.closest('[data-qris-set]'); if (!q) return;
-  e.preventDefault();
-  const file = q.querySelector('input[type=file]').files?.[0];
-  if (!file) { toast('Pilih gambar QRIS dulu'); return; }
-  if (file.size > 3 * 1024 * 1024) { toast('Gambarnya kegedean (maks 3 MB)'); return; }
-  if (PREVIEW) { toast('Mode contoh: nggak disimpan'); return; }
-  const image = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(file); });
-  try { const r = await callOwner({ action: 'qris_setup', image }, 'checkout'); qris.img = r.qris; renderSettings(); toast('QRIS tersimpan ✓ Tombol QRIS udah muncul di /bayar'); }
-  catch (err) { toast(`Gagal: ${err.message}`); }
 });
 document.addEventListener('submit', async (e) => {
   const f = e.target.closest('[data-set]'); if (!f) return;
@@ -310,16 +287,8 @@ function renderOrders() {
   if (orders === null) { box.innerHTML = '<p class="muted small">Daftar pembayaran belum bisa dimuat. Jalankan <code>supabase/migration-9.sql</code> di SQL Editor dulu.</p>'; $('#op-count').textContent = ''; return; }
   if (!orders.length) { box.innerHTML = '<p class="muted small">Belum ada pembayaran otomatis.</p>'; $('#op-count').textContent = ''; return; }
   $('#op-count').textContent = `${orders.filter((o) => o.status === 'paid').length} lunas`;
-  const review = orders.filter((o) => o.status === 'pending' && o.pay_status === 'qris_review');
-  const head = review.length ? `<div class="qris-review"><h4>🧾 QRIS nunggu dicek (${review.length})</h4><p class="muted small">Cocokin nominalnya persis di mutasi blu, baru tap Setujui. Akun langsung jadi & login muncul di HP pembeli.</p>${review.map((o) => `
-      <div class="qr-row">
-        ${qris.proofs[o.id] ? `<a href="${esc(qris.proofs[o.id])}" target="_blank" rel="noopener"><img src="${esc(qris.proofs[o.id])}" alt="Bukti bayar"></a>` : '<span class="qr-noimg">🧾</span>'}
-        <div class="qr-main"><b>Rp${(o.amount || 0).toLocaleString('id-ID')}</b><small>${esc(o.email)} · ${o.plan === 'custom' ? 'Premium' : 'Love Quest'}</small><small>${esc(o.id)} · ${timeAgo(o.created_at)}</small>
-          <span class="qr-act"><button type="button" class="btn small-btn" data-qris-ok="${esc(o.id)}">✓ Setujui</button><button type="button" class="link-btn danger" data-qris-no="${esc(o.id)}">Tolak</button></span></div>
-      </div>`).join('')}</div>` : '';
-  const qrisWait = (o) => (o.pay_status === 'qris_wait' ? ['Belum upload bukti', 'wait'] : o.pay_status === 'qris_review' ? ['Bukti QRIS, cek!', 'bad'] : null);
-  box.innerHTML = head + orders.slice(0, 30).map((o) => {
-    const [label, cls] = (o.status === 'pending' && qrisWait(o)) || ORDER_LABEL[o.status] || [o.status, 'off'];
+  box.innerHTML = orders.slice(0, 30).map((o) => {
+    const [label, cls] = ORDER_LABEL[o.status] || [o.status, 'off'];
     return `<div class="order-row ${cls}">
       <span class="or-dot"></span>
       <div class="or-main"><b>${esc(o.email)}</b><small>${esc(o.id)} · ${o.plan === 'custom' ? 'Premium' : 'Love Quest'} · Rp${(o.amount || 0).toLocaleString('id-ID')}</small>${o.note ? `<small class="or-note">${esc(o.note)}</small>` : ''}</div>
@@ -365,21 +334,21 @@ $('#couple-list').addEventListener('click', (e) => {
 });
 
 // ---------- Kelola akun pembeli (lewat edge function, butuh kunci rahasia di server) ----------
-async function callOwner(body, fn = ownerFunction) {
+async function callOwner(body) {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { location.reload(); throw new Error('Sesi login habis, masuk lagi yaa'); }
   let res;
   try {
-    res = await fetch(`${url.replace(/\/$/, '')}/functions/v1/${fn}`, {
+    res = await fetch(`${url.replace(/\/$/, '')}/functions/v1/${ownerFunction}`, {
       method: 'POST',
       headers: { apikey: anonKey, Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
   } catch {
-    throw new Error(`Nggak nyambung ke server. Cek internet, atau edge function ${fn} belum di-deploy.`);
+    throw new Error('Nggak nyambung ke server. Cek internet, atau edge function owner-accounts belum di-deploy.');
   }
   const data = await res.json().catch(() => ({}));
-  if (res.status === 404 && !data.error) throw new Error(`Edge function "${fn}" belum di-deploy di Supabase.`);
+  if (res.status === 404 && !data.error) throw new Error(`Edge function "${ownerFunction}" belum di-deploy di Supabase.`);
   if (!res.ok || data.error) throw new Error(data.error || data.message || `Error ${res.status}`);
   return data;
 }
@@ -525,23 +494,6 @@ $('#promo-list').addEventListener('click', async (e) => {
   await refresh();
 });
 $('#order-list').addEventListener('click', async (e) => {
-  const ok = e.target.closest('[data-qris-ok]'), no = e.target.closest('[data-qris-no]');
-  if (ok || no) {
-    const o = orders.find((x) => x.id === (ok || no).dataset[ok ? 'qrisOk' : 'qrisNo']); if (!o) return;
-    if (ok && !confirm(`Udah dicek? Rp${o.amount.toLocaleString('id-ID')} dari ${o.email} beneran masuk di mutasi blu?`)) return;
-    const reason = no ? prompt('Alasan ditolak (opsional, buat catatan):', 'Pembayaran nggak ketemu di mutasi') : null;
-    if (no && reason === null) return;
-    if (PREVIEW) { toast('Mode contoh: nggak dijalanin'); return; }
-    (ok || no).disabled = true;
-    try {
-      const r = await callOwner({ action: ok ? 'qris_approve' : 'qris_reject', order_id: o.id, reason }, 'checkout');
-      if (no) toast('Ditolak ✓');
-      else if (r.status === 'paid') toast('Disetujui ✓ Akun jadi, login muncul di HP pembeli 🎉');
-      else toast(`Pembayaran dicatat, tapi akunnya perlu dibantu: ${r.note || r.status}`);
-      await refresh();
-    } catch (err) { toast(`Gagal: ${err.message}`); (ok || no).disabled = false; }
-    return;
-  }
   const b = e.target.closest('[data-fix]'); if (!b) return;
   const o = orders.find((x) => x.id === b.dataset.id); if (!o) return;
   let email = null;
@@ -603,7 +555,6 @@ async function refresh() {
   promos = pr.error ? null : pr.data;
   const st = await sb.rpc('get_site_settings');
   settings = st.error ? null : (st.data || {});
-  await loadQris();
   render();
   return true;
 }

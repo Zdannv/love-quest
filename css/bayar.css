@@ -55,32 +55,8 @@ body.pay { overflow-x: hidden; }
   #pay-form { padding-bottom: 104px; }
   #pay-go { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 5; box-shadow: 0 6px 0 var(--pink-deep), 0 14px 28px rgba(160,60,120,.3); }
   #pay-form .pay-wa, #pay-form .pay-note:last-of-type { margin-bottom: 0; }
-  /* QRIS aktif: tombol QRIS yang nempel di bawah, transfer bank jadi pilihan biasa */
-  .qris-on #pay-go { position: static; box-shadow: none; }
-  .qris-on #pay-qris-go { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 5; width: auto; }
 }
 .pay-or { display: flex; align-items: center; gap: 10px; color: var(--ink-soft); font-size: 13px; font-weight: 600; }
 .pay-or::before, .pay-or::after { content: ''; flex: 1; height: 1px; background: #f3cfe0; }
 .pay-card .wa-btn { justify-content: center; }
 
-/* QRIS semi-otomatis */
-.pay-qris-btn { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; cursor: pointer; font: inherit; text-align: left; color: #fff; padding: 14px 16px; border-radius: 20px; background: linear-gradient(135deg, var(--pink), var(--pink-deep)); box-shadow: 0 5px 0 #b8336b, 0 12px 24px rgba(232, 85, 143, .25); }
-.pay-qris-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #b8336b; }
-.pay-qris-btn:disabled { opacity: .6; }
-.pay-qris-btn[hidden] { display: none; }
-.pay-qris-btn > span:last-child { display: flex; flex-direction: column; line-height: 1.25; }
-.pay-qris-btn b { font-size: 17px; }
-.pay-qris-btn small { font-size: 12.5px; opacity: .92; font-weight: 600; }
-.pq-ic { flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 12px; background: #fff; color: #d6246e; font-size: 11px; font-weight: 800; letter-spacing: .04em; }
-.pq-amt { display: flex; align-items: baseline; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 12px; border-radius: 16px; background: #fff3f8; }
-.pq-amt small { font-size: 13px; color: var(--ink-soft); font-weight: 600; }
-.pq-amt b { font-size: 30px; color: var(--pink-deep); font-variant-numeric: tabular-nums; }
-.pq-why { margin: 0; text-align: center; font-size: 12.5px; color: var(--ink-soft); }
-.pq-img { display: block; width: min(100%, 300px); margin: 4px auto 0; border-radius: 16px; background: #fff; box-shadow: 0 0 0 1px #f3cfe0; }
-.pq-save { display: block; text-align: center; font-size: 13px; }
-.pq-steps { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.55; color: var(--ink); }
-.pq-file { position: relative; display: block; padding: 14px; border-radius: 16px; border: 2px dashed #f1a8c8; text-align: center; font-weight: 600; color: var(--pink-deep); cursor: pointer; background: #fff; }
-.pq-file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-.pq-prev { display: block; max-width: 100%; max-height: 260px; margin: 0 auto; border-radius: 12px; }
-.pq-prev[hidden], #pw-wa[hidden] { display: none; }
-#pay-wait .wa-btn { margin-top: 6px; }

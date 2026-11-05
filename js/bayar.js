@@ -20,7 +20,7 @@ async function call(body) {
   if (!res.ok || data.error) throw new Error(data.error || `Error ${res.status}`);
   return data;
 }
-const show = (id) => ['#pay-form', '#pay-qris', '#pay-wait', '#pay-done', '#pay-fail'].forEach((s) => ($(s).hidden = s !== id));
+const show = (id) => ['#pay-form', '#pay-wait', '#pay-done', '#pay-fail'].forEach((s) => ($(s).hidden = s !== id));
 
 // ---------- Formulir ----------
 const params = new URLSearchParams(location.search);
@@ -44,7 +44,6 @@ async function checkPromo(code, quiet = false) {
 function renderAmount() {
   const full = PRICE[plan];
   $('#pay-amt').innerHTML = promo ? `<s>${rupiah(full)}</s> ${rupiah(promo.final)}` : rupiah(full);
-  document.querySelectorAll('.pay-amt2').forEach((el) => { el.textContent = rupiah(promo ? promo.final : full); });
 }
 function renderPlans() {
   $('#pay-plans').innerHTML = CONFIG.packages.map((pk, i) => {
@@ -64,7 +63,6 @@ $('#pf-wa').href = wa('Halo! Aku udah coba bayar Love Quest tapi belum berhasil,
 
 $('#pay-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (e.submitter?.id === 'pay-qris-go') { qrisCreate(); return; }
   const btn = $('#pay-go'), err = $('#pay-err');
   err.hidden = true; btn.disabled = true; btn.textContent = 'Nyiapin pembayaran…';
   try {
@@ -76,61 +74,6 @@ $('#pay-form').addEventListener('submit', async (e) => {
     err.textContent = x.message; err.hidden = false;
     btn.disabled = false; btn.innerHTML = 'Bayar <span id="pay-amt"></span> ▶'; renderAmount();
   }
-});
-
-// ---------- QRIS semi-otomatis: bayar nominal unik ke QRIS owner, upload bukti, admin nyetujuin ----------
-let qrisOn = false;
-call({ action: 'qris_info' }).then((r) => {
-  qrisOn = Boolean(r.enabled);
-  $('#pay-qris-go').hidden = !qrisOn;
-  $('#pay-go').classList.toggle('ghost', qrisOn);
-  document.body.classList.toggle('qris-on', qrisOn);
-  if (qrisOn) $('#pay-go').innerHTML = 'Bayar lewat transfer bank / kartu <span id="pay-amt"></span>';
-  renderAmount();
-}).catch(() => {});
-async function qrisCreate() {
-  const btn = $('#pay-qris-go'), err = $('#pay-err');
-  err.hidden = true; btn.disabled = true;
-  try {
-    const r = await call({ action: 'qris_create', plan, promo: promo?.code || undefined, email: $('#pay-email').value, names: { pengirim: $('#pay-pengirim').value, pasangan: $('#pay-pasangan').value } });
-    try { localStorage.setItem(KEY(r.order_id), r.secret); localStorage.setItem('lq-order-last', r.order_id); } catch {}
-    history.replaceState(null, '', `/bayar?order=${r.order_id}`);
-    trackEvent('bayar_qris');
-    showQris(r.order_id, r.amount, r.qris);
-  } catch (x) { err.textContent = x.message; err.hidden = false; }
-  btn.disabled = false;
-}
-let proof = null;
-function showQris(orderId, amount, img) {
-  show('#pay-qris'); window.scrollTo(0, 0);
-  $('#pq-amt').textContent = rupiah(amount); $('#pq-id').textContent = orderId;
-  if (img) { $('#pq-img').src = img; $('#pq-save').href = img; }
-  $('#pq-copy').onclick = async () => { try { await navigator.clipboard.writeText(String(amount)); $('#pq-copy').textContent = 'Disalin ✓'; } catch {} };
-  $('#pq-send').onclick = async () => {
-    if (!proof) return;
-    const btn = $('#pq-send'), err = $('#pq-err');
-    let secret = null; try { secret = localStorage.getItem(KEY(orderId)); } catch {}
-    err.hidden = true; btn.disabled = true; btn.textContent = 'Ngirim…';
-    try {
-      await call({ action: 'qris_proof', order_id: orderId, secret, proof });
-      trackEvent('bayar_qris_proof');
-      track(orderId);
-    } catch (x) { err.textContent = x.message; err.hidden = false; btn.disabled = false; btn.textContent = 'Kirim bukti bayar'; }
-  };
-}
-// Screenshot bukti dikecilin dulu (maks 1400px, JPEG) biar upload-nya cepet
-$('#pq-file').addEventListener('change', async (e) => {
-  const f = e.target.files?.[0]; if (!f) return;
-  try {
-    const bmp = await createImageBitmap(f);
-    const k = Math.min(1, 1400 / Math.max(bmp.width, bmp.height));
-    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
-    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-    proof = c.toDataURL('image/jpeg', 0.82);
-    $('#pq-prev').src = proof; $('#pq-prev').hidden = false;
-    $('#pq-file-txt').textContent = '✅ Bukti kepilih (tap buat ganti)';
-    $('#pq-send').disabled = false;
-  } catch { $('#pq-err').textContent = 'Gambarnya nggak kebaca, coba screenshot lain ya'; $('#pq-err').hidden = false; }
 });
 
 // ---------- Habis bayar ----------
@@ -157,18 +100,6 @@ async function track(orderId) {
       trackEvent('bayar_paid');
       done(login); return;
     }
-    if (r.qris_state === 'qris_wait' && r.status === 'pending') { showQris(orderId, r.amount, r.qris); return; }
-    if (r.qris_state === 'qris_review' && r.status === 'pending') {
-      $('#pay-wait h1').textContent = 'Bukti bayar udah dikirim 🙏';
-      $('#pay-wait-txt').textContent = 'Admin lagi ngecek pembayaranmu, biasanya nggak sampai 15 menit (09.00–21.00 WIB). Biarin halaman ini kebuka, login-nya muncul otomatis begitu disetujui.';
-      $('#pw-wa').hidden = false; $('#pw-wa').href = wa(`Halo! Aku udah bayar Love Quest pakai QRIS (kode ${orderId}), tolong dicek ya 🙏`);
-    }
-    if (r.status === 'failed' && r.qris_state === 'qris_rejected') {
-      show('#pay-fail'); $('#pf-title').textContent = 'Pembayaran QRIS-nya belum bisa dikonfirmasi';
-      $('#pf-txt').textContent = 'Admin belum nemu pembayaranmu di mutasi. Kalau udah beneran bayar, chat admin ya, kirim bukti & kode pesanannya.';
-      $('#pf-wa').href = wa(`Halo! Pembayaran QRIS Love Quest-ku (kode ${orderId}) ditolak, padahal udah bayar 🙏`);
-      return;
-    }
     if (r.status === 'failed') { show('#pay-fail'); return; }
     if (r.status === 'need_help') {
       show('#pay-fail'); $('#pf-title').textContent = 'Pembayaran masuk, tapi akunnya perlu dibantu admin';
@@ -176,7 +107,7 @@ async function track(orderId) {
       $('#pf-wa').href = wa(`Halo! Pembayaran Love Quest-ku udah masuk (kode ${orderId}), tapi akunnya belum jadi 🙏`);
       return;
     }
-    if (Date.now() - t0 > (r.qris_state === 'qris_review' ? 30 * 60000 : 90000)) { // pembayaran belum dilakukan (misalnya transfer bank yang masih nunggu)
+    if (Date.now() - t0 > 90000) { // pembayaran belum dilakukan (misalnya transfer bank yang masih nunggu)
       $('#pay-wait-txt').textContent = 'Pembayaranmu belum masuk. Kalau pakai transfer bank/VA, selesain dulu bayarnya, terus tap Cek lagi.';
       $('#pay-recheck').hidden = false; return;
     }
